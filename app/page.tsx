@@ -1,352 +1,499 @@
 "use client";
 
-import Image from "next/image";
+import { useState } from "react";
 
-export default function Home() {
+export default function WageFlowLandingPage() {
+  const [form, setForm] = useState({
+    name: "",
+    business: "",
+    email: "",
+    phone: "",
+    message: "",
+  });
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    const subject = encodeURIComponent("WageFlow Enquiry");
+    const body = encodeURIComponent(
+      `Name: ${form.name}
+Business: ${form.business}
+Email: ${form.email}
+Phone: ${form.phone}
+
+Message:
+${form.message}`
+    );
+
+    window.location.href = `mailto:info@wageflow.co.za?subject=${subject}&body=${body}`;
+  }
+
   return (
-    <main style={container}>
+    <main style={page}>
       <nav style={nav}>
-        <div>
-          <Image src="/wageflow-logo.png" alt="WageFlow" width={140} height={40} />
-        </div>
+        <div style={brand}>WageFlow</div>
 
         <div style={navLinks}>
-          <a href="#" style={link}>Home</a>
-          <a href="#how" style={link}>How It Works</a>
-          <a href="#pricing" style={link}>Pricing</a>
-          <a href="#contact" style={link}>Contact</a>
-
-          <a href="/login" style={buttonLink}>
-            <button style={cta}>Get Started</button>
-          </a>
+          <a href="#home" style={navLink}>Home</a>
+          <a href="#how-it-works" style={navLink}>How It Works</a>
+          <a href="#pricing" style={navLink}>Pricing</a>
+          <a href="#contact" style={navLink}>Contact</a>
+          <a href="/login" style={loginButton}>Login</a>
         </div>
       </nav>
 
-      <section style={hero}>
-        <h1 style={headline}>Simple payslips and staff records for small businesses</h1>
+      <section id="home" style={hero}>
+        <p style={eyebrow}>Staff Management Simplified</p>
 
-        <p style={tagline}>STAFF MANAGEMENT SIMPLIFIED</p>
+        <h1 style={heroTitle}>
+          Simple payslips, staff records, and payroll organisation for small businesses.
+        </h1>
 
-        <p style={subtext}>
-          WageFlow helps you create payslips, keep staff records, manage UIF,
-          and keep your team organised without complicated payroll systems.
+        <p style={heroText}>
+          WageFlow helps South African small businesses keep employee records,
+          generate payslips, and stay more organised without complicated payroll systems.
         </p>
 
-        <div style={buttons}>
-          <a href="/login" style={buttonLink}>
-            <button style={primaryBtn}>Get Started</button>
-          </a>
-
-          <button style={secondaryBtn}>View Example Payslip</button>
+        <div style={heroActions}>
+          <a href="/signup" style={primaryButton}>Get Started</a>
+          <a href="/example-payslip" style={secondaryButton}>View Example Payslip</a>
         </div>
       </section>
 
-      <section style={features}>
-        <h2 style={sectionTitle}>What WageFlow helps you do</h2>
+      <section id="how-it-works" style={section}>
+        <h2 style={sectionTitle}>How WageFlow Works</h2>
 
         <div style={grid}>
-          <div style={card}>Create simple payslips</div>
-          <div style={card}>Keep employee records</div>
-          <div style={card}>Calculate UIF deductions</div>
-          <div style={card}>Track leave and absence</div>
-          <div style={card}>Record disciplinary actions</div>
-          <div style={card}>Store payslip history</div>
+          <div style={card}>
+            <h3 style={cardTitle}>1. Set up your business</h3>
+            <p style={cardText}>
+              Add your business details, contact information, and company logo
+              for branded payslips.
+            </p>
+          </div>
+
+          <div style={card}>
+            <h3 style={cardTitle}>2. Add your employees</h3>
+            <p style={cardText}>
+              Capture staff details, employment records, pay information, and
+              basic employee history.
+            </p>
+          </div>
+
+          <div style={card}>
+            <h3 style={cardTitle}>3. Generate payslips</h3>
+            <p style={cardText}>
+              Create clear monthly payslips that employees can download and
+              businesses can keep for records.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section id="how" style={howSection}>
-        <h2 style={sectionTitle}>How WageFlow works</h2>
+      <section id="pricing" style={sectionAlt}>
+        <h2 style={sectionTitle}>Simple Pricing</h2>
 
-        <div style={steps}>
-          <div style={step}>Add your business and staff</div>
-          <div style={step}>Capture earnings and deductions</div>
-          <div style={step}>Generate payslips instantly</div>
-          <div style={step}>Employees access payslips anytime</div>
+        <p style={sectionIntro}>
+          Built for small teams that need structure, records, and professional payslips.
+        </p>
+
+        <div style={pricingGrid}>
+          <div style={priceCard}>
+            <h3 style={planName}>WageFlow Starter</h3>
+            <p style={price}>R149 <span style={small}>per month</span></p>
+            <p style={planRange}>For 1 to 10 employees</p>
+
+            <ul style={list}>
+              <li>Staff records management</li>
+              <li>Monthly payslip generation</li>
+              <li>Downloadable payslips</li>
+              <li>Basic employee record keeping</li>
+              <li>Employer dashboard access</li>
+            </ul>
+          </div>
+
+          <div style={priceCard}>
+            <h3 style={planName}>WageFlow Growth</h3>
+            <p style={price}>R249 <span style={small}>per month</span></p>
+            <p style={planRange}>For 11 to 20 employees</p>
+
+            <ul style={list}>
+              <li>Everything in Starter</li>
+              <li>Expanded employee capacity</li>
+              <li>Payslip history tracking</li>
+              <li>Reports and summaries</li>
+              <li>Staff record organisation</li>
+            </ul>
+          </div>
         </div>
-      </section>
 
-      <section id="pricing" style={pricingSection}>
-        <h2 style={sectionTitle}>Simple pricing</h2>
-
-        <div style={pricingCard}>
-          <p style={planName}>WageFlow Starter</p>
-          <p style={price}>R99/month</p>
-          <p style={setup}>R499 once-off setup fee required</p>
-
-          <p style={pricingText}>
-            Includes business setup, payslip branding, staff setup guidance,
-            employee access, and simple payroll record keeping.
+        <div style={setupBox}>
+          <h3 style={setupTitle}>Once-off Setup Fee: R499</h3>
+          <p style={cardText}>
+            Setup includes business profile setup, company logo upload for the
+            payslip watermark, employer account configuration, employee structure
+            setup, payslip template setup, and guided onboarding support.
           </p>
-
-          <a href="/login" style={buttonLink}>
-            <button style={primaryBtn}>Start Setup</button>
-          </a>
         </div>
       </section>
 
-      <section id="contact" style={contactSection}>
-        <h2 style={sectionTitle}>Ready to organise your staff records?</h2>
+      <section id="contact" style={section}>
+        <h2 style={sectionTitle}>Contact WageFlow</h2>
 
-        <p style={contactText}>
-          Start with WageFlow and keep payslips, staff details, leave records,
-          disciplinary notes, and payroll history in one place.
+        <p style={sectionIntro}>
+          Ready to organise your staff records and payslips? Send us your details.
         </p>
 
-        <a href="/login" style={buttonLink}>
-          <button style={primaryBtn}>Get Started</button>
-        </a>
-      </section>
+        <div style={contactGrid}>
+          <form onSubmit={handleSubmit} style={formStyle}>
+            <input
+              style={input}
+              placeholder="Your name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
 
-      <section style={complianceSection}>
-        <p style={complianceText}>
-          WageFlow provides tools for payslip generation, staff record management,
-          UIF calculations, and basic payroll record keeping. Employers remain
-          responsible for ensuring compliance with SARS, UIF, and applicable
-          labour regulations.
-        </p>
+            <input
+              style={input}
+              placeholder="Business name"
+              value={form.business}
+              onChange={(e) => setForm({ ...form, business: e.target.value })}
+              required
+            />
+
+            <input
+              style={input}
+              type="email"
+              placeholder="Email address"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+
+            <input
+              style={input}
+              placeholder="Phone number"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              required
+            />
+
+            <textarea
+              style={textarea}
+              placeholder="Tell us what you need help with"
+              value={form.message}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
+              required
+            />
+
+            <button type="submit" style={primaryButton}>
+              Send Enquiry
+            </button>
+          </form>
+
+          <div style={contactCard}>
+            <h3 style={cardTitle}>WageFlow Contact Details</h3>
+
+            <p style={contactText}>
+              Email: <a href="mailto:info@wageflow.co.za" style={textLink}>info@wageflow.co.za</a>
+            </p>
+
+            <p style={contactText}>
+              Website: <a href="https://www.wageflow.co.za" style={textLink}>www.wageflow.co.za</a>
+            </p>
+
+            <p style={contactText}>
+              Call: <a href="tel:+27763616044" style={textLink}>076 361 6044</a>
+            </p>
+
+            <p style={contactText}>
+              WhatsApp: <a href="https://wa.me/27763616044" style={textLink}>076 361 6044</a>
+            </p>
+
+            <p style={finePrint}>
+              POPIA Information Regulator registration number: 020262610141
+            </p>
+          </div>
+        </div>
       </section>
 
       <footer style={footer}>
-        <p>© WageFlow. Staff Management Simplified</p>
-        <p style={footerLine}>Powered by Lesedi Smart Solutions (Pty) Ltd</p>
-        <p style={footerSmall}>Registration No: 2026/315790/07</p>
-        <p style={footerSmall}>
-          Information Regulator Registration No: 2027-010141
-        </p>
+        <p>© {new Date().getFullYear()} WageFlow. All rights reserved.</p>
+        <p>Powered by Lesedi Smart Solutions</p>
       </footer>
     </main>
   );
 }
 
-const container = {
+const page = {
   fontFamily: "Arial, sans-serif",
-  backgroundColor: "#ffffff",
+  color: "#102a43",
+  background: "#f7fafc",
 };
 
 const nav = {
+  position: "sticky" as const,
+  top: 0,
+  zIndex: 10,
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  padding: "20px 40px",
-  borderBottom: "1px solid #eee",
-  position: "sticky" as const,
-  top: 0,
-  backgroundColor: "#ffffff",
-  zIndex: 10,
+  padding: "18px 7%",
+  background: "#ffffff",
+  borderBottom: "1px solid #e2e8f0",
+};
+
+const brand = {
+  fontSize: 24,
+  fontWeight: 800,
+  color: "#0f766e",
 };
 
 const navLinks = {
   display: "flex",
-  gap: "20px",
+  gap: 18,
   alignItems: "center",
-};
-
-const link = {
-  fontSize: "14px",
-  color: "#333",
-  cursor: "pointer",
-  textDecoration: "none",
-};
-
-const buttonLink = {
-  textDecoration: "none",
-};
-
-const cta = {
-  backgroundColor: "#0f766e",
-  color: "#fff",
-  padding: "8px 16px",
-  borderRadius: "6px",
-  border: "none",
-  cursor: "pointer",
-};
-
-const hero = {
-  textAlign: "center" as const,
-  padding: "80px 20px",
-};
-
-const headline = {
-  fontSize: "32px",
-  fontWeight: "600",
-  color: "#0f766e",
-  maxWidth: "640px",
-  margin: "0 auto",
-};
-
-const tagline = {
-  fontSize: "12px",
-  letterSpacing: "3px",
-  marginTop: "10px",
-  color: "#888",
-};
-
-const subtext = {
-  marginTop: "20px",
-  fontSize: "16px",
-  color: "#555",
-  maxWidth: "560px",
-  marginLeft: "auto",
-  marginRight: "auto",
-  lineHeight: "1.6",
-};
-
-const buttons = {
-  marginTop: "30px",
-  display: "flex",
-  justifyContent: "center",
-  gap: "15px",
   flexWrap: "wrap" as const,
 };
 
-const primaryBtn = {
-  backgroundColor: "#0f766e",
-  color: "#fff",
-  padding: "12px 20px",
-  borderRadius: "6px",
-  border: "none",
-  cursor: "pointer",
+const navLink = {
+  color: "#334e68",
+  textDecoration: "none",
+  fontSize: 15,
+  fontWeight: 600,
 };
 
-const secondaryBtn = {
-  backgroundColor: "#fff",
-  color: "#0f766e",
-  padding: "12px 20px",
-  borderRadius: "6px",
-  border: "1px solid #0f766e",
-  cursor: "pointer",
+const loginButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  padding: "10px 18px",
+  borderRadius: 999,
+  textDecoration: "none",
+  fontWeight: 700,
 };
 
-const features = {
-  padding: "60px 20px",
+const hero = {
+  padding: "90px 7%",
   textAlign: "center" as const,
-  backgroundColor: "#fafafa",
+  background: "linear-gradient(180deg, #ecfdf5 0%, #f7fafc 100%)",
+};
+
+const eyebrow = {
+  color: "#0f766e",
+  fontWeight: 800,
+  letterSpacing: 1,
+  textTransform: "uppercase" as const,
+};
+
+const heroTitle = {
+  maxWidth: 850,
+  margin: "0 auto",
+  fontSize: 48,
+  lineHeight: 1.1,
+  color: "#102a43",
+};
+
+const heroText = {
+  maxWidth: 720,
+  margin: "24px auto",
+  fontSize: 18,
+  lineHeight: 1.7,
+  color: "#486581",
+};
+
+const heroActions = {
+  display: "flex",
+  justifyContent: "center",
+  gap: 14,
+  flexWrap: "wrap" as const,
+};
+
+const primaryButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  padding: "14px 24px",
+  borderRadius: 999,
+  border: "none",
+  textDecoration: "none",
+  fontWeight: 800,
+  cursor: "pointer",
+  display: "inline-block",
+};
+
+const secondaryButton = {
+  background: "#ffffff",
+  color: "#0f766e",
+  padding: "14px 24px",
+  borderRadius: 999,
+  border: "1px solid #0f766e",
+  textDecoration: "none",
+  fontWeight: 800,
+};
+
+const section = {
+  padding: "70px 7%",
+};
+
+const sectionAlt = {
+  padding: "70px 7%",
+  background: "#ffffff",
 };
 
 const sectionTitle = {
-  fontSize: "22px",
-  marginBottom: "30px",
-  color: "#1f2937",
+  textAlign: "center" as const,
+  fontSize: 34,
+  marginBottom: 12,
+};
+
+const sectionIntro = {
+  textAlign: "center" as const,
+  maxWidth: 700,
+  margin: "0 auto 36px",
+  color: "#486581",
+  fontSize: 17,
+  lineHeight: 1.7,
 };
 
 const grid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-  gap: "20px",
-  maxWidth: "850px",
-  margin: "0 auto",
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gap: 20,
 };
 
 const card = {
-  padding: "20px",
-  border: "1px solid #eee",
-  borderRadius: "10px",
-  backgroundColor: "#ffffff",
-  color: "#374151",
+  background: "#ffffff",
+  padding: 28,
+  borderRadius: 18,
+  border: "1px solid #e2e8f0",
 };
 
-const howSection = {
-  padding: "60px 20px",
-  textAlign: "center" as const,
+const cardTitle = {
+  marginTop: 0,
+  color: "#102a43",
 };
 
-const steps = {
+const cardText = {
+  color: "#486581",
+  lineHeight: 1.7,
+};
+
+const pricingGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-  gap: "20px",
-  maxWidth: "850px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: 22,
+  maxWidth: 900,
   margin: "0 auto",
 };
 
-const step = {
-  padding: "20px",
-  border: "1px solid #e5e7eb",
-  borderRadius: "10px",
-  backgroundColor: "#ffffff",
-  color: "#374151",
-};
-
-const pricingSection = {
-  padding: "60px 20px",
-  textAlign: "center" as const,
-  backgroundColor: "#fafafa",
-};
-
-const pricingCard = {
-  maxWidth: "420px",
-  margin: "0 auto",
-  padding: "30px",
-  border: "1px solid #e5e7eb",
-  borderRadius: "14px",
-  backgroundColor: "#ffffff",
+const priceCard = {
+  background: "#f7fafc",
+  padding: 30,
+  borderRadius: 20,
+  border: "1px solid #d9e2ec",
 };
 
 const planName = {
-  fontSize: "18px",
-  fontWeight: "600",
-  color: "#0f766e",
+  fontSize: 22,
+  marginTop: 0,
 };
 
 const price = {
-  fontSize: "30px",
-  fontWeight: "700",
-  marginTop: "10px",
-  color: "#111827",
+  fontSize: 38,
+  fontWeight: 900,
+  color: "#0f766e",
+  margin: "12px 0",
 };
 
-const setup = {
-  fontSize: "14px",
-  marginTop: "6px",
-  color: "#b8860b",
+const small = {
+  fontSize: 15,
+  color: "#486581",
 };
 
-const pricingText = {
-  fontSize: "14px",
-  lineHeight: "1.6",
-  color: "#555",
-  marginTop: "18px",
-  marginBottom: "22px",
+const planRange = {
+  fontWeight: 700,
+  color: "#334e68",
 };
 
-const contactSection = {
-  padding: "60px 20px",
-  textAlign: "center" as const,
+const list = {
+  lineHeight: 2,
+  color: "#486581",
+};
+
+const setupBox = {
+  maxWidth: 900,
+  margin: "24px auto 0",
+  background: "#ecfdf5",
+  padding: 26,
+  borderRadius: 18,
+  border: "1px solid #99f6e4",
+};
+
+const setupTitle = {
+  marginTop: 0,
+  color: "#0f766e",
+};
+
+const contactGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: 24,
+  maxWidth: 1000,
+  margin: "0 auto",
+};
+
+const formStyle = {
+  display: "grid",
+  gap: 14,
+  background: "#ffffff",
+  padding: 26,
+  borderRadius: 18,
+  border: "1px solid #e2e8f0",
+};
+
+const input = {
+  padding: 14,
+  borderRadius: 12,
+  border: "1px solid #bcccdc",
+  fontSize: 15,
+};
+
+const textarea = {
+  padding: 14,
+  borderRadius: 12,
+  border: "1px solid #bcccdc",
+  fontSize: 15,
+  minHeight: 130,
+};
+
+const contactCard = {
+  background: "#ffffff",
+  padding: 28,
+  borderRadius: 18,
+  border: "1px solid #e2e8f0",
 };
 
 const contactText = {
-  maxWidth: "560px",
-  margin: "0 auto 24px",
-  color: "#555",
-  lineHeight: "1.6",
+  color: "#334e68",
+  lineHeight: 1.7,
 };
 
-const complianceSection = {
-  padding: "40px 20px",
-  textAlign: "center" as const,
+const textLink = {
+  color: "#0f766e",
+  fontWeight: 700,
 };
 
-const complianceText = {
-  fontSize: "13px",
-  color: "#777",
-  maxWidth: "680px",
-  margin: "0 auto",
-  lineHeight: "1.6",
+const finePrint = {
+  marginTop: 24,
+  fontSize: 13,
+  color: "#627d98",
+  lineHeight: 1.6,
 };
 
 const footer = {
+  padding: "28px 7%",
   textAlign: "center" as const,
-  padding: "30px",
-  borderTop: "1px solid #eee",
-  fontSize: "14px",
-  color: "#888",
-};
-
-const footerLine = {
-  marginTop: "6px",
-};
-
-const footerSmall = {
-  marginTop: "4px",
-  fontSize: "12px",
-  color: "#aaa",
+  background: "#102a43",
+  color: "#ffffff",
+  fontSize: 14,
 };
