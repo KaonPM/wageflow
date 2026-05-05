@@ -166,132 +166,127 @@ ${form.message}`
       </section>
 
       <section id="contact" style={section}>
-        <h2 style={sectionTitle}>Contact WageFlow</h2>
+  <h2 style={sectionTitle}>Contact WageFlow</h2>
 
-        <p style={sectionIntro}>
-          Ready to organise your staff records and payslips? Choose an option
-          below.
+  <p style={sectionIntro}>
+    Ready to organise your staff records and payslips? Choose an option below.
+  </p>
+
+  <div style={contactToggleWrap}>
+    <button
+      type="button"
+      style={openContact === "form" ? contactToggleActive : contactToggle}
+      onClick={() => setOpenContact(openContact === "form" ? null : "form")}
+    >
+      Send Enquiry
+    </button>
+
+    <button
+      type="button"
+      style={openContact === "details" ? contactToggleActive : contactToggle}
+      onClick={() =>
+        setOpenContact(openContact === "details" ? null : "details")
+      }
+    >
+      Contact Details
+    </button>
+  </div>
+
+  {openContact === "form" && (
+    <form onSubmit={handleSubmit} style={formStyle}>
+      <input
+        style={input}
+        placeholder="Your name"
+        value={form.name}
+        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        required
+      />
+
+      <input
+        style={input}
+        placeholder="Business name"
+        value={form.business}
+        onChange={(e) => setForm({ ...form, business: e.target.value })}
+        required
+      />
+
+      <input
+        style={input}
+        type="email"
+        placeholder="Email address"
+        value={form.email}
+        onChange={(e) => setForm({ ...form, email: e.target.value })}
+        required
+      />
+
+      <input
+        style={input}
+        placeholder="Phone number"
+        value={form.phone}
+        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+        required
+      />
+
+      <textarea
+        style={textarea}
+        placeholder="Tell us what you need help with"
+        value={form.message}
+        onChange={(e) => setForm({ ...form, message: e.target.value })}
+        required
+      />
+
+      <button type="submit" style={primaryButton}>
+        Send Enquiry
+      </button>
+    </form>
+  )}
+
+  {openContact === "details" && (
+    <div style={contactCard}>
+      <h3 style={cardTitle}>WageFlow Contact Details</h3>
+
+      <div style={contactDetails}>
+        <p style={contactText}>
+          Email:{" "}
+          <a href="mailto:info@wageflow.co.za" style={textLink}>
+            info@wageflow.co.za
+          </a>
         </p>
 
-        <div style={contactToggleWrap}>
-          <button
-            type="button"
-            style={openContact === "form" ? contactToggleActive : contactToggle}
-            onClick={() =>
-              setOpenContact(openContact === "form" ? null : "form")
-            }
+        <p style={contactText}>
+          Website:{" "}
+          <a
+            href="https://www.wageflow.co.za"
+            target="_blank"
+            rel="noreferrer"
+            style={textLink}
           >
-            Send Enquiry
-          </button>
+            www.wageflow.co.za
+          </a>
+        </p>
 
-          <button
-            type="button"
-            style={
-              openContact === "details" ? contactToggleActive : contactToggle
-            }
-            onClick={() =>
-              setOpenContact(openContact === "details" ? null : "details")
-            }
+        <p style={contactText}>
+          Call:{" "}
+          <a href="tel:+27763616044" style={textLink}>
+            076 361 6044
+          </a>
+        </p>
+
+        <p style={contactText}>
+          WhatsApp:{" "}
+          <a
+            href="https://wa.me/27763616044"
+            target="_blank"
+            rel="noreferrer"
+            style={textLink}
           >
-            Contact Details
-          </button>
-        </div>
-
-        {openContact === "form" && (
-          <form onSubmit={handleSubmit} style={formStyle}>
-            <input
-              style={input}
-              placeholder="Your name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-
-            <input
-              style={input}
-              placeholder="Business name"
-              value={form.business}
-              onChange={(e) => setForm({ ...form, business: e.target.value })}
-              required
-            />
-
-            <input
-              style={input}
-              type="email"
-              placeholder="Email address"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-            />
-
-            <input
-              style={input}
-              placeholder="Phone number"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              required
-            />
-
-            <textarea
-              style={textarea}
-              placeholder="Tell us what you need help with"
-              value={form.message}
-              onChange={(e) => setForm({ ...form, message: e.target.value })}
-              required
-            />
-
-            <button type="submit" style={primaryButton}>
-              Send Enquiry
-            </button>
-          </form>
-        )}
-
-        {openContact === "details" && (
-          <div style={contactCard}>
-            <h3 style={cardTitle}>WageFlow Contact Details</h3>
-
-            <div style={contactDetails}>
-              <p style={contactText}>
-                Email:{" "}
-                <a href="mailto:info@wageflow.co.za" style={textLink}>
-                  info@wageflow.co.za
-                </a>
-              </p>
-
-              <p style={contactText}>
-                Website:{" "}
-                <a
-                  href="https://www.wageflow.co.za"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={textLink}
-                >
-                  www.wageflow.co.za
-                </a>
-              </p>
-
-              <p style={contactText}>
-                Call:{" "}
-                <a href="tel:+27763616044" style={textLink}>
-                  076 361 6044
-                </a>
-              </p>
-
-              <p style={contactText}>
-                WhatsApp:{" "}
-                <a
-                  href="https://wa.me/27763616044"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={textLink}
-                >
-                  076 361 6044
-                </a>
-              </p>
-            </div>
-          </div>
-        )}
-      </section>
+            076 361 6044
+          </a>
+        </p>
+      </div>
+    </div>
+  )}
+</section>
 
       <footer style={footer}>
         <p>© {new Date().getFullYear()} WageFlow. All rights reserved.</p>
