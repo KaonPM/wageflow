@@ -33,7 +33,9 @@ ${form.message}`
   return (
     <main style={page}>
       <nav style={nav}>
-        <div style={brand}>WageFlow</div>
+        <div style={brand}>
+          <img src="/wageflow-logo.png" alt="WageFlow Logo" style={logo} />
+        </div>
 
         <div style={navLinks}>
           <a href="#home" style={navLink}>Home</a>
@@ -306,9 +308,15 @@ const nav = {
 };
 
 const brand = {
-  fontSize: 24,
-  fontWeight: 800,
-  color: "#0f766e",
+  display: "flex",
+  alignItems: "center",
+};
+
+const logo = {
+  height: 42,
+  width: "auto",
+  objectFit: "contain" as const,
+  display: "block",
 };
 
 const navLinks = {
