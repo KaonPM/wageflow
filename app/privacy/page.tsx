@@ -60,10 +60,11 @@ export default function PrivacyPage() {
         </p>
 
         <h3>9. Information Regulator</h3>
-        <p>
-          Information Regulator Registration Number: 2026-010141
-      </div>
-    </main>
+<p>
+  Information Regulator Registration Number: 2026-010141
+</p>
+  </div>
+  </main>
   );
 }
 
