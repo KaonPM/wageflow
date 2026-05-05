@@ -11,6 +11,8 @@ export default function WageFlowLandingPage() {
     message: "",
   });
 
+  const [showContactDetails, setShowContactDetails] = useState(false);
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -46,12 +48,12 @@ ${form.message}`
         <p style={eyebrow}>Staff Management Simplified</p>
 
         <h1 style={heroTitle}>
-          Simple payslips, staff records, and payroll organisation for small businesses.
+          Simple payslips, staff records and payroll organisation for small businesses.
         </h1>
 
         <p style={heroText}>
           WageFlow helps South African small businesses keep employee records,
-          generate payslips, and stay more organised without complicated payroll systems.
+          generate payslips and stay more organised without complicated payroll systems.
         </p>
 
         <div style={heroActions}>
@@ -67,7 +69,7 @@ ${form.message}`
           <div style={card}>
             <h3 style={cardTitle}>1. Set up your business</h3>
             <p style={cardText}>
-              Add your business details, contact information, and company logo
+              Add your business details, contact information and company logo
               for branded payslips.
             </p>
           </div>
@@ -75,7 +77,7 @@ ${form.message}`
           <div style={card}>
             <h3 style={cardTitle}>2. Add your employees</h3>
             <p style={cardText}>
-              Capture staff details, employment records, pay information, and
+              Capture staff details, employment records, pay information and
               basic employee history.
             </p>
           </div>
@@ -94,7 +96,7 @@ ${form.message}`
         <h2 style={sectionTitle}>Simple Pricing</h2>
 
         <p style={sectionIntro}>
-          Built for small teams that need structure, records, and professional payslips.
+          Built for small teams that need structure, records and professional payslips.
         </p>
 
         <div style={pricingGrid}>
@@ -193,27 +195,30 @@ ${form.message}`
           </form>
 
           <div style={contactCard}>
-            <h3 style={cardTitle}>WageFlow Contact Details</h3>
+            <h3 style={cardTitle}>WageFlow Contact Options</h3>
 
-            <p style={contactText}>
-              Email: <a href="mailto:info@wageflow.co.za" style={textLink}>info@wageflow.co.za</a>
-            </p>
+            <div style={contactButtons}>
+              <a href="mailto:info@wageflow.co.za" style={contactBtn}>Email WageFlow</a>
+              <a href="https://www.wageflow.co.za" target="_blank" style={contactBtn}>Visit Website</a>
+              <a href="tel:+27763616044" style={contactBtn}>Call</a>
+              <a href="https://wa.me/27763616044" target="_blank" style={contactBtn}>WhatsApp</a>
+            </div>
 
-            <p style={contactText}>
-              Website: <a href="https://www.wageflow.co.za" style={textLink}>www.wageflow.co.za</a>
-            </p>
+            <button
+              type="button"
+              style={toggleButton}
+              onClick={() => setShowContactDetails(!showContactDetails)}
+            >
+              {showContactDetails ? "Hide Contact Details" : "Show Contact Details"}
+            </button>
 
-            <p style={contactText}>
-              Call: <a href="tel:+27763616044" style={textLink}>076 361 6044</a>
-            </p>
-
-            <p style={contactText}>
-              WhatsApp: <a href="https://wa.me/27763616044" style={textLink}>076 361 6044</a>
-            </p>
-
-            <p style={finePrint}>
-              POPIA Information Regulator registration number: 020262610141
-            </p>
+            {showContactDetails && (
+              <div style={contactDetails}>
+                <p style={contactText}>Email: info@wageflow.co.za</p>
+                <p style={contactText}>Website: www.wageflow.co.za</p>
+                <p style={contactText}>Phone / WhatsApp: 076 361 6044</p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -221,6 +226,23 @@ ${form.message}`
       <footer style={footer}>
         <p>© {new Date().getFullYear()} WageFlow. All rights reserved.</p>
         <p>Powered by Lesedi Smart Solutions</p>
+
+        <p style={footerSmall}>
+          Lesedi Smart Solutions Registration Number: 2026/315790/07
+        </p>
+
+        <p style={footerSmall}>
+          Information Regulator Registration Number: 2026-010141
+        </p>
+
+        <p style={footerDisclaimer}>
+          WageFlow is a staff record and payslip management tool. WageFlow does
+          not act as a payroll bureau, tax practitioner, accountant, labour
+          consultant or SARS submission agent. Employers remain responsible for
+          verifying payroll information, statutory deductions, UIF, PAYE, SDL,
+          employment records and any required submissions to SARS, the
+          Department of Employment and Labour or other authorities.
+        </p>
       </footer>
     </main>
   );
@@ -473,27 +495,65 @@ const contactCard = {
   border: "1px solid #e2e8f0",
 };
 
+const contactButtons = {
+  display: "flex",
+  gap: 12,
+  flexWrap: "wrap" as const,
+  marginTop: 18,
+};
+
+const contactBtn = {
+  background: "#ffffff",
+  border: "1px solid #0f766e",
+  color: "#0f766e",
+  padding: "12px 18px",
+  borderRadius: 999,
+  textDecoration: "none",
+  fontWeight: 700,
+};
+
+const toggleButton = {
+  marginTop: 20,
+  background: "#0f766e",
+  color: "#ffffff",
+  padding: "12px 18px",
+  borderRadius: 999,
+  border: "none",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const contactDetails = {
+  marginTop: 18,
+  padding: 18,
+  borderRadius: 14,
+  background: "#f7fafc",
+  border: "1px solid #d9e2ec",
+};
+
 const contactText = {
   color: "#334e68",
   lineHeight: 1.7,
 };
 
-const textLink = {
-  color: "#0f766e",
-  fontWeight: 700,
-};
-
-const finePrint = {
-  marginTop: 24,
-  fontSize: 13,
-  color: "#627d98",
-  lineHeight: 1.6,
-};
-
 const footer = {
-  padding: "28px 7%",
+  padding: "32px 7%",
   textAlign: "center" as const,
   background: "#102a43",
   color: "#ffffff",
   fontSize: 14,
+};
+
+const footerSmall = {
+  fontSize: 13,
+  opacity: 0.85,
+  marginTop: 6,
+};
+
+const footerDisclaimer = {
+  fontSize: 12,
+  opacity: 0.75,
+  maxWidth: 850,
+  margin: "14px auto 0",
+  lineHeight: 1.6,
 };
