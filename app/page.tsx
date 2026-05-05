@@ -11,7 +11,9 @@ export default function WageFlowLandingPage() {
     message: "",
   });
 
-  const [openContact, setOpenContact] = useState<"form" | "details" | null>(null);
+  const [openContact, setOpenContact] = useState<"form" | "details" | null>(
+    null
+  );
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -38,11 +40,21 @@ ${form.message}`
         </div>
 
         <div style={navLinks}>
-          <a href="#home" style={navLink}>Home</a>
-          <a href="#how-it-works" style={navLink}>How It Works</a>
-          <a href="#pricing" style={navLink}>Pricing</a>
-          <a href="#contact" style={navLink}>Contact</a>
-          <a href="/login" style={loginButton}>Login</a>
+          <a href="#home" style={navLink}>
+            Home
+          </a>
+          <a href="#how-it-works" style={navLink}>
+            How It Works
+          </a>
+          <a href="#pricing" style={navLink}>
+            Pricing
+          </a>
+          <a href="#contact" style={navLink}>
+            Contact
+          </a>
+          <a href="/login" style={loginButton}>
+            Login
+          </a>
         </div>
       </nav>
 
@@ -50,17 +62,23 @@ ${form.message}`
         <p style={eyebrow}>Staff Management Simplified</p>
 
         <h1 style={heroTitle}>
-          Simple payslips, staff records and payroll organisation for small businesses.
+          Simple payslips, staff records and payroll organisation for small
+          businesses.
         </h1>
 
         <p style={heroText}>
           WageFlow helps South African small businesses keep employee records,
-          generate payslips and stay more organised without complicated payroll systems.
+          generate payslips and stay more organised without complicated payroll
+          systems.
         </p>
 
         <div style={heroActions}>
-          <a href="/signup" style={primaryButton}>Get Started</a>
-          <a href="/example-payslip" style={secondaryButton}>View Example Payslip</a>
+          <a href="/signup" style={primaryButton}>
+            Get Started
+          </a>
+          <a href="/example-payslip" style={secondaryButton}>
+            View Example Payslip
+          </a>
         </div>
       </section>
 
@@ -98,13 +116,16 @@ ${form.message}`
         <h2 style={sectionTitle}>Simple Pricing</h2>
 
         <p style={sectionIntro}>
-          Built for small teams that need structure, records and professional payslips.
+          Built for small teams that need structure, records and professional
+          payslips.
         </p>
 
         <div style={pricingGrid}>
           <div style={priceCard}>
             <h3 style={planName}>WageFlow Starter</h3>
-            <p style={price}>R149 <span style={small}>per month</span></p>
+            <p style={price}>
+              R149 <span style={small}>per month</span>
+            </p>
             <p style={planRange}>For 1 to 10 employees</p>
 
             <ul style={list}>
@@ -118,7 +139,9 @@ ${form.message}`
 
           <div style={priceCard}>
             <h3 style={planName}>WageFlow Growth</h3>
-            <p style={price}>R249 <span style={small}>per month</span></p>
+            <p style={price}>
+              R249 <span style={small}>per month</span>
+            </p>
             <p style={planRange}>For 11 to 20 employees</p>
 
             <ul style={list}>
@@ -135,8 +158,9 @@ ${form.message}`
           <h3 style={setupTitle}>Once-off Setup Fee: R499</h3>
           <p style={cardText}>
             Setup includes business profile setup, company logo upload for the
-            payslip watermark, employer account configuration, employee structure
-            setup, payslip template setup, and guided onboarding support.
+            payslip watermark, employer account configuration, employee
+            structure setup, payslip template setup, and guided onboarding
+            support.
           </p>
         </div>
       </section>
@@ -145,21 +169,26 @@ ${form.message}`
         <h2 style={sectionTitle}>Contact WageFlow</h2>
 
         <p style={sectionIntro}>
-          Ready to organise your staff records and payslips? Choose an option below.
+          Ready to organise your staff records and payslips? Choose an option
+          below.
         </p>
 
         <div style={contactToggleWrap}>
           <button
             type="button"
             style={openContact === "form" ? contactToggleActive : contactToggle}
-            onClick={() => setOpenContact(openContact === "form" ? null : "form")}
+            onClick={() =>
+              setOpenContact(openContact === "form" ? null : "form")
+            }
           >
             Send Enquiry
           </button>
 
           <button
             type="button"
-            style={openContact === "details" ? contactToggleActive : contactToggle}
+            style={
+              openContact === "details" ? contactToggleActive : contactToggle
+            }
             onClick={() =>
               setOpenContact(openContact === "details" ? null : "details")
             }
@@ -302,19 +331,21 @@ const nav = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  padding: "18px 7%",
+  padding: "10px 5%",
   background: "#ffffff",
-  borderBottom: "1px solid #e2e8f0",
+  borderBottom: "1px solid #d9e2ec",
+  boxShadow: "0 4px 16px rgba(15, 118, 110, 0.10)",
 };
 
 const brand = {
   display: "flex",
   alignItems: "center",
+  transform: "translateY(-2px)",
 };
 
 const logo = {
-  height: 42,
-  width: "auto",
+  width: 250,
+  height: "auto",
   objectFit: "contain" as const,
   display: "block",
 };
@@ -327,23 +358,24 @@ const navLinks = {
 };
 
 const navLink = {
-  color: "#334e68",
+  color: "#102a43",
   textDecoration: "none",
-  fontSize: 15,
-  fontWeight: 600,
+  fontSize: 16,
+  fontWeight: 800,
 };
 
 const loginButton = {
   background: "#0f766e",
   color: "#ffffff",
-  padding: "10px 18px",
+  padding: "12px 22px",
   borderRadius: 999,
   textDecoration: "none",
-  fontWeight: 700,
+  fontWeight: 800,
+  boxShadow: "0 8px 18px rgba(15, 118, 110, 0.22)",
 };
 
 const hero = {
-  padding: "90px 7%",
+  padding: "50px 7% 70px",
   textAlign: "center" as const,
   background: "linear-gradient(180deg, #ecfdf5 0%, #f7fafc 100%)",
 };
@@ -358,8 +390,8 @@ const eyebrow = {
 const heroTitle = {
   maxWidth: 850,
   margin: "0 auto",
-  fontSize: 48,
-  lineHeight: 1.1,
+  fontSize: 38,
+  lineHeight: 1.2,
   color: "#102a43",
 };
 
