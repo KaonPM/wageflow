@@ -3,104 +3,145 @@
 import { useState } from "react";
 import Link from "next/link";
 
-export default function GetStartedGate() {
+export default function GetStartedPage() {
   const [accepted, setAccepted] = useState(false);
+
+  function handleContinue() {
+    if (!accepted) return;
+
+    localStorage.setItem("wageflow_terms_accepted", "true");
+    localStorage.setItem("wageflow_terms_accepted_at", new Date().toISOString());
+
+    window.location.href = "/signup";
+  }
 
   return (
     <main style={page}>
-      <div style={card}>
-        <h1 style={title}>Before you get started</h1>
+      <section style={card}>
+        <Link href="/" style={homeButton}>← Home</Link>
+
+        <img src="/wageflow-logo.png" alt="WageFlow Logo" style={logo} />
+
+        <h1 style={title}>Before we start your WageFlow setup</h1>
 
         <p style={text}>
-          Please review and accept our Privacy Policy and Terms & Conditions before creating your account.
+          WageFlow setup is completed by the WageFlow team after your request is submitted.
+          Please review and accept the Privacy Policy and Terms & Conditions before continuing.
         </p>
 
-        <div style={links}>
-          <Link href="/privacy" style={link}>Privacy Policy</Link>
-          <Link href="/terms" style={link}>Terms & Conditions</Link>
+        <div style={linkRow}>
+          <Link href="/privacy" style={docLink}>Privacy Policy</Link>
+          <Link href="/terms" style={docLink}>Terms & Conditions</Link>
         </div>
 
-        <label style={checkboxWrap}>
+        <label style={checkWrap}>
           <input
             type="checkbox"
             checked={accepted}
             onChange={() => setAccepted(!accepted)}
           />
-          <span style={checkboxText}>
-            I have read and agree to the Privacy Policy and Terms & Conditions
+          <span>
+            I have read and agree to the WageFlow Privacy Policy and Terms & Conditions.
           </span>
         </label>
 
-        <Link
-          href={accepted ? "/signup" : "#"}
-          style={accepted ? button : buttonDisabled}
+        <button
+          type="button"
+          onClick={handleContinue}
+          disabled={!accepted}
+          style={accepted ? button : disabledButton}
         >
-          Continue to Sign Up
-        </Link>
-      </div>
+          Continue to Setup Request
+        </button>
+      </section>
     </main>
   );
 }
 
-/* styles */
 const page = {
   minHeight: "100vh",
+  background: "linear-gradient(180deg, #ecfdf5 0%, #f7fafc 100%)",
   display: "flex",
-  justifyContent: "center",
   alignItems: "center",
-  background: "#f7fafc",
+  justifyContent: "center",
+  padding: 24,
+  fontFamily: "Arial, sans-serif",
 };
 
 const card = {
-  background: "#fff",
-  padding: 40,
-  borderRadius: 16,
-  maxWidth: 500,
   width: "100%",
+  maxWidth: 620,
+  background: "#ffffff",
+  padding: 34,
+  borderRadius: 24,
+  border: "1px solid #d9e2ec",
+  boxShadow: "0 18px 45px rgba(15, 118, 110, 0.12)",
   textAlign: "center" as const,
 };
 
-const title = { marginBottom: 10 };
+const homeButton = {
+  display: "inline-block",
+  background: "#0f766e",
+  color: "#ffffff",
+  padding: "10px 18px",
+  borderRadius: 999,
+  textDecoration: "none",
+  fontWeight: 800,
+  marginBottom: 22,
+};
+
+const logo = {
+  width: 220,
+  height: "auto",
+  display: "block",
+  margin: "0 auto 18px",
+};
+
+const title = {
+  color: "#102a43",
+  marginBottom: 12,
+};
 
 const text = {
   color: "#486581",
-  marginBottom: 20,
+  lineHeight: 1.7,
 };
 
-const links = {
+const linkRow = {
   display: "flex",
   justifyContent: "center",
-  gap: 20,
-  marginBottom: 20,
+  gap: 16,
+  flexWrap: "wrap" as const,
+  margin: "24px 0",
 };
 
-const link = {
+const docLink = {
   color: "#0f766e",
-  fontWeight: 700,
-  textDecoration: "none",
+  fontWeight: 800,
 };
 
-const checkboxWrap = {
+const checkWrap = {
   display: "flex",
-  gap: 10,
-  alignItems: "center",
-  justifyContent: "center",
-  marginBottom: 20,
+  gap: 12,
+  alignItems: "flex-start",
+  textAlign: "left" as const,
+  color: "#334e68",
+  marginBottom: 24,
+  lineHeight: 1.5,
 };
-
-const checkboxText = { fontSize: 14 };
 
 const button = {
   background: "#0f766e",
-  color: "#fff",
-  padding: "12px 20px",
+  color: "#ffffff",
+  padding: "14px 24px",
   borderRadius: 999,
-  textDecoration: "none",
-  display: "inline-block",
+  border: "none",
+  fontWeight: 800,
+  cursor: "pointer",
 };
 
-const buttonDisabled = {
+const disabledButton = {
   ...button,
   background: "#bcccdc",
-  pointerEvents: "none" as const,
+  cursor: "not-allowed",
 };
