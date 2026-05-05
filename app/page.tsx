@@ -11,7 +11,7 @@ export default function WageFlowLandingPage() {
     message: "",
   });
 
-  const [showContactDetails, setShowContactDetails] = useState(false);
+  const [openContact, setOpenContact] = useState<"form" | "details" | null>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -143,10 +143,30 @@ ${form.message}`
         <h2 style={sectionTitle}>Contact WageFlow</h2>
 
         <p style={sectionIntro}>
-          Ready to organise your staff records and payslips? Send us your details.
+          Ready to organise your staff records and payslips? Choose an option below.
         </p>
 
-        <div style={contactGrid}>
+        <div style={contactToggleWrap}>
+          <button
+            type="button"
+            style={openContact === "form" ? contactToggleActive : contactToggle}
+            onClick={() => setOpenContact(openContact === "form" ? null : "form")}
+          >
+            Send Enquiry
+          </button>
+
+          <button
+            type="button"
+            style={openContact === "details" ? contactToggleActive : contactToggle}
+            onClick={() =>
+              setOpenContact(openContact === "details" ? null : "details")
+            }
+          >
+            Contact Details
+          </button>
+        </div>
+
+        {openContact === "form" && (
           <form onSubmit={handleSubmit} style={formStyle}>
             <input
               style={input}
@@ -193,34 +213,53 @@ ${form.message}`
               Send Enquiry
             </button>
           </form>
+        )}
 
+        {openContact === "details" && (
           <div style={contactCard}>
-            <h3 style={cardTitle}>WageFlow Contact Options</h3>
+            <h3 style={cardTitle}>WageFlow Contact Details</h3>
 
-            <div style={contactButtons}>
-              <a href="mailto:info@wageflow.co.za" style={contactBtn}>Email WageFlow</a>
-              <a href="https://www.wageflow.co.za" target="_blank" style={contactBtn}>Visit Website</a>
-              <a href="tel:+27763616044" style={contactBtn}>Call</a>
-              <a href="https://wa.me/27763616044" target="_blank" style={contactBtn}>WhatsApp</a>
+            <div style={contactDetails}>
+              <p style={contactText}>
+                Email:{" "}
+                <a href="mailto:info@wageflow.co.za" style={textLink}>
+                  info@wageflow.co.za
+                </a>
+              </p>
+
+              <p style={contactText}>
+                Website:{" "}
+                <a
+                  href="https://www.wageflow.co.za"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={textLink}
+                >
+                  www.wageflow.co.za
+                </a>
+              </p>
+
+              <p style={contactText}>
+                Call:{" "}
+                <a href="tel:+27763616044" style={textLink}>
+                  076 361 6044
+                </a>
+              </p>
+
+              <p style={contactText}>
+                WhatsApp:{" "}
+                <a
+                  href="https://wa.me/27763616044"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={textLink}
+                >
+                  076 361 6044
+                </a>
+              </p>
             </div>
-
-            <button
-              type="button"
-              style={toggleButton}
-              onClick={() => setShowContactDetails(!showContactDetails)}
-            >
-              {showContactDetails ? "Hide Contact Details" : "Show Contact Details"}
-            </button>
-
-            {showContactDetails && (
-              <div style={contactDetails}>
-                <p style={contactText}>Email: info@wageflow.co.za</p>
-                <p style={contactText}>Website: www.wageflow.co.za</p>
-                <p style={contactText}>Phone / WhatsApp: 076 361 6044</p>
-              </div>
-            )}
           </div>
-        </div>
+        )}
       </section>
 
       <footer style={footer}>
@@ -456,14 +495,6 @@ const setupTitle = {
   color: "#0f766e",
 };
 
-const contactGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-  gap: 24,
-  maxWidth: 1000,
-  margin: "0 auto",
-};
-
 const formStyle = {
   display: "grid",
   gap: 14,
@@ -471,6 +502,8 @@ const formStyle = {
   padding: 26,
   borderRadius: 18,
   border: "1px solid #e2e8f0",
+  maxWidth: 720,
+  margin: "0 auto",
 };
 
 const input = {
@@ -493,33 +526,35 @@ const contactCard = {
   padding: 28,
   borderRadius: 18,
   border: "1px solid #e2e8f0",
+  maxWidth: 720,
+  margin: "0 auto",
 };
 
-const contactButtons = {
+const contactToggleWrap = {
   display: "flex",
+  justifyContent: "center",
   gap: 12,
   flexWrap: "wrap" as const,
-  marginTop: 18,
+  marginBottom: 24,
 };
 
-const contactBtn = {
+const contactToggle = {
   background: "#ffffff",
-  border: "1px solid #0f766e",
   color: "#0f766e",
-  padding: "12px 18px",
+  padding: "12px 22px",
   borderRadius: 999,
-  textDecoration: "none",
-  fontWeight: 700,
+  border: "1px solid #0f766e",
+  fontWeight: 800,
+  cursor: "pointer",
 };
 
-const toggleButton = {
-  marginTop: 20,
+const contactToggleActive = {
   background: "#0f766e",
   color: "#ffffff",
-  padding: "12px 18px",
+  padding: "12px 22px",
   borderRadius: 999,
-  border: "none",
-  fontWeight: 700,
+  border: "1px solid #0f766e",
+  fontWeight: 800,
   cursor: "pointer",
 };
 
@@ -534,6 +569,11 @@ const contactDetails = {
 const contactText = {
   color: "#334e68",
   lineHeight: 1.7,
+};
+
+const textLink = {
+  color: "#0f766e",
+  fontWeight: 700,
 };
 
 const footer = {
