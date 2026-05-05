@@ -73,7 +73,7 @@ ${form.message}`
         </p>
 
         <div style={heroActions}>
-          <a href="/signup" style={primaryButton}>
+          <a href="/get-started" style={primaryButton}>
             Get Started
           </a>
           <a href="/example-payslip" style={secondaryButton}>
