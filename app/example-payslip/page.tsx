@@ -18,7 +18,6 @@ export default function ExamplePayslipPage() {
       employeeNumber: "EMP-001",
       position: "Store Assistant",
       department: "Operations",
-      dateJoined: "01 February 2023",
       idNumber: "9001015800084",
       paymentMethod: "Bank Transfer",
       bankName: "First National Bank",
@@ -28,12 +27,6 @@ export default function ExamplePayslipPage() {
       period: "01 May 2026 - 31 May 2026",
       payDate: "31 May 2026",
       payReference: "PAY-2026-05-EMP001",
-    },
-    ytd: {
-      grossPay: 46500,
-      taxablePay: 46500,
-      paye: 6480,
-      uif: 531.36,
     },
     earnings: [
       { item: "Basic Salary", amount: 12000 },
@@ -48,6 +41,18 @@ export default function ExamplePayslipPage() {
       { item: "Pension Fund", amount: 310 },
       { item: "Medical Aid", amount: 850 },
     ],
+    ytd: {
+      from: "01 March 2026",
+      to: "31 May 2026",
+      gross: 46500,
+      taxable: 46500,
+      paye: 6480,
+      uif: 531.36,
+    },
+    leave: {
+      annual: 10,
+      sick: 5,
+    },
   };
 
   const grossPay = payslip.earnings.reduce((sum, row) => sum + row.amount, 0);
@@ -74,7 +79,7 @@ export default function ExamplePayslipPage() {
           </Link>
 
           <header style={header}>
-            <div style={logoWrap}>
+            <div style={companyLogo}>
               <img
                 src={payslip.company.logoUrl}
                 alt={`${payslip.company.name} logo`}
@@ -82,9 +87,9 @@ export default function ExamplePayslipPage() {
               />
             </div>
 
-            <div style={headerText}>
+            <div>
               <h1 style={title}>Example Payslip</h1>
-              <p style={subtitle}>For the Period {payslip.pay.period}</p>
+              <p style={subtitle}>Pay period: {payslip.pay.period}</p>
             </div>
           </header>
 
@@ -107,7 +112,6 @@ export default function ExamplePayslipPage() {
               <Info label="ID Number" value={payslip.employee.idNumber} />
               <Info label="Position" value={payslip.employee.position} />
               <Info label="Department" value={payslip.employee.department} />
-              <Info label="Date Joined" value={payslip.employee.dateJoined} />
               <Info label="Payment Method" value={payslip.employee.paymentMethod} />
               <Info label="Bank" value={payslip.employee.bankName} />
               <Info label="Account No." value={payslip.employee.accountNumber} />
@@ -115,7 +119,6 @@ export default function ExamplePayslipPage() {
           </section>
 
           <section style={summaryGrid}>
-            <Summary label="Pay Period" value={payslip.pay.period} />
             <Summary label="Pay Date" value={payslip.pay.payDate} />
             <Summary label="Pay Reference" value={payslip.pay.payReference} />
             <Summary label="Gross Pay" value={money(grossPay)} />
@@ -127,7 +130,7 @@ export default function ExamplePayslipPage() {
             <div style={tableBox}>
               <div style={tableHeader}>
                 <span>Earnings</span>
-                <span>Amount (R)</span>
+                <span>Amount</span>
               </div>
 
               {payslip.earnings.map((row) => (
@@ -146,7 +149,7 @@ export default function ExamplePayslipPage() {
             <div style={tableBox}>
               <div style={tableHeader}>
                 <span>Deductions</span>
-                <span>Amount (R)</span>
+                <span>Amount</span>
               </div>
 
               {payslip.deductions.map((row) => (
@@ -164,50 +167,73 @@ export default function ExamplePayslipPage() {
           </section>
 
           <section style={ytdBox}>
-            <h3 style={ytdTitle}>Year To Date</h3>
+            <h3 style={ytdTitle}>
+              Year to Date Payroll Summary: {payslip.ytd.from} -{" "}
+              {payslip.ytd.to}
+            </h3>
 
             <div style={ytdGrid}>
-              <Ytd label="YTD Gross Pay" value={money(payslip.ytd.grossPay)} />
-              <Ytd label="YTD Taxable Pay" value={money(payslip.ytd.taxablePay)} />
-              <Ytd label="YTD PAYE" value={money(payslip.ytd.paye)} />
-              <Ytd label="YTD UIF" value={money(payslip.ytd.uif)} />
+              <div style={ytdItem}>
+                <span>YTD Gross Pay</span>
+                <strong>{money(payslip.ytd.gross)}</strong>
+              </div>
+
+              <div style={ytdItem}>
+                <span>YTD Taxable Pay</span>
+                <strong>{money(payslip.ytd.taxable)}</strong>
+              </div>
+
+              <div style={ytdItem}>
+                <span>YTD PAYE</span>
+                <strong>{money(payslip.ytd.paye)}</strong>
+              </div>
+
+              <div style={ytdItem}>
+                <span>YTD UIF</span>
+                <strong>{money(payslip.ytd.uif)}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section style={leaveBox}>
+            <h3 style={sectionTitle}>Annual Leave Balance</h3>
+
+            <div style={leaveGrid}>
+              <div style={leaveItem}>
+                <span>Annual Leave</span>
+                <strong>{payslip.leave.annual} days</strong>
+              </div>
             </div>
           </section>
 
           <section style={netBox}>
             <div>
               <h2 style={netTitle}>Net Pay This Period</h2>
-              <p style={netSubtext}>Payable via {payslip.employee.paymentMethod}</p>
+              <p style={netSubtext}>
+                Payable via {payslip.employee.paymentMethod}
+              </p>
             </div>
 
             <strong style={netAmount}>{money(netPay)}</strong>
           </section>
 
-          <section style={bottomGrid}>
-            <div style={supportBox}>
-              <strong style={supportTitle}>Generated by WageFlow</strong>
-              <p style={supportText}>
-                This payslip was generated by WageFlow, a product of Lesedi Smart
-                Solutions (Pty) Ltd.
-              </p>
-              <p style={supportText}>
-                Support: info@lesedismartsolutions.co.za
-              </p>
-            </div>
+          <section style={footerBox}>
+            <p>
+              Generated by <strong>WageFlow Payroll Assistant</strong>, a product
+              of <strong> Lesedi Smart Solutions (Pty) Ltd</strong>.
+            </p>
 
-            <div style={authBox}>
-              <p style={authSmall}>Authorised By</p>
-              <strong style={signature}>WageFlow Team</strong>
-              <div style={signatureLine} />
-              <p style={authSmall}>WageFlow Payroll Assistant</p>
-            </div>
+            <p>
+              WageFlow is a payslip generation and employee record-keeping tool.
+              It does not act as the employer, payroll bureau, accountant or
+              registered tax practitioner.
+            </p>
+
+            <p style={generatedNote}>
+              This is a computer-generated payslip and does not require a
+              signature.
+            </p>
           </section>
-
-          <p style={disclaimer}>
-            WageFlow is a payslip generation and employee record-keeping tool. It
-            does not act as the employer, payroll bureau, accountant or registered
-            tax practitioner. This is a computer generated payslip.
-          </p>
         </div>
       </section>
     </main>
@@ -240,15 +266,6 @@ function Summary({
   );
 }
 
-function Ytd({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={ytdItem}>
-      <p style={ytdLabel}>{label}</p>
-      <strong style={ytdValue}>{value}</strong>
-    </div>
-  );
-}
-
 const page: CSSProperties = {
   minHeight: "100vh",
   background: "#f4fbfb",
@@ -276,12 +293,12 @@ const content: CSSProperties = {
 
 const watermark: CSSProperties = {
   position: "absolute",
-  top: "47%",
+  top: "46%",
   left: "50%",
   transform: "translate(-50%, -50%)",
-  width: "520px",
+  width: "460px",
   maxWidth: "75%",
-  opacity: 0.045,
+  opacity: 0.055,
   zIndex: 0,
   pointerEvents: "none",
 };
@@ -304,16 +321,16 @@ const header: CSSProperties = {
   marginBottom: "28px",
 };
 
-const logoWrap: CSSProperties = {
-  width: "210px",
-  height: "96px",
+const companyLogo: CSSProperties = {
+  width: "180px",
+  height: "90px",
   borderRadius: "18px",
-  background: "rgba(255, 255, 255, 0.9)",
+  background: "#ffffff",
   border: "1px solid #d8eeee",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "14px",
+  padding: "12px",
 };
 
 const logoImage: CSSProperties = {
@@ -322,21 +339,18 @@ const logoImage: CSSProperties = {
   objectFit: "contain",
 };
 
-const headerText: CSSProperties = {
-  textAlign: "right",
-};
-
 const title: CSSProperties = {
   margin: 0,
   color: "#176f7a",
   fontSize: "34px",
   textTransform: "uppercase",
-  letterSpacing: "1px",
+  textAlign: "right",
 };
 
 const subtitle: CSSProperties = {
   margin: "8px 0 0",
   fontSize: "16px",
+  textAlign: "right",
 };
 
 const detailsGrid: CSSProperties = {
@@ -351,7 +365,7 @@ const detailsBox: CSSProperties = {
   border: "1px solid #d8eeee",
   borderRadius: "18px",
   padding: "22px",
-  lineHeight: 1.65,
+  lineHeight: 1.7,
 };
 
 const sectionTitle: CSSProperties = {
@@ -368,8 +382,7 @@ const strong: CSSProperties = {
 
 const infoRow: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "145px 1fr",
-  gap: "12px",
+  gridTemplateColumns: "150px 1fr",
   margin: "4px 0",
 };
 
@@ -380,15 +393,15 @@ const infoLabel: CSSProperties = {
 
 const summaryGrid: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(6, 1fr)",
-  gap: "10px",
+  gridTemplateColumns: "repeat(5, 1fr)",
+  gap: "12px",
   marginBottom: "24px",
 };
 
 const summaryCard: CSSProperties = {
   border: "1px solid #d8eeee",
   borderRadius: "16px",
-  padding: "16px 12px",
+  padding: "18px",
   background: "rgba(255, 255, 255, 0.94)",
   textAlign: "center",
 };
@@ -397,17 +410,17 @@ const summaryLabel: CSSProperties = {
   margin: "0 0 8px",
   color: "#176f7a",
   fontWeight: 800,
-  fontSize: "12px",
+  fontSize: "13px",
   textTransform: "uppercase",
 };
 
 const summaryValue: CSSProperties = {
-  fontSize: "15px",
+  fontSize: "17px",
   color: "#172033",
 };
 
 const summaryHighlight: CSSProperties = {
-  fontSize: "18px",
+  fontSize: "20px",
   color: "#176f7a",
 };
 
@@ -438,14 +451,14 @@ const tableHeader: CSSProperties = {
 const tableRow: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
-  padding: "13px 18px",
+  padding: "14px 18px",
   borderBottom: "1px solid #eef6f6",
 };
 
 const totalRow: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
-  padding: "15px 18px",
+  padding: "16px 18px",
   fontWeight: 900,
   color: "#176f7a",
   background: "#f7fcfc",
@@ -455,42 +468,54 @@ const totalRow: CSSProperties = {
 const ytdBox: CSSProperties = {
   border: "1px solid #d8eeee",
   borderRadius: "18px",
-  overflow: "hidden",
+  padding: "18px 22px",
   marginBottom: "24px",
-  background: "rgba(255, 255, 255, 0.94)",
+  background: "rgba(247, 252, 252, 0.94)",
 };
 
 const ytdTitle: CSSProperties = {
-  margin: 0,
-  padding: "14px 18px",
-  textAlign: "center",
+  margin: "0 0 14px",
   color: "#176f7a",
-  background: "#f7fcfc",
-  textTransform: "uppercase",
   fontSize: "15px",
+  textTransform: "uppercase",
+  fontWeight: 800,
+  textAlign: "center",
 };
 
 const ytdGrid: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(4, 1fr)",
+  gap: "12px",
 };
 
 const ytdItem: CSSProperties = {
-  padding: "16px",
   textAlign: "center",
-  borderRight: "1px solid #eef6f6",
+  fontSize: "13px",
+  color: "#4c586d",
+  display: "flex",
+  flexDirection: "column",
+  gap: "4px",
 };
 
-const ytdLabel: CSSProperties = {
-  margin: "0 0 6px",
-  color: "#176f7a",
-  fontWeight: 800,
-  fontSize: "12px",
-  textTransform: "uppercase",
+const leaveBox: CSSProperties = {
+  border: "1px solid #d8eeee",
+  borderRadius: "18px",
+  padding: "18px 22px",
+  marginBottom: "24px",
+  background: "rgba(247, 252, 252, 0.94)",
 };
 
-const ytdValue: CSSProperties = {
-  color: "#172033",
+const leaveGrid: CSSProperties = {
+  display: "flex",
+  gap: "30px",
+  marginTop: "10px",
+};
+
+const leaveItem: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  fontSize: "14px",
+  color: "#4c586d",
 };
 
 const netBox: CSSProperties = {
@@ -524,68 +549,17 @@ const netAmount: CSSProperties = {
   lineHeight: 1.1,
 };
 
-const bottomGrid: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "24px",
-  marginBottom: "18px",
-};
-
-const supportBox: CSSProperties = {
-  border: "1px solid #d8eeee",
-  borderRadius: "18px",
-  padding: "20px",
-  background: "rgba(255, 255, 255, 0.94)",
-};
-
-const supportTitle: CSSProperties = {
-  display: "block",
-  color: "#176f7a",
-  marginBottom: "8px",
-  fontSize: "16px",
-};
-
-const supportText: CSSProperties = {
-  margin: "6px 0",
-  color: "#4c586d",
-  fontSize: "13px",
-  lineHeight: 1.5,
-};
-
-const authBox: CSSProperties = {
-  border: "1px solid #d8eeee",
-  borderRadius: "18px",
-  padding: "20px",
-  textAlign: "center",
-  background: "rgba(255, 255, 255, 0.94)",
-};
-
-const authSmall: CSSProperties = {
-  margin: "0 0 8px",
-  fontSize: "13px",
-  color: "#4c586d",
-};
-
-const signature: CSSProperties = {
-  display: "block",
-  color: "#172033",
-  fontSize: "22px",
-  fontFamily: "cursive",
-  margin: "8px 0",
-};
-
-const signatureLine: CSSProperties = {
-  borderTop: "1px dashed #b8caca",
-  margin: "12px auto",
-  width: "75%",
-};
-
-const disclaimer: CSSProperties = {
+const footerBox: CSSProperties = {
   borderTop: "1px solid #d8eeee",
-  paddingTop: "14px",
+  paddingTop: "18px",
   color: "#5b6678",
-  fontSize: "12px",
+  fontSize: "13px",
   lineHeight: 1.6,
   textAlign: "center",
-  margin: 0,
+};
+
+const generatedNote: CSSProperties = {
+  marginTop: "14px",
+  color: "#7b8494",
+  fontSize: "12px",
 };
