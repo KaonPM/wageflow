@@ -289,26 +289,29 @@ ${form.message}`
 </section>
 
       <footer style={footer}>
-        <p>© {new Date().getFullYear()} WageFlow. All rights reserved.</p>
-        <p>Powered by Lesedi Smart Solutions</p>
+  <div style={footerTop}>
+    <div style={footerInfo}>
+      <p>© {new Date().getFullYear()} WageFlow. All rights reserved.</p>
+      <p>Powered by Lesedi Smart Solutions</p>
+      <p>Lesedi Smart Solutions Registration Number: 2026/315790/07</p>
+      <p>Information Regulator Registration Number: 2026-010141</p>
+    </div>
 
-        <p style={footerSmall}>
-          Lesedi Smart Solutions Registration Number: 2026/315790/07
-        </p>
+    <div style={footerLinksBox}>
+      <a href="/terms" style={footerLink}>Terms & Conditions</a>
+      <a href="/privacy" style={footerLink}>Privacy Policy</a>
+    </div>
+  </div>
 
-        <p style={footerSmall}>
-          Information Regulator Registration Number: 2026-010141
-        </p>
-
-        <p style={footerDisclaimer}>
-          WageFlow is a staff record and payslip management tool. WageFlow does
-          not act as a payroll bureau, tax practitioner, accountant, labour
-          consultant or SARS submission agent. Employers remain responsible for
-          verifying payroll information, statutory deductions, UIF, PAYE, SDL,
-          employment records and any required submissions to SARS, the
-          Department of Employment and Labour or other authorities.
-        </p>
-      </footer>
+  <p style={footerDisclaimer}>
+    WageFlow is a staff record and payslip management tool. WageFlow does not
+    act as a payroll bureau, tax practitioner, accountant, labour consultant or
+    SARS submission agent. Employers remain responsible for verifying payroll
+    information, statutory deductions, UIF, PAYE, SDL, employment records and
+    any required submissions to SARS, the Department of Employment and Labour or
+    other authorities.
+  </p>
+</footer>
     </main>
   );
 }
@@ -612,23 +615,43 @@ const textLink = {
 };
 
 const footer = {
-  padding: "32px 7%",
-  textAlign: "center" as const,
+  padding: "24px 7%",
   background: "#102a43",
   color: "#ffffff",
-  fontSize: 14,
+  fontSize: 13,
 };
 
-const footerSmall = {
-  fontSize: 13,
-  opacity: 0.85,
-  marginTop: 6,
+const footerTop = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 24,
+  flexWrap: "wrap" as const,
+  maxWidth: 1100,
+  margin: "0 auto 12px",
+};
+
+const footerInfo = {
+  lineHeight: 1.4,
+};
+
+const footerLinksBox = {
+  display: "flex",
+  gap: 16,
+  flexWrap: "wrap" as const,
+};
+
+const footerLink = {
+  color: "#ffffff",
+  textDecoration: "underline",
+  fontWeight: 700,
 };
 
 const footerDisclaimer = {
-  fontSize: 12,
+  fontSize: 11,
   opacity: 0.75,
-  maxWidth: 850,
-  margin: "14px auto 0",
-  lineHeight: 1.6,
+  maxWidth: 1100,
+  margin: "10px auto 0",
+  lineHeight: 1.5,
+  textAlign: "center" as const,
 };
