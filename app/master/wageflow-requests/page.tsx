@@ -44,19 +44,25 @@ export default function WageFlowRequestsPage() {
   }
 
   async function approveRequest(request: Request) {
-    const { error: businessError } = await supabase.from("businesses").insert({
-      business_name: request.business_name,
-      email: request.email,
-      phone: request.phone,
-      status: "Active",
-    });
+  const confirmed = window.confirm(
+    `Approve setup request for ${request.business_name}?`
+  );
 
-    if (businessError) {
-      alert(businessError.message);
-      return;
-    }
+  if (!confirmed) return;
 
-    const { error: requestError } = await supabase
+  const { data: existingBusiness, error: checkError } = await supabase
+    .from("businesses")
+    .select("id")
+    .eq("source_request_id", request.id)
+    .maybeSingle();
+
+  if (checkError) {
+    alert(checkError.message);
+    return;
+  }
+
+  if (existingBusiness) {
+    const { error: updateOnlyError } = await supabase
       .from("wageflow_setup_requests")
       .update({
         status: "Approved",
@@ -64,13 +70,45 @@ export default function WageFlowRequestsPage() {
       })
       .eq("id", request.id);
 
-    if (requestError) {
-      alert(requestError.message);
+    if (updateOnlyError) {
+      alert(updateOnlyError.message);
       return;
     }
 
     fetchRequests();
+    return;
   }
+
+  const { error: businessError } = await supabase.from("businesses").insert({
+    business_name: request.business_name,
+    email: request.email,
+    phone: request.phone,
+    status: "Active",
+    source_request_id: request.id,
+    selected_package: request.selected_package,
+    number_of_employees: request.number_of_employees,
+  });
+
+  if (businessError) {
+    alert(businessError.message);
+    return;
+  }
+
+  const { error: requestError } = await supabase
+    .from("wageflow_setup_requests")
+    .update({
+      status: "Approved",
+      approved_at: new Date().toISOString(),
+    })
+    .eq("id", request.id);
+
+  if (requestError) {
+    alert(requestError.message);
+    return;
+  }
+
+  fetchRequests();
+}
 
   async function rejectRequest(id: string) {
     const { error } = await supabase
