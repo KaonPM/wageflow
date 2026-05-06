@@ -44,9 +44,9 @@ export default function MasterDashboard() {
 
         <DashboardCard
           icon="🧾"
-          title="Setup Requests"
+          title="WageFlow Requests"
           description="Track businesses waiting for setup and onboarding."
-          href="/master/setup-requests"
+          href="/master/wageflow-requests"
           tag="Onboarding"
         />
 
