@@ -70,9 +70,7 @@ export default function SetupRequestPage() {
       return;
     }
 
-    setSuccess(
-      "Your WageFlow setup request has been submitted successfully. Our team will review your details and contact you for onboarding and activation."
-    );
+    window.location.href = "/setup-submitted";
 
     setForm({
       ownerName: "",
