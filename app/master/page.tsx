@@ -1,35 +1,33 @@
-"use client";
+import Link from "next/link";
 
-export default function MasterDashboard() {
+export default function MasterDashboardPage() {
   return (
     <main style={page}>
-      <section style={header}>
-        <h1 style={title}>WageFlow Master Dashboard</h1>
-        <p style={subtitle}>
-          Manage businesses, setup requests, subscriptions, and users.
-        </p>
-      </section>
+      <h1 style={title}>WageFlow Master Dashboard</h1>
+      <p style={subtitle}>
+        Manage businesses, setup requests, subscriptions, and users.
+      </p>
 
       <section style={grid}>
-        <div style={card}>
+        <Link href="/master/businesses" style={card}>
           <h2 style={cardTitle}>Businesses</h2>
           <p style={cardText}>View and manage WageFlow client businesses.</p>
-        </div>
+        </Link>
 
-        <div style={card}>
+        <Link href="/master/wageflow-requests" style={card}>
           <h2 style={cardTitle}>Setup Requests</h2>
           <p style={cardText}>Track businesses waiting for setup.</p>
-        </div>
+        </Link>
 
-        <div style={card}>
+        <Link href="/master/subscriptions" style={card}>
           <h2 style={cardTitle}>Subscriptions</h2>
           <p style={cardText}>Monitor setup fees and monthly subscriptions.</p>
-        </div>
+        </Link>
 
-        <div style={card}>
+        <Link href="/master/users" style={card}>
           <h2 style={cardTitle}>Users</h2>
           <p style={cardText}>Manage employer and employee access.</p>
-        </div>
+        </Link>
       </section>
     </main>
   );
@@ -37,47 +35,47 @@ export default function MasterDashboard() {
 
 const page = {
   minHeight: "100vh",
-  background: "#f8faf9",
+  padding: "48px",
+  background: "#f8fafc",
   fontFamily: "Arial, sans-serif",
-  padding: "40px",
-};
-
-const header = {
-  marginBottom: "30px",
 };
 
 const title = {
-  fontSize: "28px",
-  color: "#0f766e",
-  marginBottom: "8px",
+  fontSize: 30,
+  color: "#102a43",
+  marginBottom: 8,
 };
 
 const subtitle = {
-  fontSize: "15px",
-  color: "#555",
+  color: "#486581",
+  marginBottom: 32,
 };
 
 const grid = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: "20px",
+  gap: 22,
 };
 
 const card = {
   background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: "14px",
-  padding: "24px",
-  boxShadow: "0 10px 24px rgba(0,0,0,0.04)",
+  border: "1px solid #d9e2ec",
+  borderRadius: 14,
+  padding: 24,
+  textDecoration: "none",
+  color: "inherit",
+  boxShadow: "0 10px 25px rgba(15, 23, 42, 0.06)",
+  cursor: "pointer",
 };
 
 const cardTitle = {
-  fontSize: "18px",
-  color: "#111827",
-  marginBottom: "8px",
+  fontSize: 18,
+  color: "#102a43",
+  marginBottom: 10,
 };
 
 const cardText = {
-  fontSize: "14px",
-  color: "#666",
+  color: "#486581",
+  lineHeight: 1.5,
+  fontSize: 14,
 };
