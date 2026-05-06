@@ -24,19 +24,13 @@ export default function MasterDashboard() {
             </a>
           </div>
         </div>
-
-        <div style={statusCard}>
-          <span style={statusLabel}>Platform Status</span>
-          <strong style={statusValue}>Active</strong>
-          <p style={statusText}>WageFlow setup and client management area.</p>
-        </div>
       </section>
 
-      <section style={summaryGrid}>
-        <SummaryCard label="Businesses" value="Manage" />
-        <SummaryCard label="Setup" value="Track" />
-        <SummaryCard label="Billing" value="Monitor" />
-        <SummaryCard label="Users" value="Control" />
+      <section style={overviewGrid}>
+        <OverviewCard label="Total Businesses" value="0" note="Client businesses" />
+        <OverviewCard label="Pending Setup" value="0" note="Waiting for onboarding" />
+        <OverviewCard label="Active Subscriptions" value="0" note="Monthly billing" />
+        <OverviewCard label="Total Users" value="0" note="Employer and employee access" />
       </section>
 
       <section style={grid}>
@@ -76,11 +70,20 @@ export default function MasterDashboard() {
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function OverviewCard({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: string;
+  note: string;
+}) {
   return (
-    <div style={summaryCard}>
-      <span style={summaryLabel}>{label}</span>
-      <strong style={summaryValue}>{value}</strong>
+    <div style={overviewCard}>
+      <span style={overviewLabel}>{label}</span>
+      <strong style={overviewValue}>{value}</strong>
+      <p style={overviewNote}>{note}</p>
     </div>
   );
 }
@@ -127,11 +130,7 @@ const page = {
 };
 
 const hero = {
-  display: "grid",
-  gridTemplateColumns: "1.7fr 1fr",
-  gap: "22px",
-  alignItems: "stretch",
-  marginBottom: "24px",
+  marginBottom: "26px",
 };
 
 const eyebrow = {
@@ -184,61 +183,41 @@ const logoutButton = {
   boxShadow: "0 8px 18px rgba(15, 118, 110, 0.18)",
 };
 
-const statusCard = {
-  background: "linear-gradient(135deg, #0f766e, #14b8a6)",
-  color: "#ffffff",
-  borderRadius: "20px",
-  padding: "24px",
-  boxShadow: "0 16px 38px rgba(15, 118, 110, 0.22)",
-};
-
-const statusLabel = {
-  display: "block",
-  fontSize: "13px",
-  opacity: 0.9,
-  marginBottom: "8px",
-};
-
-const statusValue = {
-  display: "block",
-  fontSize: "24px",
-  marginBottom: "8px",
-};
-
-const statusText = {
-  margin: 0,
-  fontSize: "14px",
-  lineHeight: 1.5,
-  opacity: 0.95,
-};
-
-const summaryGrid = {
+const overviewGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-  gap: "14px",
-  marginBottom: "24px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+  gap: "16px",
+  marginBottom: "26px",
 };
 
-const summaryCard = {
+const overviewCard = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
-  borderRadius: "16px",
-  padding: "18px",
+  borderRadius: "18px",
+  padding: "20px",
   boxShadow: "0 10px 26px rgba(15, 23, 42, 0.05)",
 };
 
-const summaryLabel = {
+const overviewLabel = {
   display: "block",
   color: "#64748b",
   fontSize: "12px",
   fontWeight: 800,
   textTransform: "uppercase" as const,
-  marginBottom: "7px",
+  marginBottom: "8px",
 };
 
-const summaryValue = {
+const overviewValue = {
+  display: "block",
   color: "#0f766e",
-  fontSize: "21px",
+  fontSize: "28px",
+  marginBottom: "6px",
+};
+
+const overviewNote = {
+  margin: 0,
+  color: "#64748b",
+  fontSize: "13px",
 };
 
 const grid = {
