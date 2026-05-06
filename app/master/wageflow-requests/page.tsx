@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 
@@ -44,25 +45,59 @@ export default function WageFlowRequestsPage() {
   }
 
   async function approveRequest(request: Request) {
-  const confirmed = window.confirm(
-    `Approve setup request for ${request.business_name}?`
-  );
+    const confirmed = window.confirm(
+      `Approve setup request for ${request.business_name}?`
+    );
 
-  if (!confirmed) return;
+    if (!confirmed) return;
 
-  const { data: existingBusiness, error: checkError } = await supabase
-    .from("businesses")
-    .select("id")
-    .eq("source_request_id", request.id)
-    .maybeSingle();
+    const { data: existingBusiness, error: checkError } = await supabase
+      .from("businesses")
+      .select("id")
+      .eq("source_request_id", request.id)
+      .maybeSingle();
 
-  if (checkError) {
-    alert(checkError.message);
-    return;
-  }
+    if (checkError) {
+      alert(checkError.message);
+      return;
+    }
 
-  if (existingBusiness) {
-    const { error: updateOnlyError } = await supabase
+    if (existingBusiness) {
+      const { error: updateOnlyError } = await supabase
+        .from("wageflow_setup_requests")
+        .update({
+          status: "Approved",
+          approved_at: new Date().toISOString(),
+        })
+        .eq("id", request.id);
+
+      if (updateOnlyError) {
+        alert(updateOnlyError.message);
+        return;
+      }
+
+      fetchRequests();
+      return;
+    }
+
+    const { error: businessError } = await supabase
+      .from("businesses")
+      .insert({
+        business_name: request.business_name,
+        email: request.email,
+        phone: request.phone,
+        status: "Active",
+        source_request_id: request.id,
+        selected_package: request.selected_package,
+        number_of_employees: request.number_of_employees,
+      });
+
+    if (businessError) {
+      alert(businessError.message);
+      return;
+    }
+
+    const { error: requestError } = await supabase
       .from("wageflow_setup_requests")
       .update({
         status: "Approved",
@@ -70,45 +105,13 @@ export default function WageFlowRequestsPage() {
       })
       .eq("id", request.id);
 
-    if (updateOnlyError) {
-      alert(updateOnlyError.message);
+    if (requestError) {
+      alert(requestError.message);
       return;
     }
 
     fetchRequests();
-    return;
   }
-
-  const { error: businessError } = await supabase.from("businesses").insert({
-    business_name: request.business_name,
-    email: request.email,
-    phone: request.phone,
-    status: "Active",
-    source_request_id: request.id,
-    selected_package: request.selected_package,
-    number_of_employees: request.number_of_employees,
-  });
-
-  if (businessError) {
-    alert(businessError.message);
-    return;
-  }
-
-  const { error: requestError } = await supabase
-    .from("wageflow_setup_requests")
-    .update({
-      status: "Approved",
-      approved_at: new Date().toISOString(),
-    })
-    .eq("id", request.id);
-
-  if (requestError) {
-    alert(requestError.message);
-    return;
-  }
-
-  fetchRequests();
-}
 
   async function rejectRequest(id: string) {
     const { error } = await supabase
@@ -129,9 +132,17 @@ export default function WageFlowRequestsPage() {
 
   return (
     <main style={page}>
+      <div style={topBar}>
+        <Link href="/master" style={backButton}>
+          ← Back to Dashboard
+        </Link>
+      </div>
+
       <h1 style={title}>WageFlow Setup Requests</h1>
+
       <p style={subtitle}>
-        Review new WageFlow employer requests before activating their business account.
+        Review new WageFlow employer requests before activating their business
+        account.
       </p>
 
       <section style={card}>
@@ -160,7 +171,9 @@ export default function WageFlowRequestsPage() {
                     <td style={td}>
                       <strong>{request.business_name}</strong>
                       <br />
-                      <span style={muted}>{request.business_type}</span>
+                      <span style={muted}>
+                        {request.business_type || "Business setup request"}
+                      </span>
                     </td>
 
                     <td style={td}>
@@ -171,9 +184,13 @@ export default function WageFlowRequestsPage() {
                       <span style={muted}>{request.phone}</span>
                     </td>
 
-                    <td style={td}>{request.selected_package}</td>
+                    <td style={td}>
+                      {request.selected_package}
+                    </td>
 
-                    <td style={td}>{request.number_of_employees || "-"}</td>
+                    <td style={td}>
+                      {request.number_of_employees || "-"}
+                    </td>
 
                     <td style={td}>
                       <span style={badge(request.status)}>
@@ -182,7 +199,9 @@ export default function WageFlowRequestsPage() {
                     </td>
 
                     <td style={td}>
-                      {new Date(request.created_at).toLocaleDateString()}
+                      {new Date(
+                        request.created_at
+                      ).toLocaleDateString()}
                     </td>
 
                     <td style={td}>
@@ -221,6 +240,22 @@ const page = {
   padding: "32px",
   background: "#f8fafc",
   minHeight: "100vh",
+};
+
+const topBar = {
+  display: "flex",
+  justifyContent: "flex-end",
+  marginBottom: "20px",
+};
+
+const backButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  textDecoration: "none",
+  padding: "10px 16px",
+  borderRadius: "999px",
+  fontWeight: 800,
+  fontSize: "14px",
 };
 
 const title = {
