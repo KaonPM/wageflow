@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 
 type Business = {
@@ -24,6 +24,7 @@ type Business = {
 export default function ManageBusinessPage() {
   const params = useParams();
   const businessId = params.id as string;
+  const router = useRouter();
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,7 +123,7 @@ export default function ManageBusinessPage() {
     }
 
     alert("Business updated successfully.");
-    fetchBusiness();
+router.push("/master/businesses");
   }
 
   if (loading) {
