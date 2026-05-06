@@ -24,3 +24,35 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  body * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  button,
+  a {
+    display: none !important;
+  }
+
+  section {
+    box-shadow: none !important;
+  }
+
+  .payslip-print {
+    transform: scale(0.82);
+    transform-origin: top center;
+    width: 122%;
+    margin-left: -11%;
+  }
+}
