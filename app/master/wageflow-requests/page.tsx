@@ -30,9 +30,10 @@ export default function WageFlowRequestsPage() {
     setLoading(true);
 
     const { data, error } = await supabase
-      .from("wageflow_setup_requests")
-      .select("*")
-      .order("created_at", { ascending: false });
+  .from("wageflow_setup_requests")
+  .select("*")
+  .eq("status", "Pending")
+  .order("created_at", { ascending: false });
 
     if (error) {
       alert(error.message);
