@@ -24,7 +24,9 @@ export default function SetupRequestPage() {
 
   useEffect(() => {
     const storedAccepted = localStorage.getItem("wageflow_terms_accepted");
-    const storedAcceptedAt = localStorage.getItem("wageflow_terms_accepted_at");
+    const storedAcceptedAt = localStorage.getItem(
+      "wageflow_terms_accepted_at"
+    );
 
     if (storedAccepted === "true" && storedAcceptedAt) {
       setAccepted(true);
@@ -34,31 +36,33 @@ export default function SetupRequestPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
     setLoading(true);
     setSuccess("");
     setError("");
 
     if (!accepted) {
-      setError("Please accept the Privacy Policy and Terms & Conditions first.");
+      setError(
+        "Please accept the Privacy Policy and Terms & Conditions first."
+      );
       setLoading(false);
       return;
     }
 
-    const { error } = await supabase.from("setup_requests").insert({
-      owner_name: form.ownerName,
-      business_name: form.businessName,
-      email: form.email,
-      phone: form.phone,
-      employee_count: Number(form.employeeCount),
-      selected_plan: form.plan,
-      message: form.message,
-      status: "pending_setup",
-      setup_fee_required: true,
-      setup_fee_amount: 499,
-      accepted_terms: true,
-      accepted_privacy: true,
-      accepted_at: acceptedAt,
-    });
+    const { error } = await supabase
+      .from("wageflow_setup_requests")
+      .insert({
+        business_name: form.businessName,
+        contact_person: form.ownerName,
+        email: form.email,
+        phone: form.phone,
+        selected_package: form.plan,
+        number_of_employees: Number(form.employeeCount),
+        notes: form.message,
+        terms_accepted: true,
+        privacy_accepted: true,
+        status: "Pending",
+      });
 
     if (error) {
       setError(error.message);
@@ -67,7 +71,7 @@ export default function SetupRequestPage() {
     }
 
     setSuccess(
-      "Your WageFlow setup request has been submitted. We will review your details and contact you for onboarding and setup."
+      "Your WageFlow setup request has been submitted successfully. Our team will review your details and contact you for onboarding and activation."
     );
 
     setForm({
@@ -86,15 +90,21 @@ export default function SetupRequestPage() {
   return (
     <main style={page}>
       <section style={card}>
-        <Link href="/" style={homeButton}>← Home</Link>
+        <Link href="/" style={homeButton}>
+          ← Home
+        </Link>
 
-        <img src="/wageflow-logo.png" alt="WageFlow Logo" style={logo} />
+        <img
+          src="/wageflow-logo.png"
+          alt="WageFlow Logo"
+          style={logo}
+        />
 
         <h1 style={title}>Request WageFlow Setup</h1>
 
         <p style={subtitle}>
-          Submit your details so the WageFlow team can prepare your business profile,
-          employer access, payslip setup, and staff record structure.
+          Submit your details so the WageFlow team can prepare your business
+          profile, employer access, payslip setup, and staff record structure.
         </p>
 
         {!accepted && (
@@ -112,7 +122,9 @@ export default function SetupRequestPage() {
             style={input}
             placeholder="Owner / responsible person name"
             value={form.ownerName}
-            onChange={(e) => setForm({ ...form, ownerName: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, ownerName: e.target.value })
+            }
             required
           />
 
@@ -120,7 +132,9 @@ export default function SetupRequestPage() {
             style={input}
             placeholder="Business name"
             value={form.businessName}
-            onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, businessName: e.target.value })
+            }
             required
           />
 
@@ -129,7 +143,9 @@ export default function SetupRequestPage() {
             type="email"
             placeholder="Email address"
             value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, email: e.target.value })
+            }
             required
           />
 
@@ -137,7 +153,9 @@ export default function SetupRequestPage() {
             style={input}
             placeholder="Phone / WhatsApp number"
             value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, phone: e.target.value })
+            }
             required
           />
 
@@ -146,7 +164,9 @@ export default function SetupRequestPage() {
             type="number"
             placeholder="Number of employees"
             value={form.employeeCount}
-            onChange={(e) => setForm({ ...form, employeeCount: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, employeeCount: e.target.value })
+            }
             required
             min={1}
           />
@@ -154,7 +174,9 @@ export default function SetupRequestPage() {
           <select
             style={input}
             value={form.plan}
-            onChange={(e) => setForm({ ...form, plan: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, plan: e.target.value })
+            }
             required
           >
             <option>Starter - R149/month</option>
@@ -165,26 +187,40 @@ export default function SetupRequestPage() {
             style={textarea}
             placeholder="Anything we should know before setup?"
             value={form.message}
-            onChange={(e) => setForm({ ...form, message: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, message: e.target.value })
+            }
           />
 
           <div style={setupNotice}>
             <strong>Once-off setup fee: R499</strong>
             <br />
-            Setup includes business profile setup, employer account setup, company logo
-            upload for payslip watermark, initial employee structure, payslip template
-            configuration, and guided onboarding support.
+            Setup includes business profile setup, employer account setup,
+            company logo upload for payslip watermark, initial employee
+            structure, payslip template configuration, and guided onboarding
+            support.
           </div>
 
           <p style={termsText}>
             Terms accepted: {accepted ? "Yes" : "No"}
-            {acceptedAt && <><br />Accepted on: {new Date(acceptedAt).toLocaleString()}</>}
+            {acceptedAt && (
+              <>
+                <br />
+                Accepted on:{" "}
+                {new Date(acceptedAt).toLocaleString()}
+              </>
+            )}
           </p>
 
           {error && <p style={errorText}>{error}</p>}
+
           {success && <p style={successText}>{success}</p>}
 
-          <button type="submit" style={submitButton} disabled={loading || !accepted}>
+          <button
+            type="submit"
+            style={submitButton}
+            disabled={loading || !accepted}
+          >
             {loading ? "Submitting..." : "Submit Setup Request"}
           </button>
         </form>
