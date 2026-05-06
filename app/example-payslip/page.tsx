@@ -1,8 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { useRef } from "react";
+import { useReactToPrint } from "react-to-print";
 import PayslipTemplate from "@/components/PayslipTemplate";
 
 export default function ExamplePayslipPage() {
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: "WageFlow-Payslip",
+  });
+
   const payslip = {
     company: {
       name: "WageFlow Demo Business",
@@ -57,11 +68,19 @@ export default function ExamplePayslipPage() {
 
   return (
     <main style={page}>
-      <Link href="/" style={backLink}>
-        ← Back
-      </Link>
+      <div style={topBar}>
+        <Link href="/" style={backLink}>
+          ← Back
+        </Link>
 
-      <PayslipTemplate payslip={payslip} />
+        <button onClick={handlePrint} style={downloadButton}>
+          Download PDF
+        </button>
+      </div>
+
+      <div ref={printRef}>
+        <PayslipTemplate payslip={payslip} />
+      </div>
     </main>
   );
 }
@@ -74,11 +93,26 @@ const page: CSSProperties = {
   fontFamily: "Inter, Arial, Helvetica, sans-serif",
 };
 
-const backLink: CSSProperties = {
-  display: "block",
+const topBar: CSSProperties = {
   maxWidth: "1050px",
   margin: "0 auto 18px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+};
+
+const backLink: CSSProperties = {
   color: "#176f7a",
   textDecoration: "none",
   fontWeight: 700,
+};
+
+const downloadButton: CSSProperties = {
+  background: "#176f7a",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: "10px",
+  padding: "12px 18px",
+  fontWeight: 700,
+  cursor: "pointer",
 };
