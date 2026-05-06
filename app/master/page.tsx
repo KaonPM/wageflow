@@ -52,9 +52,9 @@ export default function MasterDashboard() {
       supabase.from("employees").select("*", { count: "exact", head: true }),
 
       supabase
-        .from("wageflow_setup_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending"),
+  .from("wageflow_setup_requests")
+  .select("*", { count: "exact", head: true })
+  .neq("status", "Approved"),
     ]);
 
     setStats({
