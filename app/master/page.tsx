@@ -1,6 +1,68 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+
+type DashboardStats = {
+  businesses: number;
+  activeSubscriptions: number;
+  employers: number;
+  employees: number;
+  pendingRequests: number;
+};
+
 export default function MasterDashboard() {
+  const [stats, setStats] = useState<DashboardStats>({
+    businesses: 0,
+    activeSubscriptions: 0,
+    employers: 0,
+    employees: 0,
+    pendingRequests: 0,
+  });
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  async function fetchStats() {
+    setLoading(true);
+
+    const [
+      businessesResult,
+      subscriptionsResult,
+      employersResult,
+      employeesResult,
+      requestsResult,
+    ] = await Promise.all([
+      supabase.from("businesses").select("*", { count: "exact", head: true }),
+      supabase
+        .from("subscriptions")
+        .select("*", { count: "exact", head: true })
+        .eq("subscription_status", "active"),
+      supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("role", "employer"),
+      supabase.from("employees").select("*", { count: "exact", head: true }),
+      supabase
+        .from("wageflow_setup_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending"),
+    ]);
+
+    setStats({
+      businesses: businessesResult.count ?? 0,
+      activeSubscriptions: subscriptionsResult.count ?? 0,
+      employers: employersResult.count ?? 0,
+      employees: employeesResult.count ?? 0,
+      pendingRequests: requestsResult.count ?? 0,
+    });
+
+    setLoading(false);
+  }
+
   return (
     <main style={page}>
       <section style={hero}>
@@ -10,8 +72,8 @@ export default function MasterDashboard() {
           <h1 style={title}>Master Dashboard</h1>
 
           <p style={subtitle}>
-            Manage businesses, setup requests, subscriptions and users from one
-            central workspace.
+            Manage WageFlow businesses, setup requests, subscriptions and users
+            from one central workspace.
           </p>
 
           <div style={topActions}>
@@ -26,11 +88,36 @@ export default function MasterDashboard() {
         </div>
       </section>
 
-      <section style={overviewGrid}>
-        <OverviewCard label="Total Businesses" value="0" note="Client businesses" />
-        <OverviewCard label="Pending Setup" value="0" note="Waiting for onboarding" />
-        <OverviewCard label="Active Subscriptions" value="0" note="Monthly billing" />
-        <OverviewCard label="Total Users" value="0" note="Employer and employee access" />
+      <section style={statsGrid}>
+        <StatCard
+          label="Businesses"
+          value={loading ? "..." : String(stats.businesses)}
+          note="Registered client businesses"
+        />
+
+        <StatCard
+          label="Active Subscriptions"
+          value={loading ? "..." : String(stats.activeSubscriptions)}
+          note="Currently active billing records"
+        />
+
+        <StatCard
+          label="Employers"
+          value={loading ? "..." : String(stats.employers)}
+          note="Employer user accounts"
+        />
+
+        <StatCard
+          label="Employees"
+          value={loading ? "..." : String(stats.employees)}
+          note="Employee records captured"
+        />
+
+        <StatCard
+          label="Pending Requests"
+          value={loading ? "..." : String(stats.pendingRequests)}
+          note="Businesses awaiting setup"
+        />
       </section>
 
       <section style={grid}>
@@ -70,7 +157,7 @@ export default function MasterDashboard() {
   );
 }
 
-function OverviewCard({
+function StatCard({
   label,
   value,
   note,
@@ -80,11 +167,11 @@ function OverviewCard({
   note: string;
 }) {
   return (
-    <div style={overviewCard}>
-      <span style={overviewLabel}>{label}</span>
-      <strong style={overviewValue}>{value}</strong>
-      <p style={overviewNote}>{note}</p>
-    </div>
+    <article style={statCard}>
+      <p style={statLabel}>{label}</p>
+      <strong style={statValue}>{value}</strong>
+      <span style={statNote}>{note}</span>
+    </article>
   );
 }
 
@@ -130,7 +217,7 @@ const page = {
 };
 
 const hero = {
-  marginBottom: "26px",
+  marginBottom: "28px",
 };
 
 const eyebrow = {
@@ -150,7 +237,7 @@ const title = {
 };
 
 const subtitle = {
-  maxWidth: "720px",
+  maxWidth: "760px",
   color: "#64748b",
   fontSize: "15px",
   lineHeight: 1.6,
@@ -183,14 +270,14 @@ const logoutButton = {
   boxShadow: "0 8px 18px rgba(15, 118, 110, 0.18)",
 };
 
-const overviewGrid = {
+const statsGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
   gap: "16px",
-  marginBottom: "26px",
+  marginBottom: "28px",
 };
 
-const overviewCard = {
+const statCard = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
   borderRadius: "18px",
@@ -198,24 +285,22 @@ const overviewCard = {
   boxShadow: "0 10px 26px rgba(15, 23, 42, 0.05)",
 };
 
-const overviewLabel = {
-  display: "block",
+const statLabel = {
+  margin: "0 0 8px",
   color: "#64748b",
   fontSize: "12px",
   fontWeight: 800,
   textTransform: "uppercase" as const,
-  marginBottom: "8px",
 };
 
-const overviewValue = {
+const statValue = {
   display: "block",
   color: "#0f766e",
   fontSize: "28px",
   marginBottom: "6px",
 };
 
-const overviewNote = {
-  margin: 0,
+const statNote = {
   color: "#64748b",
   fontSize: "13px",
 };
