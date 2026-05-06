@@ -13,6 +13,7 @@ type Employee = {
   position: string | null;
   salary_type: string | null;
   pay_frequency: string | null;
+  payment_method: string | null;
   basic_salary: number | null;
   hourly_rate: number | null;
   bank_name: string | null;
@@ -37,6 +38,7 @@ const emptyForm = {
   position: "",
   salary_type: "monthly",
   pay_frequency: "monthly",
+  payment_method: "Bank Transfer",
   basic_salary: "",
   hourly_rate: "",
   bank_name: "",
@@ -130,11 +132,12 @@ export default function EmployerEmployeesPage() {
       position: form.position,
       salary_type: form.salary_type,
       pay_frequency: form.pay_frequency,
+      payment_method: form.payment_method,
       basic_salary: Number(form.basic_salary || 0),
       hourly_rate: Number(form.hourly_rate || 0),
-      bank_name: form.bank_name,
-      account_number: form.account_number,
-      account_type: form.account_type,
+      bank_name: form.payment_method === "Cash" ? "" : form.bank_name,
+      account_number: form.payment_method === "Cash" ? "" : form.account_number,
+      account_type: form.payment_method === "Cash" ? "" : form.account_type,
       tax_number: form.tax_number,
       uif_number: form.uif_number,
       employment_status: form.employment_status,
@@ -157,26 +160,6 @@ export default function EmployerEmployeesPage() {
     fetchEmployees();
   }
 
-  async function updateEmployeeStatus(id: string, status: string) {
-    const { error } = await supabase
-      .from("employees")
-      .update({ employment_status: status })
-      .eq("id", id);
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
-    setEmployees((current) =>
-      current.map((employee) =>
-        employee.id === id
-          ? { ...employee, employment_status: status }
-          : employee
-      )
-    );
-  }
-
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
       const text = `${employee.first_name || ""} ${employee.last_name || ""} ${
@@ -186,8 +169,7 @@ export default function EmployerEmployeesPage() {
       const matchesSearch = text.includes(search.toLowerCase());
 
       const matchesStatus =
-        statusFilter === "all" ||
-        employee.employment_status === statusFilter;
+        statusFilter === "all" || employee.employment_status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -233,160 +215,208 @@ export default function EmployerEmployeesPage() {
         {message && <div style={notice}>{message}</div>}
 
         <div style={formGrid}>
-          <input
-            style={input}
-            placeholder="First name"
-            value={form.first_name}
-            onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-          />
+          <Field label="First Name">
+            <input
+              style={input}
+              value={form.first_name}
+              onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+            />
+          </Field>
 
-          <input
-            style={input}
-            placeholder="Last name"
-            value={form.last_name}
-            onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-          />
+          <Field label="Last Name">
+            <input
+              style={input}
+              value={form.last_name}
+              onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+            />
+          </Field>
 
-          <input
-            style={input}
-            placeholder="Employee number"
-            value={form.employee_number}
-            onChange={(e) =>
-              setForm({ ...form, employee_number: e.target.value })
-            }
-          />
+          <Field label="Employee Number">
+            <input
+              style={input}
+              value={form.employee_number}
+              onChange={(e) =>
+                setForm({ ...form, employee_number: e.target.value })
+              }
+            />
+          </Field>
 
-          <input
-            style={input}
-            placeholder="Department"
-            value={form.department}
-            onChange={(e) => setForm({ ...form, department: e.target.value })}
-          />
+          <Field label="Department">
+            <input
+              style={input}
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
+            />
+          </Field>
 
-          <input
-            style={input}
-            placeholder="Position"
-            value={form.position}
-            onChange={(e) => setForm({ ...form, position: e.target.value })}
-          />
+          <Field label="Position">
+            <input
+              style={input}
+              value={form.position}
+              onChange={(e) => setForm({ ...form, position: e.target.value })}
+            />
+          </Field>
 
-          <select
-            style={input}
-            value={form.salary_type}
-            onChange={(e) => setForm({ ...form, salary_type: e.target.value })}
-          >
-            <option value="monthly">Monthly salary</option>
-            <option value="hourly">Hourly employee</option>
-          </select>
+          <Field label="Salary Type">
+            <select
+              style={input}
+              value={form.salary_type}
+              onChange={(e) =>
+                setForm({ ...form, salary_type: e.target.value })
+              }
+            >
+              <option value="monthly">Monthly Salary</option>
+              <option value="hourly">Hourly Employee</option>
+            </select>
+          </Field>
 
-          <select
-            style={input}
-            value={form.pay_frequency}
-            onChange={(e) =>
-              setForm({ ...form, pay_frequency: e.target.value })
-            }
-          >
-            <option value="monthly">Monthly</option>
-            <option value="weekly">Weekly</option>
-            <option value="fortnightly">Fortnightly</option>
-          </select>
+          <Field label="Pay Frequency">
+            <select
+              style={input}
+              value={form.pay_frequency}
+              onChange={(e) =>
+                setForm({ ...form, pay_frequency: e.target.value })
+              }
+            >
+              <option value="monthly">Monthly</option>
+              <option value="weekly">Weekly</option>
+              <option value="fortnightly">Fortnightly</option>
+            </select>
+          </Field>
 
-          <input
-            style={input}
-            type="number"
-            placeholder="Basic salary"
-            value={form.basic_salary}
-            onChange={(e) =>
-              setForm({ ...form, basic_salary: e.target.value })
-            }
-          />
+          <Field label="Payment Method">
+            <select
+              style={input}
+              value={form.payment_method}
+              onChange={(e) =>
+                setForm({ ...form, payment_method: e.target.value })
+              }
+            >
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cash">Cash</option>
+              <option value="EFT">EFT</option>
+              <option value="Mobile Payment">Mobile Payment</option>
+              <option value="Other">Other</option>
+            </select>
+          </Field>
 
-          <input
-            style={input}
-            type="number"
-            placeholder="Hourly rate"
-            value={form.hourly_rate}
-            onChange={(e) => setForm({ ...form, hourly_rate: e.target.value })}
-          />
+          <Field label="Basic Salary">
+            <input
+              style={input}
+              type="number"
+              value={form.basic_salary}
+              onChange={(e) =>
+                setForm({ ...form, basic_salary: e.target.value })
+              }
+            />
+          </Field>
 
-          <input
-            style={input}
-            placeholder="Bank name"
-            value={form.bank_name}
-            onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
-          />
+          <Field label="Hourly Rate">
+            <input
+              style={input}
+              type="number"
+              value={form.hourly_rate}
+              onChange={(e) =>
+                setForm({ ...form, hourly_rate: e.target.value })
+              }
+            />
+          </Field>
 
-          <input
-            style={input}
-            placeholder="Account number"
-            value={form.account_number}
-            onChange={(e) =>
-              setForm({ ...form, account_number: e.target.value })
-            }
-          />
+          <Field label="Bank Name">
+            <input
+              style={input}
+              disabled={form.payment_method === "Cash"}
+              value={form.bank_name}
+              onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
+            />
+          </Field>
 
-          <select
-            style={input}
-            value={form.account_type}
-            onChange={(e) => setForm({ ...form, account_type: e.target.value })}
-          >
-            <option value="Savings">Savings</option>
-            <option value="Cheque">Cheque</option>
-            <option value="Transmission">Transmission</option>
-          </select>
+          <Field label="Account Number">
+            <input
+              style={input}
+              disabled={form.payment_method === "Cash"}
+              value={form.account_number}
+              onChange={(e) =>
+                setForm({ ...form, account_number: e.target.value })
+              }
+            />
+          </Field>
 
-          <input
-            style={input}
-            placeholder="Tax number"
-            value={form.tax_number}
-            onChange={(e) => setForm({ ...form, tax_number: e.target.value })}
-          />
+          <Field label="Bank Account Type">
+            <select
+              style={input}
+              disabled={form.payment_method === "Cash"}
+              value={form.account_type}
+              onChange={(e) =>
+                setForm({ ...form, account_type: e.target.value })
+              }
+            >
+              <option value="Savings">Savings</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Transmission">Transmission</option>
+            </select>
+          </Field>
 
-          <input
-            style={input}
-            placeholder="UIF number"
-            value={form.uif_number}
-            onChange={(e) => setForm({ ...form, uif_number: e.target.value })}
-          />
+          <Field label="Tax Number">
+            <input
+              style={input}
+              value={form.tax_number}
+              onChange={(e) => setForm({ ...form, tax_number: e.target.value })}
+            />
+          </Field>
 
-          <input
-            style={input}
-            type="date"
-            value={form.start_date}
-            onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-          />
+          <Field label="UIF Number">
+            <input
+              style={input}
+              value={form.uif_number}
+              onChange={(e) => setForm({ ...form, uif_number: e.target.value })}
+            />
+          </Field>
 
-          <input
-            style={input}
-            type="number"
-            placeholder="Leave balance"
-            value={form.leave_balance}
-            onChange={(e) =>
-              setForm({ ...form, leave_balance: e.target.value })
-            }
-          />
+          <Field label="Employment Start Date">
+            <input
+              style={input}
+              type="date"
+              value={form.start_date}
+              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+            />
+          </Field>
 
-          <input
-            style={input}
-            type="number"
-            placeholder="Overtime rate"
-            value={form.overtime_rate}
-            onChange={(e) =>
-              setForm({ ...form, overtime_rate: e.target.value })
-            }
-          />
+          <Field label="Available Leave Days">
+            <input
+              style={input}
+              type="number"
+              value={form.leave_balance}
+              onChange={(e) =>
+                setForm({ ...form, leave_balance: e.target.value })
+              }
+            />
+          </Field>
 
-          <select
-            style={input}
-            value={form.employment_status}
-            onChange={(e) =>
-              setForm({ ...form, employment_status: e.target.value })
-            }
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="terminated">Terminated</option>
-          </select>
+          <Field label="Overtime Rate">
+            <input
+              style={input}
+              type="number"
+              value={form.overtime_rate}
+              onChange={(e) =>
+                setForm({ ...form, overtime_rate: e.target.value })
+              }
+            />
+          </Field>
+
+          <Field label="Employment Status">
+            <select
+              style={input}
+              value={form.employment_status}
+              onChange={(e) =>
+                setForm({ ...form, employment_status: e.target.value })
+              }
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="terminated">Terminated</option>
+            </select>
+          </Field>
         </div>
 
         <label style={checkboxRow}>
@@ -454,7 +484,8 @@ export default function EmployerEmployeesPage() {
                   <th style={th}>Department</th>
                   <th style={th}>Position</th>
                   <th style={th}>Salary</th>
-                  <th style={th}>Pay Frequency</th>
+                  <th style={th}>Pay</th>
+                  <th style={th}>Payment Method</th>
                   <th style={th}>Status</th>
                   <th style={th}>Start Date</th>
                 </tr>
@@ -475,27 +506,14 @@ export default function EmployerEmployeesPage() {
 
                     <td style={td}>{employee.department || "-"}</td>
                     <td style={td}>{employee.position || "-"}</td>
-
                     <td style={td}>
                       R {Number(employee.basic_salary || 0).toFixed(2)}
                     </td>
-
                     <td style={td}>{employee.pay_frequency || "monthly"}</td>
-
                     <td style={td}>
-                      <select
-                        style={statusSelect}
-                        value={employee.employment_status || "active"}
-                        onChange={(e) =>
-                          updateEmployeeStatus(employee.id, e.target.value)
-                        }
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="terminated">Terminated</option>
-                      </select>
+                      {employee.payment_method || "Bank Transfer"}
                     </td>
-
+                    <td style={td}>{employee.employment_status || "active"}</td>
                     <td style={td}>{employee.start_date || "-"}</td>
                   </tr>
                 ))}
@@ -505,6 +523,21 @@ export default function EmployerEmployeesPage() {
         )}
       </section>
     </main>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label style={fieldLabel}>{label}</label>
+      {children}
+    </div>
   );
 }
 
@@ -625,7 +658,16 @@ const formGrid = {
   marginBottom: "14px",
 };
 
+const fieldLabel = {
+  display: "block",
+  marginBottom: "6px",
+  color: "#475569",
+  fontSize: "13px",
+  fontWeight: 700,
+};
+
 const input = {
+  width: "100%",
   padding: "12px",
   borderRadius: "10px",
   border: "1px solid #cbd5e1",
@@ -710,7 +752,7 @@ const tableWrap = {
 const table = {
   width: "100%",
   borderCollapse: "collapse" as const,
-  minWidth: "900px",
+  minWidth: "1000px",
 };
 
 const th = {
@@ -732,11 +774,4 @@ const td = {
 const muted = {
   color: "#64748b",
   fontSize: "13px",
-};
-
-const statusSelect = {
-  padding: "10px",
-  borderRadius: "10px",
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
 };
