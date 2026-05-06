@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function EmployerSettingsPage() {
+  const router = useRouter();
+
   const [settings, setSettings] = useState({
     primaryColor: "#0f766e",
     secondaryColor: "#f59e0b",
@@ -14,30 +18,46 @@ export default function EmployerSettingsPage() {
     defaultPaymentMethod: "Bank Transfer",
   });
 
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
   function handleToggle(field: keyof typeof settings) {
     setSettings((prev) => ({
       ...prev,
-      [field]: !prev[field as keyof typeof prev],
+      [field]: !prev[field],
     }));
   }
 
   function handleSave() {
-    alert("Settings saved successfully.");
+    setSaving(true);
+    setMessage("Settings saved successfully.");
+
+    setTimeout(() => {
+      router.push("/employer");
+    }, 1000);
   }
 
   return (
     <main style={page}>
-      <div style={headerSection}>
-        <h1 style={title}>Employer Settings</h1>
+      <section style={header}>
+        <div>
+          <p style={eyebrow}>WageFlow Employer</p>
+          <h1 style={title}>Employer Settings</h1>
+          <p style={subtitle}>
+            Configure branding, payroll behaviour and payslip preferences for your
+            business.
+          </p>
+        </div>
 
-        <p style={subtitle}>
-          Configure branding, payroll behaviour and payslip preferences for your
-          business.
-        </p>
-      </div>
+        <Link href="/employer" style={backButton}>
+          ← Back to Employer Dashboard
+        </Link>
+      </section>
 
-      <div style={grid}>
-        <section style={card}>
+      {message && <div style={notice}>{message}</div>}
+
+      <section style={grid}>
+        <div style={card}>
           <div style={cardHeader}>
             <div style={iconCircle}>🎨</div>
 
@@ -51,7 +71,6 @@ export default function EmployerSettingsPage() {
 
           <div style={field}>
             <label style={label}>Primary Colour</label>
-
             <input
               type="color"
               value={settings.primaryColor}
@@ -64,7 +83,6 @@ export default function EmployerSettingsPage() {
 
           <div style={field}>
             <label style={label}>Secondary Colour</label>
-
             <input
               type="color"
               value={settings.secondaryColor}
@@ -77,12 +95,11 @@ export default function EmployerSettingsPage() {
 
           <div style={field}>
             <label style={label}>Company Logo</label>
-
             <input type="file" style={fileInput} />
           </div>
-        </section>
+        </div>
 
-        <section style={card}>
+        <div style={card}>
           <div style={cardHeader}>
             <div style={iconCircle}>💰</div>
 
@@ -123,9 +140,9 @@ export default function EmployerSettingsPage() {
             checked={settings.showLeaveBalances}
             onChange={() => handleToggle("showLeaveBalances")}
           />
-        </section>
+        </div>
 
-        <section style={card}>
+        <div style={card}>
           <div style={cardHeader}>
             <div style={iconCircle}>🏦</div>
 
@@ -150,18 +167,19 @@ export default function EmployerSettingsPage() {
               }
               style={select}
             >
-              <option>Bank Transfer</option>
-              <option>Cash</option>
-              <option>Cheque</option>
-              <option>Mobile Money</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cash">Cash</option>
+              <option value="EFT">EFT</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Mobile Money">Mobile Money</option>
             </select>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
 
       <div style={buttonRow}>
-        <button onClick={handleSave} style={saveButton}>
-          Save Settings
+        <button onClick={handleSave} style={saveButton} disabled={saving}>
+          {saving ? "Saving..." : "Save Settings"}
         </button>
       </div>
     </main>
@@ -179,9 +197,7 @@ function Toggle({
 }) {
   return (
     <div style={toggleRow}>
-      <div>
-        <p style={toggleLabel}>{label}</p>
-      </div>
+      <p style={toggleLabel}>{label}</p>
 
       <label style={switchLabel}>
         <input
@@ -200,9 +216,7 @@ function Toggle({
           <span
             style={{
               ...switchCircle,
-              transform: checked
-                ? "translateX(24px)"
-                : "translateX(0px)",
+              transform: checked ? "translateX(24px)" : "translateX(0px)",
             }}
           />
         </span>
@@ -214,26 +228,60 @@ function Toggle({
 const page = {
   minHeight: "100vh",
   background: "#f4f8fb",
-  padding: "40px",
+  padding: "38px",
   fontFamily: "Arial, sans-serif",
+  color: "#0f172a",
 };
 
-const headerSection = {
-  marginBottom: "32px",
+const header = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "20px",
+  marginBottom: "28px",
+};
+
+const eyebrow = {
+  color: "#0f766e",
+  fontWeight: 800,
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.08em",
+  fontSize: "12px",
+  marginBottom: "8px",
 };
 
 const title = {
-  fontSize: "32px",
+  fontSize: "34px",
   color: "#0f766e",
-  marginBottom: "10px",
-  fontWeight: "bold",
+  margin: "0 0 10px",
+  fontWeight: 900,
 };
 
 const subtitle = {
+  maxWidth: "720px",
   color: "#64748b",
   fontSize: "15px",
-  maxWidth: "700px",
   lineHeight: 1.6,
+  margin: 0,
+};
+
+const backButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  padding: "10px 18px",
+  borderRadius: "12px",
+  textDecoration: "none",
+  fontWeight: 700,
+};
+
+const notice = {
+  background: "#ecfeff",
+  border: "1px solid #a5f3fc",
+  color: "#155e75",
+  borderRadius: "14px",
+  padding: "14px 16px",
+  marginBottom: "18px",
+  fontWeight: 700,
 };
 
 const grid = {
@@ -258,10 +306,10 @@ const cardHeader = {
 };
 
 const iconCircle = {
-  width: "50px",
-  height: "50px",
+  width: "48px",
+  height: "48px",
   borderRadius: "14px",
-  background: "#e6fffb",
+  background: "#ecfeff",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -269,106 +317,106 @@ const iconCircle = {
 };
 
 const cardTitle = {
-  margin: 0,
+  margin: "0 0 6px",
   color: "#0f172a",
   fontSize: "20px",
 };
 
 const cardSubtitle = {
-  marginTop: "6px",
+  margin: 0,
   color: "#64748b",
   fontSize: "14px",
   lineHeight: 1.5,
 };
 
 const field = {
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: "10px",
-  marginBottom: "22px",
+  marginBottom: "18px",
 };
 
 const label = {
-  fontWeight: 600,
-  color: "#334155",
+  display: "block",
+  color: "#475569",
+  fontSize: "13px",
+  fontWeight: 700,
+  marginBottom: "8px",
 };
 
 const colorInput = {
-  width: "90px",
-  height: "50px",
-  border: "none",
-  borderRadius: "12px",
-  cursor: "pointer",
-  background: "transparent",
+  width: "100%",
+  height: "46px",
+  border: "1px solid #cbd5e1",
+  borderRadius: "10px",
+  padding: "4px",
+  background: "#ffffff",
 };
 
 const fileInput = {
+  width: "100%",
   padding: "12px",
-  border: "1px solid #cbd5e1",
   borderRadius: "10px",
-  background: "#fff",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+};
+
+const select = {
+  width: "100%",
+  padding: "12px",
+  borderRadius: "10px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
 };
 
 const toggleRow = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  padding: "16px 0",
-  borderBottom: "1px solid #f1f5f9",
+  gap: "18px",
+  padding: "14px 0",
+  borderBottom: "1px solid #e2e8f0",
 };
 
 const toggleLabel = {
   margin: 0,
-  color: "#0f172a",
-  fontWeight: 600,
+  color: "#334155",
+  fontWeight: 700,
 };
 
 const switchLabel = {
-  position: "relative" as const,
-  display: "inline-block",
+  cursor: "pointer",
 };
 
 const switchSlider = {
   width: "52px",
   height: "28px",
   borderRadius: "999px",
-  position: "relative" as const,
-  transition: "0.3s",
   display: "flex",
   alignItems: "center",
   padding: "2px",
+  transition: "0.2s",
 };
 
 const switchCircle = {
-  width: "22px",
-  height: "22px",
+  width: "24px",
+  height: "24px",
   background: "#ffffff",
   borderRadius: "50%",
-  transition: "0.3s",
-};
-
-const select = {
-  width: "100%",
-  padding: "14px",
-  borderRadius: "12px",
-  border: "1px solid #cbd5e1",
-  fontSize: "15px",
+  display: "block",
+  transition: "0.2s",
 };
 
 const buttonRow = {
-  marginTop: "34px",
+  marginTop: "26px",
   display: "flex",
   justifyContent: "flex-end",
 };
 
 const saveButton = {
-  background: "linear-gradient(135deg, #0f766e, #14b8a6)",
+  background: "#0f766e",
   color: "#ffffff",
   border: "none",
-  padding: "14px 24px",
   borderRadius: "12px",
+  padding: "13px 22px",
+  fontWeight: 800,
   cursor: "pointer",
-  fontWeight: "bold",
-  fontSize: "15px",
-  boxShadow: "0 10px 25px rgba(15, 118, 110, 0.25)",
 };
