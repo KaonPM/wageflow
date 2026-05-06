@@ -49,7 +49,7 @@ export default function MasterDashboard() {
       supabase
         .from("wageflow_setup_requests")
         .select("*", { count: "exact", head: true })
-        .eq("status", "pending"),
+        .eq("status", "Pending"),
     ]);
 
     setStats({
