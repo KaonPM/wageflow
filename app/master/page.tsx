@@ -1,211 +1,249 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "@/app/lib/supabaseClient";
 
-type DashboardStats = {
-  businesses: number;
-  activeSubscriptions: number;
-  employers: number;
-  employees: number;
-  pendingRequests: number;
+type Subscription = {
+  id: string;
+  business_id: string;
+  plan_name: string | null;
+  monthly_fee: number | null;
+  setup_fee: number | null;
+  setup_paid: boolean | null;
+  subscription_status: string | null;
+  created_at: string;
+  businesses?: {
+    business_name: string | null;
+    email: string | null;
+    phone: string | null;
+    status: string | null;
+  } | null;
 };
 
-export default function MasterDashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    businesses: 0,
-    activeSubscriptions: 0,
-    employers: 0,
-    employees: 0,
-    pendingRequests: 0,
-  });
-
+export default function MasterSubscriptionsPage() {
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStats();
+    fetchSubscriptions();
   }, []);
 
-  async function fetchStats() {
+  async function fetchSubscriptions() {
     setLoading(true);
 
-    const [
-      businessesResult,
-      subscriptionsResult,
-      employersResult,
-      employeesResult,
-      requestsResult,
-    ] = await Promise.all([
-      supabase.from("businesses").select("*", { count: "exact", head: true }),
-      supabase
-        .from("subscriptions")
-        .select("*", { count: "exact", head: true })
-        .eq("subscription_status", "active"),
-      supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true })
-        .eq("role", "employer"),
-      supabase.from("employees").select("*", { count: "exact", head: true }),
-      supabase
-        .from("wageflow_setup_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Pending"),
-    ]);
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select(
+        `
+        *,
+        businesses (
+          business_name,
+          email,
+          phone,
+          status
+        )
+      `
+      )
+      .order("created_at", { ascending: false });
 
-    setStats({
-      businesses: businessesResult.count ?? 0,
-      activeSubscriptions: subscriptionsResult.count ?? 0,
-      employers: employersResult.count ?? 0,
-      employees: employeesResult.count ?? 0,
-      pendingRequests: requestsResult.count ?? 0,
-    });
+    if (error) {
+      alert(error.message);
+      setLoading(false);
+      return;
+    }
 
+    setSubscriptions(data || []);
     setLoading(false);
+  }
+
+  const activeSubscriptions = subscriptions.filter(
+    (item) => item.subscription_status?.toLowerCase() === "active"
+  ).length;
+
+  const pendingPayments = subscriptions.filter(
+    (item) => item.subscription_status?.toLowerCase() === "pending"
+  ).length;
+
+  const setupFeesDue = subscriptions.filter((item) => !item.setup_paid).length;
+
+  const monthlyRevenue = subscriptions
+    .filter((item) => item.subscription_status?.toLowerCase() === "active")
+    .reduce((sum, item) => sum + Number(item.monthly_fee || 0), 0);
+
+  function money(amount: number) {
+    return `R${amount.toLocaleString("en-ZA", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   }
 
   return (
     <main style={page}>
-      <section style={hero}>
+      <section style={header}>
         <div>
           <p style={eyebrow}>WageFlow Admin</p>
-
-          <h1 style={title}>Master Dashboard</h1>
-
+          <h1 style={title}>Subscriptions</h1>
           <p style={subtitle}>
-            Manage WageFlow businesses, setup requests, subscriptions and users
-            from one central workspace.
+            Monitor setup fees, monthly subscriptions, payment status and client
+            billing activity.
           </p>
+        </div>
 
-          <div style={topActions}>
-            <a href="/" style={homeButton}>
-              Home
-            </a>
+        <a href="/master" style={backButton}>
+          ← Back to Dashboard
+        </a>
+      </section>
 
-            <a href="/login" style={logoutButton}>
-              Logout
-            </a>
+      <section style={summaryGrid}>
+        <SummaryCard
+          label="Active Subscriptions"
+          value={loading ? "..." : String(activeSubscriptions)}
+        />
+        <SummaryCard
+          label="Pending Payments"
+          value={loading ? "..." : String(pendingPayments)}
+        />
+        <SummaryCard
+          label="Setup Fees Due"
+          value={loading ? "..." : String(setupFeesDue)}
+        />
+        <SummaryCard
+          label="Monthly Revenue"
+          value={loading ? "..." : money(monthlyRevenue)}
+        />
+      </section>
+
+      <section style={card}>
+        <div style={cardHeader}>
+          <div>
+            <h2 style={cardTitle}>Subscription Management</h2>
+            <p style={cardText}>
+              View active plans, setup fee status and client subscription
+              records.
+            </p>
           </div>
         </div>
-      </section>
 
-      <section style={statsGrid}>
-        <StatCard
-          label="Businesses"
-          value={loading ? "..." : String(stats.businesses)}
-          note="Registered client businesses"
-        />
+        {loading ? (
+          <p>Loading subscriptions...</p>
+        ) : subscriptions.length === 0 ? (
+          <div style={emptyState}>
+            <strong>No subscription records yet</strong>
+            <span>
+              Once businesses are approved, their billing status will appear
+              here.
+            </span>
+          </div>
+        ) : (
+          <div style={tableWrap}>
+            <table style={table}>
+              <thead>
+                <tr>
+                  <th style={th}>Business</th>
+                  <th style={th}>Plan</th>
+                  <th style={th}>Monthly Fee</th>
+                  <th style={th}>Setup Fee</th>
+                  <th style={th}>Setup Paid</th>
+                  <th style={th}>Status</th>
+                  <th style={th}>Created</th>
+                </tr>
+              </thead>
 
-        <StatCard
-          label="Active Subscriptions"
-          value={loading ? "..." : String(stats.activeSubscriptions)}
-          note="Currently active billing records"
-        />
+              <tbody>
+                {subscriptions.map((subscription) => (
+                  <tr key={subscription.id}>
+                    <td style={td}>
+                      <strong>
+                        {subscription.businesses?.business_name ||
+                          "Unnamed Business"}
+                      </strong>
+                      <br />
+                      <span style={muted}>
+                        {subscription.businesses?.email || "No email"}
+                      </span>
+                    </td>
 
-        <StatCard
-          label="Employers"
-          value={loading ? "..." : String(stats.employers)}
-          note="Employer user accounts"
-        />
+                    <td style={td}>{subscription.plan_name || "Starter"}</td>
 
-        <StatCard
-          label="Employees"
-          value={loading ? "..." : String(stats.employees)}
-          note="Employee records captured"
-        />
+                    <td style={td}>
+                      {money(Number(subscription.monthly_fee || 0))}
+                    </td>
 
-        <StatCard
-          label="Pending Requests"
-          value={loading ? "..." : String(stats.pendingRequests)}
-          note="Businesses awaiting setup"
-        />
-      </section>
+                    <td style={td}>
+                      {money(Number(subscription.setup_fee || 0))}
+                    </td>
 
-      <section style={grid}>
-        <DashboardCard
-          icon="🏢"
-          title="Businesses"
-          description="View, edit and manage WageFlow client businesses."
-          href="/master/businesses"
-          tag="Client Records"
-        />
+                    <td style={td}>
+                      <span
+                        style={
+                          subscription.setup_paid
+                            ? paidBadge
+                            : unpaidBadge
+                        }
+                      >
+                        {subscription.setup_paid ? "Paid" : "Due"}
+                      </span>
+                    </td>
 
-        <DashboardCard
-          icon="🧾"
-          title="WageFlow Requests"
-          description="Track businesses waiting for setup and onboarding."
-          href="/master/wageflow-requests"
-          tag="Onboarding"
-        />
+                    <td style={td}>
+                      <span style={statusBadge(subscription.subscription_status)}>
+                        {subscription.subscription_status || "Pending"}
+                      </span>
+                    </td>
 
-        <DashboardCard
-          icon="💳"
-          title="Subscriptions"
-          description="Monitor setup fees, monthly subscriptions and payment status."
-          href="/master/subscriptions"
-          tag="Billing"
-        />
-
-        <DashboardCard
-          icon="👤"
-          title="Users"
-          description="Manage employer and employee access across WageFlow."
-          href="/master/users"
-          tag="Access Control"
-        />
+                    <td style={td}>
+                      {new Date(subscription.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  note,
-}: {
-  label: string;
-  value: string;
-  note: string;
-}) {
+function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <article style={statCard}>
-      <p style={statLabel}>{label}</p>
-      <strong style={statValue}>{value}</strong>
-      <span style={statNote}>{note}</span>
-    </article>
+    <div style={summaryCard}>
+      <span style={summaryLabel}>{label}</span>
+      <strong style={summaryValue}>{value}</strong>
+    </div>
   );
 }
 
-function DashboardCard({
-  icon,
-  title,
-  description,
-  href,
-  tag,
-}: {
-  icon: string;
-  title: string;
-  description: string;
-  href: string;
-  tag: string;
-}) {
-  return (
-    <a href={href} style={cardLink}>
-      <article style={card}>
-        <div style={cardTop}>
-          <div style={iconBox}>{icon}</div>
-          <span style={tagStyle}>{tag}</span>
-        </div>
+function statusBadge(status: string | null) {
+  const base = {
+    padding: "6px 10px",
+    borderRadius: "999px",
+    fontSize: "13px",
+    fontWeight: 700,
+    textTransform: "capitalize" as const,
+  };
 
-        <h2 style={cardTitle}>{title}</h2>
-        <p style={cardText}>{description}</p>
+  if (status?.toLowerCase() === "active") {
+    return {
+      ...base,
+      background: "#dcfce7",
+      color: "#166534",
+    };
+  }
 
-        <div style={cardFooter}>
-          <span>Open</span>
-          <strong>→</strong>
-        </div>
-      </article>
-    </a>
-  );
+  if (status?.toLowerCase() === "suspended") {
+    return {
+      ...base,
+      background: "#fee2e2",
+      color: "#991b1b",
+    };
+  }
+
+  return {
+    ...base,
+    background: "#fef3c7",
+    color: "#92400e",
+  };
 }
 
 const page = {
@@ -216,7 +254,11 @@ const page = {
   color: "#0f172a",
 };
 
-const hero = {
+const header = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "20px",
   marginBottom: "28px",
 };
 
@@ -244,131 +286,127 @@ const subtitle = {
   margin: 0,
 };
 
-const topActions = {
-  display: "flex",
-  gap: "12px",
-  marginTop: "22px",
-};
-
-const homeButton = {
-  background: "#ffffff",
-  color: "#0f766e",
-  border: "1px solid #cbd5e1",
-  padding: "10px 18px",
-  borderRadius: "12px",
-  textDecoration: "none",
-  fontWeight: 700,
-};
-
-const logoutButton = {
+const backButton = {
   background: "#0f766e",
   color: "#ffffff",
   padding: "10px 18px",
   borderRadius: "12px",
   textDecoration: "none",
   fontWeight: 700,
-  boxShadow: "0 8px 18px rgba(15, 118, 110, 0.18)",
 };
 
-const statsGrid = {
+const summaryGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
   gap: "16px",
-  marginBottom: "28px",
+  marginBottom: "24px",
 };
 
-const statCard = {
+const summaryCard = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
-  borderRadius: "18px",
-  padding: "20px",
+  borderRadius: "16px",
+  padding: "18px",
   boxShadow: "0 10px 26px rgba(15, 23, 42, 0.05)",
 };
 
-const statLabel = {
-  margin: "0 0 8px",
+const summaryLabel = {
+  display: "block",
   color: "#64748b",
   fontSize: "12px",
   fontWeight: 800,
   textTransform: "uppercase" as const,
+  marginBottom: "7px",
 };
 
-const statValue = {
-  display: "block",
+const summaryValue = {
   color: "#0f766e",
-  fontSize: "28px",
-  marginBottom: "6px",
-};
-
-const statNote = {
-  color: "#64748b",
-  fontSize: "13px",
-};
-
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-  gap: "20px",
-};
-
-const cardLink = {
-  textDecoration: "none",
-  color: "inherit",
+  fontSize: "24px",
 };
 
 const card = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
   borderRadius: "20px",
-  padding: "22px",
+  padding: "26px",
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
 };
 
-const cardTop = {
+const cardHeader = {
   display: "flex",
   justifyContent: "space-between",
-  alignItems: "center",
+  alignItems: "flex-start",
   marginBottom: "20px",
-};
-
-const iconBox = {
-  width: "50px",
-  height: "50px",
-  borderRadius: "15px",
-  background: "#e6fffb",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "23px",
-};
-
-const tagStyle = {
-  background: "#fff7ed",
-  color: "#c2410c",
-  padding: "7px 10px",
-  borderRadius: "999px",
-  fontSize: "12px",
-  fontWeight: 800,
 };
 
 const cardTitle = {
   margin: "0 0 10px",
-  fontSize: "20px",
   color: "#0f172a",
+  fontSize: "22px",
 };
 
 const cardText = {
   color: "#64748b",
   lineHeight: 1.6,
-  fontSize: "14px",
-  minHeight: "64px",
+  margin: 0,
 };
 
-const cardFooter = {
-  marginTop: "18px",
+const emptyState = {
+  background: "#ecfeff",
+  border: "1px solid #a5f3fc",
+  color: "#155e75",
+  borderRadius: "16px",
+  padding: "22px",
   display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  color: "#0f766e",
-  fontWeight: 800,
+  flexDirection: "column" as const,
+  gap: "6px",
+};
+
+const tableWrap = {
+  overflowX: "auto" as const,
+};
+
+const table = {
+  width: "100%",
+  borderCollapse: "collapse" as const,
+};
+
+const th = {
+  textAlign: "left" as const,
+  padding: "14px",
+  background: "#f8fafc",
+  borderBottom: "1px solid #e2e8f0",
+  color: "#334155",
+  fontSize: "13px",
+  textTransform: "uppercase" as const,
+};
+
+const td = {
+  padding: "14px",
+  borderBottom: "1px solid #e2e8f0",
+  verticalAlign: "top" as const,
+  fontSize: "14px",
+};
+
+const muted = {
+  color: "#64748b",
+  fontSize: "13px",
+};
+
+const paidBadge = {
+  background: "#dcfce7",
+  color: "#166534",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  fontSize: "13px",
+  fontWeight: 700,
+};
+
+const unpaidBadge = {
+  background: "#fee2e2",
+  color: "#991b1b",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  fontSize: "13px",
+  fontWeight: 700,
 };
