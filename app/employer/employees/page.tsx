@@ -127,6 +127,7 @@ export default function EmployerEmployeesPage() {
       business_id: businessId,
       first_name: form.first_name,
       last_name: form.last_name,
+      full_name: `${form.first_name} ${form.last_name}`.trim(),
       employee_number: form.employee_number,
       department: form.department,
       position: form.position,
@@ -191,7 +192,7 @@ export default function EmployerEmployeesPage() {
           <p style={eyebrow}>WageFlow Employer</p>
           <h1 style={title}>Employees</h1>
           <p style={subtitle}>
-            Add employees, manage employment status, and capture payroll details.
+            Add employees, manage employment status and capture payroll details.
           </p>
         </div>
 
