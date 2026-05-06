@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
+
+type Business = {
+  id: string;
+  business_name: string | null;
+};
 
 type UserProfile = {
   id: string;
   email: string | null;
   full_name: string | null;
   role: string | null;
+  access_status: string | null;
   business_id: string | null;
   created_at: string;
   businesses?: {
@@ -15,18 +22,25 @@ type UserProfile = {
   } | null;
 };
 
+const roles = ["master", "employer", "employee"];
+const accessStatuses = ["active", "pending", "suspended", "inactive"];
+
 export default function MasterUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetchUsers();
+    fetchPageData();
   }, []);
 
-  async function fetchUsers() {
+  async function fetchPageData() {
     setLoading(true);
+    setMessage("");
 
-    const { data, error } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from("profiles")
       .select(
         `
@@ -38,29 +52,81 @@ export default function MasterUsersPage() {
       )
       .order("created_at", { ascending: false });
 
-    if (error) {
-      alert(error.message);
-      setLoading(false);
-      return;
+    const { data: businessData, error: businessError } = await supabase
+      .from("businesses")
+      .select("id, business_name")
+      .order("business_name", { ascending: true });
+
+    if (userError) {
+      setMessage(userError.message);
+      setUsers([]);
+    } else {
+      setUsers(userData || []);
     }
 
-    setUsers(data || []);
+    if (businessError) {
+      setMessage(businessError.message);
+      setBusinesses([]);
+    } else {
+      setBusinesses(businessData || []);
+    }
+
     setLoading(false);
   }
 
-  const masterAdmins = users.filter(
-    (user) => user.role?.toLowerCase() === "master"
-  ).length;
+  const summary = useMemo(() => {
+    const masterAdmins = users.filter(
+      (user) => user.role?.toLowerCase() === "master"
+    ).length;
 
-  const employers = users.filter(
-    (user) => user.role?.toLowerCase() === "employer"
-  ).length;
+    const employers = users.filter(
+      (user) => user.role?.toLowerCase() === "employer"
+    ).length;
 
-  const employees = users.filter(
-    (user) => user.role?.toLowerCase() === "employee"
-  ).length;
+    const employees = users.filter(
+      (user) => user.role?.toLowerCase() === "employee"
+    ).length;
 
-  const linkedUsers = users.filter((user) => user.business_id).length;
+    const linkedUsers = users.filter((user) => user.business_id).length;
+
+    return { masterAdmins, employers, employees, linkedUsers };
+  }, [users]);
+
+  function updateLocal(id: string, field: keyof UserProfile, value: string) {
+    setUsers((current) =>
+      current.map((user) =>
+        user.id === id
+          ? {
+              ...user,
+              [field]: value === "none" ? null : value,
+            }
+          : user
+      )
+    );
+  }
+
+  async function saveUser(user: UserProfile) {
+    setSavingId(user.id);
+    setMessage("");
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        role: user.role,
+        access_status: user.access_status,
+        business_id: user.business_id || null,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("User updated successfully.");
+      await fetchPageData();
+    }
+
+    setSavingId(null);
+  }
 
   return (
     <main style={page}>
@@ -73,27 +139,27 @@ export default function MasterUsersPage() {
           </p>
         </div>
 
-        <a href="/master" style={backButton}>
-          ← Back to Dashboard
-        </a>
+        <Link href="/master" style={backButton}>
+          ← Back to Master Dashboard
+        </Link>
       </section>
 
       <section style={summaryGrid}>
         <SummaryCard
           label="Master Admins"
-          value={loading ? "..." : String(masterAdmins)}
+          value={loading ? "..." : String(summary.masterAdmins)}
         />
         <SummaryCard
           label="Employers"
-          value={loading ? "..." : String(employers)}
+          value={loading ? "..." : String(summary.employers)}
         />
         <SummaryCard
           label="Employees"
-          value={loading ? "..." : String(employees)}
+          value={loading ? "..." : String(summary.employees)}
         />
         <SummaryCard
           label="Linked Users"
-          value={loading ? "..." : String(linkedUsers)}
+          value={loading ? "..." : String(summary.linkedUsers)}
         />
       </section>
 
@@ -102,13 +168,22 @@ export default function MasterUsersPage() {
           <div>
             <h2 style={cardTitle}>User Access Management</h2>
             <p style={cardText}>
-              View users linked to WageFlow, their roles and business access.
+              Change user roles, business links and access status.
             </p>
           </div>
+
+          <button onClick={fetchPageData} style={secondaryButton}>
+            Refresh
+          </button>
         </div>
 
+        {message && <div style={notice}>{message}</div>}
+
         {loading ? (
-          <p>Loading users...</p>
+          <div style={emptyState}>
+            <strong>Loading users</strong>
+            <span>Please wait while user records are fetched.</span>
+          </div>
         ) : users.length === 0 ? (
           <div style={emptyState}>
             <strong>No user records found</strong>
@@ -125,8 +200,9 @@ export default function MasterUsersPage() {
                   <th style={th}>User</th>
                   <th style={th}>Role</th>
                   <th style={th}>Business</th>
-                  <th style={th}>Access</th>
+                  <th style={th}>Access Status</th>
                   <th style={th}>Created</th>
+                  <th style={th}>Action</th>
                 </tr>
               </thead>
 
@@ -140,27 +216,69 @@ export default function MasterUsersPage() {
                     </td>
 
                     <td style={td}>
-                      <span style={roleBadge(user.role)}>
-                        {user.role || "Unassigned"}
-                      </span>
+                      <select
+                        style={select}
+                        value={user.role || ""}
+                        onChange={(e) =>
+                          updateLocal(user.id, "role", e.target.value)
+                        }
+                      >
+                        <option value="">Select role</option>
+                        {roles.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
                     </td>
 
                     <td style={td}>
-                      {user.businesses?.business_name || (
-                        <span style={muted}>No business linked</span>
-                      )}
+                      <select
+                        style={select}
+                        value={user.business_id || "none"}
+                        onChange={(e) =>
+                          updateLocal(user.id, "business_id", e.target.value)
+                        }
+                      >
+                        <option value="none">No business linked</option>
+                        {businesses.map((business) => (
+                          <option key={business.id} value={business.id}>
+                            {business.business_name || "Unnamed Business"}
+                          </option>
+                        ))}
+                      </select>
                     </td>
 
                     <td style={td}>
-                      <span style={user.business_id ? activeBadge : pendingBadge}>
-                        {user.business_id ? "Linked" : "Not linked"}
-                      </span>
+                      <select
+                        style={select}
+                        value={user.access_status || "pending"}
+                        onChange={(e) =>
+                          updateLocal(user.id, "access_status", e.target.value)
+                        }
+                      >
+                        {accessStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
                     </td>
 
                     <td style={td}>
                       {user.created_at
                         ? new Date(user.created_at).toLocaleDateString()
                         : "-"}
+                    </td>
+
+                    <td style={td}>
+                      <button
+                        style={primaryButton}
+                        onClick={() => saveUser(user)}
+                        disabled={savingId === user.id}
+                      >
+                        {savingId === user.id ? "Saving..." : "Save"}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -180,46 +298,6 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
       <strong style={summaryValue}>{value}</strong>
     </div>
   );
-}
-
-function roleBadge(role: string | null) {
-  const base = {
-    padding: "6px 10px",
-    borderRadius: "999px",
-    fontSize: "13px",
-    fontWeight: 700,
-    textTransform: "capitalize" as const,
-  };
-
-  if (role?.toLowerCase() === "master") {
-    return {
-      ...base,
-      background: "#ede9fe",
-      color: "#5b21b6",
-    };
-  }
-
-  if (role?.toLowerCase() === "employer") {
-    return {
-      ...base,
-      background: "#dcfce7",
-      color: "#166534",
-    };
-  }
-
-  if (role?.toLowerCase() === "employee") {
-    return {
-      ...base,
-      background: "#e0f2fe",
-      color: "#075985",
-    };
-  }
-
-  return {
-    ...base,
-    background: "#fef3c7",
-    color: "#92400e",
-  };
 }
 
 const page = {
@@ -312,6 +390,7 @@ const cardHeader = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "flex-start",
+  gap: "16px",
   marginBottom: "20px",
 };
 
@@ -325,6 +404,16 @@ const cardText = {
   color: "#64748b",
   lineHeight: 1.6,
   margin: 0,
+};
+
+const notice = {
+  background: "#ecfeff",
+  border: "1px solid #a5f3fc",
+  color: "#155e75",
+  borderRadius: "14px",
+  padding: "14px 16px",
+  marginBottom: "16px",
+  fontWeight: 700,
 };
 
 const emptyState = {
@@ -345,6 +434,7 @@ const tableWrap = {
 const table = {
   width: "100%",
   borderCollapse: "collapse" as const,
+  minWidth: "980px",
 };
 
 const th = {
@@ -369,20 +459,31 @@ const muted = {
   fontSize: "13px",
 };
 
-const activeBadge = {
-  background: "#dcfce7",
-  color: "#166534",
-  padding: "6px 10px",
-  borderRadius: "999px",
-  fontSize: "13px",
-  fontWeight: 700,
+const select = {
+  width: "100%",
+  padding: "10px",
+  borderRadius: "10px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
 };
 
-const pendingBadge = {
-  background: "#fee2e2",
-  color: "#991b1b",
-  padding: "6px 10px",
-  borderRadius: "999px",
-  fontSize: "13px",
-  fontWeight: 700,
+const primaryButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: "10px",
+  padding: "10px 14px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const secondaryButton = {
+  background: "#ffffff",
+  color: "#0f766e",
+  border: "1px solid #0f766e",
+  borderRadius: "10px",
+  padding: "10px 14px",
+  fontWeight: 800,
+  cursor: "pointer",
 };
