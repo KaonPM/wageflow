@@ -28,6 +28,7 @@ export default function ManageBusinessPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     fetchBusiness();
@@ -50,6 +51,44 @@ export default function ManageBusinessPage() {
 
     setBusiness(data);
     setLoading(false);
+  }
+
+  async function uploadLogo(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
+    }
+
+    const file = event.target.files[0];
+
+    if (!business) return;
+
+    setUploadingLogo(true);
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${business.id}-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("business-logos")
+      .upload(fileName, file, {
+        upsert: true,
+      });
+
+    if (uploadError) {
+      setUploadingLogo(false);
+      alert(uploadError.message);
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from("business-logos")
+      .getPublicUrl(fileName);
+
+    setBusiness({
+      ...business,
+      logo_url: data.publicUrl,
+    });
+
+    setUploadingLogo(false);
   }
 
   async function saveBusiness() {
@@ -205,15 +244,25 @@ export default function ManageBusinessPage() {
 
         <div style={grid}>
           <label style={label}>
-            Logo URL
+            Business Logo
             <input
+              type="file"
+              accept="image/*"
+              onChange={uploadLogo}
               style={input}
-              value={business.logo_url || ""}
-              onChange={(e) =>
-                setBusiness({ ...business, logo_url: e.target.value })
-              }
-              placeholder="Paste uploaded logo URL"
             />
+
+            {uploadingLogo && <span style={muted}>Uploading logo...</span>}
+
+            {business.logo_url && (
+              <div style={logoPreviewWrap}>
+                <img
+                  src={business.logo_url}
+                  alt="Business Logo"
+                  style={logoPreview}
+                />
+              </div>
+            )}
           </label>
 
           <label style={label}>
@@ -248,13 +297,25 @@ export default function ManageBusinessPage() {
         <div style={grid}>
           <label style={label}>
             Package
-            <input
+            <select
               style={input}
               value={business.selected_package || ""}
               onChange={(e) =>
-                setBusiness({ ...business, selected_package: e.target.value })
+                setBusiness({
+                  ...business,
+                  selected_package: e.target.value,
+                })
               }
-            />
+            >
+              <option value="">Select package</option>
+              <option value="Starter - R149/month">
+                Starter - R149/month
+              </option>
+              <option value="Growth - R249/month">
+                Growth - R249/month
+              </option>
+              <option value="Elite - Custom">Elite - Custom</option>
+            </select>
           </label>
 
           <label style={label}>
@@ -282,6 +343,8 @@ export default function ManageBusinessPage() {
               }
             >
               <option>Setup In Progress</option>
+              <option>Branding Needed</option>
+              <option>Employee Setup Needed</option>
               <option>Ready for Employer</option>
               <option>Active</option>
               <option>Suspended</option>
@@ -367,6 +430,25 @@ const input = {
   borderRadius: 12,
   border: "1px solid #bcccdc",
   fontSize: 14,
+};
+
+const muted = {
+  color: "#64748b",
+  fontSize: 13,
+};
+
+const logoPreviewWrap = {
+  marginTop: 12,
+};
+
+const logoPreview = {
+  width: 90,
+  height: 90,
+  objectFit: "contain" as const,
+  borderRadius: 12,
+  border: "1px solid #d9e2ec",
+  background: "#ffffff",
+  padding: 8,
 };
 
 const actions = {
