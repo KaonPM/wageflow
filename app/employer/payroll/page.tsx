@@ -14,6 +14,8 @@ type Employee = {
   hourly_rate: number | null;
   pay_frequency: string | null;
   payment_method: string | null;
+  phone: string | null;
+  email: string | null;
 };
 
 const UIF_LIMIT = 17712;
@@ -29,6 +31,7 @@ export default function PayrollPage() {
   const [ageCategory, setAgeCategory] = useState("under65");
   const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
@@ -39,11 +42,11 @@ export default function PayrollPage() {
     );
   }, []);
 
-  async function fetchEmployees() {
+  async function getBusinessId() {
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
 
-    if (!userId) return;
+    if (!userId) return null;
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -51,17 +54,19 @@ export default function PayrollPage() {
       .eq("id", userId)
       .single();
 
-    let businessId = profile?.business_id;
+    if (profile?.business_id) return profile.business_id;
 
-    if (!businessId) {
-      const { data: business } = await supabase
-        .from("businesses")
-        .select("id")
-        .eq("employer_id", userId)
-        .single();
+    const { data: business } = await supabase
+      .from("businesses")
+      .select("id")
+      .eq("employer_id", userId)
+      .single();
 
-      businessId = business?.id;
-    }
+    return business?.id || null;
+  }
+
+  async function fetchEmployees() {
+    const businessId = await getBusinessId();
 
     if (!businessId) {
       setMessage("Business profile not found for this employer.");
@@ -83,11 +88,13 @@ export default function PayrollPage() {
     setEmployees(data || []);
   }
 
-  function getEmployeeName(employee: Employee) {
+  function getEmployeeName(employee: Employee | undefined) {
+    if (!employee) return "Employee";
+
     return (
       employee.full_name ||
       `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
-      "Unnamed Employee"
+      "Employee"
     );
   }
 
@@ -112,13 +119,8 @@ export default function PayrollPage() {
 
     let rebate = 17820;
 
-    if (age === "65to74") {
-      rebate = 27630;
-    }
-
-    if (age === "75plus") {
-      rebate = 30735;
-    }
+    if (age === "65to74") rebate = 27630;
+    if (age === "75plus") rebate = 30735;
 
     const annualPaye = Math.max(annualTax - rebate, 0);
 
@@ -154,6 +156,62 @@ export default function PayrollPage() {
     };
   }, [basicPay, bonus, overtimePay, otherDeductions, ageCategory]);
 
+  async function queuePayslipNotifications({
+    payslipId,
+    employee,
+    businessId,
+  }: {
+    payslipId: string;
+    employee: Employee | undefined;
+    businessId: string;
+  }) {
+    const employeeName = getEmployeeName(employee);
+
+    const smsMessage = `Hi ${employeeName}, your WageFlow payslip for ${payrollMonth} is now available. Please log in to your employee portal or check your email.`;
+
+    const emailMessage = `Hi ${employeeName}, your WageFlow payslip for ${payrollMonth} is now available. Please log in to your employee portal to view or download it.`;
+
+    const notificationRows = [];
+
+    if (employee?.phone) {
+      notificationRows.push({
+        payslip_id: payslipId,
+        employee_id: selectedEmployee,
+        business_id: businessId,
+        notification_type: "sms",
+        recipient: employee.phone,
+        message: smsMessage,
+        status: "pending",
+      });
+    }
+
+    if (employee?.email) {
+      notificationRows.push({
+        payslip_id: payslipId,
+        employee_id: selectedEmployee,
+        business_id: businessId,
+        notification_type: "email",
+        recipient: employee.email,
+        message: emailMessage,
+        status: "pending",
+      });
+    }
+
+    if (notificationRows.length === 0) {
+      notificationRows.push({
+        payslip_id: payslipId,
+        employee_id: selectedEmployee,
+        business_id: businessId,
+        notification_type: "manual",
+        recipient: "",
+        message: smsMessage,
+        status: "missing_contact",
+      });
+    }
+
+    await supabase.from("payslip_notifications").insert(notificationRows);
+  }
+
   async function generatePayslip() {
     if (!selectedEmployee) {
       setMessage("Please select an employee first.");
@@ -165,70 +223,65 @@ export default function PayrollPage() {
       return;
     }
 
-    setMessage("Saving payroll and payslip...");
+    setSaving(true);
+    setMessage("Saving payroll and preparing employee notification...");
 
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-
-    if (!userId) {
-      setMessage("You are not logged in.");
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("business_id")
-      .eq("id", userId)
-      .single();
-
-    let businessId = profile?.business_id;
-
-    if (!businessId) {
-      const { data: business } = await supabase
-        .from("businesses")
-        .select("id")
-        .eq("employer_id", userId)
-        .single();
-
-      businessId = business?.id;
-    }
+    const businessId = await getBusinessId();
 
     if (!businessId) {
       setMessage("Business profile not found for this employer.");
+      setSaving(false);
       return;
     }
 
     const [year, month] = payrollMonth.split("-");
+    const employee = employees.find((item) => item.id === selectedEmployee);
 
-    const { error } = await supabase.from("payslips").insert([
-      {
-        employee_id: selectedEmployee,
-        business_id: businessId,
-        basic_pay: basicPay,
-        bonus,
-        overtime_pay: overtimePay,
-        gross_pay: calculations.grossPay,
-        taxable_income: calculations.grossPay,
-        uif_employee: calculations.employeeUif,
-        employer_uif: calculations.employerUif,
-        total_uif: calculations.totalUif,
-        paye: calculations.paye,
-        other_deductions: otherDeductions,
-        net_pay: calculations.netPay,
-        sars_payable: calculations.sarsPayable,
-        payment_method: paymentMethod,
-        payroll_month: payrollMonth,
-        pay_period_month: Number(month),
-        pay_period_year: Number(year),
-        status: "generated",
-      },
-    ]);
+    const { data: payslipData, error } = await supabase
+      .from("payslips")
+      .insert([
+        {
+          employee_id: selectedEmployee,
+          business_id: businessId,
+          basic_pay: basicPay,
+          bonus,
+          overtime_pay: overtimePay,
+          gross_pay: calculations.grossPay,
+          taxable_income: calculations.grossPay,
+          uif_employee: calculations.employeeUif,
+          employer_uif: calculations.employerUif,
+          total_uif: calculations.totalUif,
+          paye: calculations.paye,
+          other_deductions: otherDeductions,
+          net_pay: calculations.netPay,
+          sars_payable: calculations.sarsPayable,
+          payment_method: paymentMethod,
+          payroll_month: payrollMonth,
+          pay_period_month: Number(month),
+          pay_period_year: Number(year),
+          status: "generated",
+        },
+      ])
+      .select()
+      .single();
 
     if (error) {
       setMessage(error.message);
-    } else {
-      setMessage("Payslip generated successfully.");
+      setSaving(false);
+      return;
     }
+
+    await queuePayslipNotifications({
+      payslipId: payslipData.id,
+      employee,
+      businessId,
+    });
+
+    setMessage(
+      "Payslip generated successfully. Employee SMS/email notification has been queued."
+    );
+
+    setSaving(false);
   }
 
   return (
@@ -266,6 +319,7 @@ export default function PayrollPage() {
             value={selectedEmployee}
             onChange={(e) => {
               const emp = employees.find((x) => x.id === e.target.value);
+
               setSelectedEmployee(e.target.value);
 
               if (emp) {
@@ -340,8 +394,8 @@ export default function PayrollPage() {
             onChange={(e) => setOtherDeductions(Number(e.target.value || 0))}
           />
 
-          <button style={button} onClick={generatePayslip}>
-            Generate Payslip
+          <button style={button} onClick={generatePayslip} disabled={saving}>
+            {saving ? "Generating..." : "Generate Payslip"}
           </button>
 
           {message && <p style={messageStyle}>{message}</p>}
@@ -388,9 +442,9 @@ export default function PayrollPage() {
           </div>
 
           <p style={note}>
-            PAYE is estimated using the 2027 SARS individual tax brackets and
-            annualised monthly remuneration. Employers remain responsible for
-            final SARS submissions.
+            SMS and email notifications are queued after the payslip is generated.
+            Actual sending can be connected later through SMS, WhatsApp, Brevo or
+            Resend.
           </p>
         </div>
       </section>
