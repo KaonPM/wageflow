@@ -30,10 +30,10 @@ export default function WageFlowRequestsPage() {
     setLoading(true);
 
     const { data, error } = await supabase
-  .from("wageflow_setup_requests")
-  .select("*")
-  .eq("status", "Pending")
-  .order("created_at", { ascending: false });
+      .from("wageflow_setup_requests")
+      .select("*")
+      .eq("status", "Pending")
+      .order("created_at", { ascending: false });
 
     if (error) {
       alert(error.message);
@@ -43,6 +43,15 @@ export default function WageFlowRequestsPage() {
 
     setRequests(data || []);
     setLoading(false);
+  }
+
+  function getMonthlyFee(packageName: string | null) {
+    if (!packageName) return 149;
+
+    if (packageName.includes("Growth")) return 249;
+    if (packageName.includes("Elite")) return 499;
+
+    return 149;
   }
 
   async function approveRequest(request: Request) {
@@ -64,6 +73,47 @@ export default function WageFlowRequestsPage() {
     }
 
     if (existingBusiness) {
+      const { error: settingsError } = await supabase
+        .from("business_settings")
+        .upsert(
+          {
+            business_id: existingBusiness.id,
+            primary_color: "#0f766e",
+            secondary_color: "#d4af37",
+            paye_enabled: true,
+            uif_enabled: true,
+            pension_enabled: false,
+            medical_aid_enabled: false,
+            show_leave_balances: true,
+            default_payment_method: "Bank Transfer",
+          },
+          { onConflict: "business_id" }
+        );
+
+      if (settingsError) {
+        alert(settingsError.message);
+        return;
+      }
+
+      const { error: subscriptionError } = await supabase
+        .from("subscriptions")
+        .upsert(
+          {
+            business_id: existingBusiness.id,
+            plan_name: request.selected_package || "Starter",
+            monthly_fee: getMonthlyFee(request.selected_package),
+            setup_fee: 499,
+            setup_paid: false,
+            subscription_status: "active",
+          },
+          { onConflict: "business_id" }
+        );
+
+      if (subscriptionError) {
+        alert(subscriptionError.message);
+        return;
+      }
+
       const { error: updateOnlyError } = await supabase
         .from("wageflow_setup_requests")
         .update({
@@ -81,7 +131,7 @@ export default function WageFlowRequestsPage() {
       return;
     }
 
-    const { error: businessError } = await supabase
+    const { data: newBusiness, error: businessError } = await supabase
       .from("businesses")
       .insert({
         business_name: request.business_name,
@@ -91,10 +141,47 @@ export default function WageFlowRequestsPage() {
         source_request_id: request.id,
         selected_package: request.selected_package,
         number_of_employees: request.number_of_employees,
+      })
+      .select()
+      .single();
+
+    if (businessError || !newBusiness) {
+      alert(businessError?.message || "Failed to create business.");
+      return;
+    }
+
+    const { error: settingsError } = await supabase
+      .from("business_settings")
+      .insert({
+        business_id: newBusiness.id,
+        primary_color: "#0f766e",
+        secondary_color: "#d4af37",
+        paye_enabled: true,
+        uif_enabled: true,
+        pension_enabled: false,
+        medical_aid_enabled: false,
+        show_leave_balances: true,
+        default_payment_method: "Bank Transfer",
       });
 
-    if (businessError) {
-      alert(businessError.message);
+    if (settingsError) {
+      alert(settingsError.message);
+      return;
+    }
+
+    const { error: subscriptionError } = await supabase
+      .from("subscriptions")
+      .insert({
+        business_id: newBusiness.id,
+        plan_name: request.selected_package || "Starter",
+        monthly_fee: getMonthlyFee(request.selected_package),
+        setup_fee: 499,
+        setup_paid: false,
+        subscription_status: "active",
+      });
+
+    if (subscriptionError) {
+      alert(subscriptionError.message);
       return;
     }
 
@@ -185,13 +272,9 @@ export default function WageFlowRequestsPage() {
                       <span style={muted}>{request.phone}</span>
                     </td>
 
-                    <td style={td}>
-                      {request.selected_package}
-                    </td>
+                    <td style={td}>{request.selected_package}</td>
 
-                    <td style={td}>
-                      {request.number_of_employees || "-"}
-                    </td>
+                    <td style={td}>{request.number_of_employees || "-"}</td>
 
                     <td style={td}>
                       <span style={badge(request.status)}>
@@ -200,9 +283,7 @@ export default function WageFlowRequestsPage() {
                     </td>
 
                     <td style={td}>
-                      {new Date(
-                        request.created_at
-                      ).toLocaleDateString()}
+                      {new Date(request.created_at).toLocaleDateString()}
                     </td>
 
                     <td style={td}>
