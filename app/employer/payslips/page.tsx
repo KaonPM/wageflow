@@ -301,11 +301,8 @@ export default function EmployerPayslipsPage() {
 
                     <td style={td}>
                       <div style={actionGroup}>
-                        <Link
-                          href={`/employer/payslips/${payslip.id}`}
-                          style={viewButton}
-                        >
-                          View
+                        <Link href={`/employer/payslips/${payslip.id}`} style={pdfButton}>
+                         VIEW
                         </Link>
 
                         <button
@@ -315,12 +312,9 @@ export default function EmployerPayslipsPage() {
                           Resend
                         </button>
 
-                        <button
-                          style={disabledButton}
-                          title="PDF download will be connected next"
-                        >
-                          PDF
-                        </button>
+                       <Link href={`/employer/payslips/${payslip.id}`} style={pdfButton}>
+                         PDF
+                       </Link>
                       </div>
                     </td>
                   </tr>
@@ -550,12 +544,16 @@ const actionButton = {
   cursor: "pointer",
 };
 
-const disabledButton = {
-  background: "#f1f5f9",
-  color: "#94a3b8",
-  border: "1px solid #e2e8f0",
+const pdfButton = {
+  background: "#e6fffb",
+  color: "#0f766e",
+  border: "1px solid #99f6e4",
+  padding: "8px 14px",
   borderRadius: "10px",
-  padding: "8px 11px",
-  fontWeight: 800,
-  cursor: "not-allowed",
+  fontWeight: 700,
+  textDecoration: "none",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
 };
