@@ -16,7 +16,18 @@ type Employee = {
   payment_method: string | null;
   phone: string | null;
   email: string | null;
+  employer_id?: string | null;
+  business_id?: string | null;
   employment_status?: string | null;
+};
+
+type Business = {
+  id: string;
+  employer_id: string | null;
+  registered_name?: string | null;
+  trading_name?: string | null;
+  business_name?: string | null;
+  name?: string | null;
 };
 
 const UIF_LIMIT = 17712;
@@ -54,20 +65,12 @@ export default function PayrollPage() {
     await fetchEmployees();
   }
 
-  async function getEmployerBusiness() {
+  async function getEmployerBusiness(): Promise<Business | null> {
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) return null;
-
-    const { data: businessByEmployer } = await supabase
-      .from("businesses")
-      .select("id, registered_name, trading_name, business_name, name")
-      .eq("employer_id", user.id)
-      .maybeSingle();
-
-    if (businessByEmployer?.id) return businessByEmployer;
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -75,15 +78,23 @@ export default function PayrollPage() {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile?.business_id) return null;
+    if (profile?.business_id) {
+      const { data } = await supabase
+        .from("businesses")
+        .select("id, employer_id, registered_name, trading_name, business_name, name")
+        .eq("id", profile.business_id)
+        .maybeSingle();
 
-    const { data: businessByProfile } = await supabase
+      if (data?.id) return data;
+    }
+
+    const { data } = await supabase
       .from("businesses")
-      .select("id, registered_name, trading_name, business_name, name")
-      .eq("id", profile.business_id)
+      .select("id, employer_id, registered_name, trading_name, business_name, name")
+      .eq("employer_id", user.id)
       .maybeSingle();
 
-    return businessByProfile || null;
+    return data || null;
   }
 
   async function fetchEmployees() {
@@ -109,21 +120,74 @@ export default function PayrollPage() {
         "Kaone Cleaning Services"
     );
 
-    const { data, error } = await supabase
+    const { data: businessEmployees, error: businessError } = await supabase
       .from("employees")
       .select("*")
       .eq("business_id", business.id)
       .or("employment_status.eq.active,employment_status.is.null")
       .order("first_name", { ascending: true });
 
-    if (error) {
+    if (businessError) {
       setEmployees([]);
-      setMessage(error.message);
+      setMessage(businessError.message);
       setLoadingEmployees(false);
       return;
     }
 
-    setEmployees(data || []);
+    if (businessEmployees && businessEmployees.length > 0) {
+      setEmployees(businessEmployees);
+      setLoadingEmployees(false);
+      return;
+    }
+
+    if (!business.employer_id) {
+      setEmployees([]);
+      setMessage("No active employees found for this business.");
+      setLoadingEmployees(false);
+      return;
+    }
+
+    const { data: employerEmployees, error: employerError } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("employer_id", business.employer_id)
+      .or("employment_status.eq.active,employment_status.is.null")
+      .order("first_name", { ascending: true });
+
+    if (employerError) {
+      setEmployees([]);
+      setMessage(employerError.message);
+      setLoadingEmployees(false);
+      return;
+    }
+
+    if (employerEmployees && employerEmployees.length > 0) {
+      const employeeIdsToRepair = employerEmployees
+        .filter((employee) => employee.business_id !== business.id)
+        .map((employee) => employee.id);
+
+      if (employeeIdsToRepair.length > 0) {
+        await supabase
+          .from("employees")
+          .update({ business_id: business.id, employment_status: "active" })
+          .in("id", employeeIdsToRepair);
+      }
+
+      setEmployees(
+        employerEmployees.map((employee) => ({
+          ...employee,
+          business_id: business.id,
+          employment_status: employee.employment_status || "active",
+        }))
+      );
+
+      setMessage("");
+      setLoadingEmployees(false);
+      return;
+    }
+
+    setEmployees([]);
+    setMessage("No active employees found for this business.");
     setLoadingEmployees(false);
   }
 
@@ -161,9 +225,7 @@ export default function PayrollPage() {
     if (age === "65to74") rebate = 27630;
     if (age === "75plus") rebate = 30735;
 
-    const annualPaye = Math.max(annualTax - rebate, 0);
-
-    return Number((annualPaye / 12).toFixed(2));
+    return Number((Math.max(annualTax - rebate, 0) / 12).toFixed(2));
   }
 
   const calculations = useMemo(() => {
@@ -173,13 +235,9 @@ export default function PayrollPage() {
     const employeeUif = Number((uifSalary * 0.01).toFixed(2));
     const employerUif = Number((uifSalary * 0.01).toFixed(2));
     const totalUif = Number((employeeUif + employerUif).toFixed(2));
-
-    const annualTaxableIncome = grossPay * 12;
-    const paye = calculatePaye(annualTaxableIncome, ageCategory);
-
+    const paye = calculatePaye(grossPay * 12, ageCategory);
     const totalEmployeeDeductions = employeeUif + paye + otherDeductions;
     const netPay = Number((grossPay - totalEmployeeDeductions).toFixed(2));
-
     const sarsPayable = Number((paye + employeeUif + employerUif).toFixed(2));
 
     return {
@@ -191,7 +249,6 @@ export default function PayrollPage() {
       totalEmployeeDeductions: Number(totalEmployeeDeductions.toFixed(2)),
       netPay,
       sarsPayable,
-      annualTaxableIncome,
     };
   }, [basicPay, bonus, overtimePay, otherDeductions, ageCategory]);
 
@@ -322,10 +379,7 @@ export default function PayrollPage() {
       activeBusinessId,
     });
 
-    setMessage(
-      "Payslip generated successfully. Employee SMS/email notification has been queued."
-    );
-
+    setMessage("Payslip generated successfully.");
     setSaving(false);
   }
 
@@ -336,8 +390,8 @@ export default function PayrollPage() {
           <p style={eyebrow}>WageFlow Employer</p>
           <h1 style={title}>Payroll</h1>
           <p style={subtitle}>
-            Calculate salary, UIF, PAYE, deductions and net pay for cleaning
-            staff before generating a payslip.
+            Calculate salary, UIF, PAYE, deductions and net pay before
+            generating a payslip.
           </p>
           <p style={businessLine}>Current business: {businessName}</p>
         </div>
@@ -382,8 +436,7 @@ export default function PayrollPage() {
               setSelectedEmployee(e.target.value);
 
               if (emp) {
-                const employeeSalary = Number(emp.basic_salary || emp.salary || 0);
-                setBasicPay(employeeSalary);
+                setBasicPay(Number(emp.basic_salary || emp.salary || 0));
                 setPaymentMethod(emp.payment_method || "Bank Transfer");
               } else {
                 setBasicPay(0);
@@ -511,12 +564,6 @@ export default function PayrollPage() {
             <span>Net Pay to Employee</span>
             <strong>R {calculations.netPay.toFixed(2)}</strong>
           </div>
-
-          <p style={note}>
-            SMS and email notifications are queued after the payslip is generated.
-            Actual sending can be connected later through SMS, WhatsApp, Brevo or
-            Resend.
-          </p>
         </div>
       </section>
     </main>
@@ -710,11 +757,4 @@ const netBox = {
   justifyContent: "space-between",
   gap: "16px",
   fontSize: "18px",
-};
-
-const note = {
-  marginTop: "16px",
-  color: "#64748b",
-  fontSize: "13px",
-  lineHeight: 1.6,
 };

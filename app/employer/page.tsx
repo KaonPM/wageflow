@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabaseClient";
 
 type Business = {
   id: string;
+  employer_id?: string | null;
   business_name?: string | null;
   trading_name?: string | null;
   registered_name?: string | null;
@@ -18,6 +19,7 @@ type Business = {
 type Employee = {
   id: string;
   business_id?: string | null;
+  employer_id?: string | null;
   basic_salary?: number | null;
   salary?: number | null;
   employment_status?: string | null;
@@ -53,7 +55,7 @@ export default function EmployerDashboard() {
         .eq("id", profile.business_id)
         .maybeSingle();
 
-      if (data?.id) return data;
+      if (data?.id) return data as Business;
     }
 
     const { data } = await supabase
@@ -62,7 +64,7 @@ export default function EmployerDashboard() {
       .eq("employer_id", user.id)
       .maybeSingle();
 
-    return data || null;
+    return (data as Business) || null;
   }
 
   async function loadDashboard() {
@@ -83,20 +85,70 @@ export default function EmployerDashboard() {
 
     setBusiness(businessRecord);
 
-    const { data, error } = await supabase
+    const { data: businessEmployees, error: businessError } = await supabase
       .from("employees")
       .select("*")
       .eq("business_id", businessRecord.id)
       .order("created_at", { ascending: false });
 
-    if (error) {
+    if (businessError) {
       setEmployees([]);
-      setMessage(error.message);
+      setMessage(businessError.message);
       setLoading(false);
       return;
     }
 
-    setEmployees(data || []);
+    if (businessEmployees && businessEmployees.length > 0) {
+      setEmployees(businessEmployees);
+      setLoading(false);
+      return;
+    }
+
+    if (!businessRecord.employer_id) {
+      setEmployees([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: employerEmployees, error: employerError } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("employer_id", businessRecord.employer_id)
+      .order("created_at", { ascending: false });
+
+    if (employerError) {
+      setEmployees([]);
+      setMessage(employerError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (employerEmployees && employerEmployees.length > 0) {
+      const employeesToRepair = employerEmployees
+        .filter((employee) => employee.business_id !== businessRecord.id)
+        .map((employee) => employee.id);
+
+      if (employeesToRepair.length > 0) {
+        await supabase
+          .from("employees")
+          .update({
+            business_id: businessRecord.id,
+            employment_status: "active",
+          })
+          .in("id", employeesToRepair);
+      }
+
+      setEmployees(
+        employerEmployees.map((employee) => ({
+          ...employee,
+          business_id: businessRecord.id,
+          employment_status: employee.employment_status || "active",
+        }))
+      );
+    } else {
+      setEmployees([]);
+    }
+
     setLoading(false);
   }
 
@@ -179,14 +231,6 @@ export default function EmployerDashboard() {
           description="Manage leave records, employee documents, warnings, confirmations of employment and HR notes."
           href="/employer/hr"
           tag="HR Records"
-        />
-
-        <DashboardCard
-          icon="✅"
-          title="Approvals"
-          description="Review and approve leave requests, overtime submissions, employee changes and other pending HR actions."
-          href="/employer/approvals"
-          tag="Pending Actions"
         />
 
         <DashboardCard
