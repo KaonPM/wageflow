@@ -1,62 +1,191 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
+type EmployeeRecord = {
+  id: string;
+  full_name: string;
+  position: string | null;
+  id_number: string | null;
+  business_id: string;
+};
+
+type BusinessRecord = {
+  business_name: string;
+  trading_name: string | null;
+  logo_url: string | null;
+  uif_reference_number: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+};
+
+type PayslipRecord = {
+  id: string;
+  pay_period_month: string | number | null;
+  pay_period_year: string | number | null;
+  basic_pay: number | null;
+  gross_pay: number | null;
+  uif_employee: number | null;
+  paye: number | null;
+  other_deductions: number | null;
+  net_pay: number | null;
+  status: string | null;
+  created_at: string | null;
+  pdf_url?: string | null;
+};
+
 export default function EmployeePayslipsPage() {
-  const [payslips, setPayslips] = useState<any[]>([]);
+  const router = useRouter();
+
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("Loading payslips...");
+  const [employee, setEmployee] = useState<EmployeeRecord | null>(null);
+  const [business, setBusiness] = useState<BusinessRecord | null>(null);
+  const [payslips, setPayslips] = useState<PayslipRecord[]>([]);
 
   useEffect(() => {
     fetchPayslips();
   }, []);
 
   async function fetchPayslips() {
-    const { data, error } = await supabase
-      .from("payslips")
-      .select(`
-        *,
-        employees (
-          full_name,
-          position,
-          id_number
-        ),
-        businesses (
-          business_name,
-          logo_url,
-          uif_reference_number
-        )
-      `)
-      .order("created_at", { ascending: false });
+    setLoading(true);
+    setMessage("Loading payslips...");
 
-    if (error) {
-      setMessage(error.message);
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      router.push("/login");
       return;
     }
 
-    setPayslips(data || []);
+    const { data: account, error: accountError } = await supabase
+      .from("employee_accounts")
+      .select("id, employee_id, auth_user_id, portal_enabled")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (accountError || !account || account.portal_enabled !== true) {
+      setMessage("Your employee portal access is not active.");
+      setLoading(false);
+      return;
+    }
+
+    const { data: employeeData, error: employeeError } = await supabase
+      .from("employees")
+      .select("id, full_name, position, id_number, business_id")
+      .eq("id", account.employee_id)
+      .maybeSingle();
+
+    if (employeeError || !employeeData) {
+      setMessage("Could not load your employee profile.");
+      setLoading(false);
+      return;
+    }
+
+    setEmployee(employeeData);
+
+    const { data: businessData } = await supabase
+      .from("businesses")
+      .select(
+        "business_name, trading_name, logo_url, uif_reference_number, primary_color, secondary_color"
+      )
+      .eq("id", employeeData.business_id)
+      .maybeSingle();
+
+    setBusiness(businessData || null);
+
+    const { data: payslipData, error: payslipError } = await supabase
+      .from("payslips")
+      .select(
+        `
+        id,
+        pay_period_month,
+        pay_period_year,
+        basic_pay,
+        gross_pay,
+        uif_employee,
+        paye,
+        other_deductions,
+        net_pay,
+        status,
+        created_at,
+        pdf_url
+      `
+      )
+      .eq("employee_id", employeeData.id)
+      .order("created_at", { ascending: false });
+
+    if (payslipError) {
+      setMessage(payslipError.message);
+      setLoading(false);
+      return;
+    }
+
+    setPayslips(payslipData || []);
     setMessage("");
+    setLoading(false);
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/");
   }
 
   function printPayslip() {
     window.print();
   }
 
+  const primaryColor = business?.primary_color || "#0f766e";
+
   return (
     <main style={page}>
-      <h1 style={title}>My Payslips</h1>
+      <section
+        style={{
+          ...hero,
+          background: `linear-gradient(135deg, ${primaryColor}, ${
+            business?.secondary_color || "#123c69"
+          })`,
+        }}
+      >
+        <div style={topRow}>
+          <a href="/employee" style={heroButton}>
+            Back to Dashboard
+          </a>
+
+          <button onClick={handleLogout} style={heroButton}>
+            Logout
+          </button>
+        </div>
+
+        <p style={eyebrow}>
+          {business?.trading_name || business?.business_name || "Employee Portal"}
+        </p>
+
+        <h1 style={title}>My Payslips</h1>
+
+        <p style={subtitle}>
+          View your issued payslips and download or print copies for your
+          records.
+        </p>
+      </section>
 
       {message && <p style={messageStyle}>{message}</p>}
 
-      {!message && payslips.length === 0 && (
+      {!loading && !message && payslips.length === 0 && (
         <p style={messageStyle}>No payslips available yet.</p>
       )}
 
       {payslips.map((payslip) => (
         <section key={payslip.id} style={payslipCard}>
-          {payslip.businesses?.logo_url && (
+          {business?.logo_url && (
             <img
-              src={payslip.businesses.logo_url}
+              src={business.logo_url}
               alt="Company watermark"
               style={watermark}
             />
@@ -64,11 +193,14 @@ export default function EmployeePayslipsPage() {
 
           <div style={payslipHeader}>
             <div>
-              <h2 style={businessName}>
-                {payslip.businesses?.business_name || "Business Name"}
+              <h2 style={{ ...businessName, color: primaryColor }}>
+                {business?.trading_name ||
+                  business?.business_name ||
+                  "Business Name"}
               </h2>
+
               <p style={smallText}>
-                UIF Ref: {payslip.businesses?.uif_reference_number || "Not provided"}
+                UIF Ref: {business?.uif_reference_number || "Not provided"}
               </p>
             </div>
 
@@ -85,22 +217,22 @@ export default function EmployeePayslipsPage() {
           <div style={detailsGrid}>
             <div>
               <p style={label}>Employee</p>
-              <p style={value}>{payslip.employees?.full_name}</p>
+              <p style={value}>{employee?.full_name || "Not provided"}</p>
             </div>
 
             <div>
               <p style={label}>Position</p>
-              <p style={value}>{payslip.employees?.position || "Not provided"}</p>
+              <p style={value}>{employee?.position || "Not provided"}</p>
             </div>
 
             <div>
               <p style={label}>ID Number</p>
-              <p style={value}>{payslip.employees?.id_number || "Not provided"}</p>
+              <p style={value}>{employee?.id_number || "Not provided"}</p>
             </div>
 
             <div>
               <p style={label}>Status</p>
-              <p style={value}>{payslip.status}</p>
+              <p style={value}>{payslip.status || "Issued"}</p>
             </div>
           </div>
 
@@ -109,32 +241,32 @@ export default function EmployeePayslipsPage() {
           <div style={amounts}>
             <div style={row}>
               <span>Basic Pay</span>
-              <strong>R {Number(payslip.basic_pay || 0).toFixed(2)}</strong>
+              <strong>R {money(payslip.basic_pay)}</strong>
             </div>
 
             <div style={row}>
               <span>Gross Pay</span>
-              <strong>R {Number(payslip.gross_pay || 0).toFixed(2)}</strong>
+              <strong>R {money(payslip.gross_pay)}</strong>
             </div>
 
             <div style={row}>
               <span>Employee UIF Deduction</span>
-              <strong>R {Number(payslip.uif_employee || 0).toFixed(2)}</strong>
+              <strong>R {money(payslip.uif_employee)}</strong>
             </div>
 
             <div style={row}>
               <span>PAYE</span>
-              <strong>R {Number(payslip.paye || 0).toFixed(2)}</strong>
+              <strong>R {money(payslip.paye)}</strong>
             </div>
 
             <div style={row}>
               <span>Other Deductions</span>
-              <strong>R {Number(payslip.other_deductions || 0).toFixed(2)}</strong>
+              <strong>R {money(payslip.other_deductions)}</strong>
             </div>
 
-            <div style={netRow}>
+            <div style={{ ...netRow, borderTopColor: primaryColor, color: primaryColor }}>
               <span>Net Pay</span>
-              <strong>R {Number(payslip.net_pay || 0).toFixed(2)}</strong>
+              <strong>R {money(payslip.net_pay)}</strong>
             </div>
           </div>
 
@@ -143,119 +275,178 @@ export default function EmployeePayslipsPage() {
             responsible for ensuring payroll, UIF, SARS, and labour compliance.
           </p>
 
-          <button style={printButton} onClick={printPayslip}>
-            Download / Print Payslip
-          </button>
+          <div style={actions}>
+            {payslip.pdf_url ? (
+              <a href={payslip.pdf_url} target="_blank" style={downloadButton}>
+                Download PDF
+              </a>
+            ) : (
+              <button style={printButton} onClick={printPayslip}>
+                Download / Print Payslip
+              </button>
+            )}
+          </div>
         </section>
       ))}
     </main>
   );
 }
 
-const page = {
-  padding: "40px",
+function money(value: number | null | undefined) {
+  return Number(value || 0).toFixed(2);
+}
+
+const page: CSSProperties = {
+  padding: "32px",
   fontFamily: "Arial, sans-serif",
-  background: "#f8faf9",
+  background: "#f4f7fb",
   minHeight: "100vh",
+  color: "#102a43",
 };
 
-const title = {
-  fontSize: "24px",
-  color: "#0f766e",
+const hero: CSSProperties = {
+  padding: "28px",
+  borderRadius: "22px",
+  color: "#fff",
   marginBottom: "24px",
+  boxShadow: "0 16px 40px rgba(15, 118, 110, 0.18)",
 };
 
-const messageStyle = {
+const topRow: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "12px",
+  marginBottom: "22px",
+};
+
+const heroButton: CSSProperties = {
+  padding: "10px 16px",
+  borderRadius: "12px",
+  background: "rgba(255,255,255,0.14)",
+  border: "1px solid rgba(255,255,255,0.22)",
+  color: "#fff",
+  textDecoration: "none",
   fontSize: "14px",
-  color: "#555",
+  fontWeight: 700,
+  cursor: "pointer",
 };
 
-const payslipCard = {
-  position: "relative" as const,
+const eyebrow: CSSProperties = {
+  margin: "0 0 8px",
+  fontSize: "13px",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+  opacity: 0.9,
+};
+
+const title: CSSProperties = {
+  fontSize: "30px",
+  margin: "0 0 10px",
+};
+
+const subtitle: CSSProperties = {
+  maxWidth: "720px",
+  fontSize: "15px",
+  lineHeight: 1.6,
+  margin: 0,
+  opacity: 0.92,
+};
+
+const messageStyle: CSSProperties = {
+  padding: "18px",
+  borderRadius: "16px",
+  background: "#fff",
+  border: "1px solid #e3e8ef",
+  fontSize: "14px",
+  color: "#52616f",
+};
+
+const payslipCard: CSSProperties = {
+  position: "relative",
   overflow: "hidden",
-  maxWidth: "760px",
+  maxWidth: "820px",
   background: "#ffffff",
   border: "1px solid #e5e7eb",
-  borderRadius: "14px",
+  borderRadius: "18px",
   padding: "30px",
   marginBottom: "30px",
   boxShadow: "0 10px 24px rgba(0,0,0,0.04)",
 };
 
-const watermark = {
-  position: "absolute" as const,
+const watermark: CSSProperties = {
+  position: "absolute",
   top: "50%",
   left: "50%",
   width: "320px",
   maxWidth: "70%",
   opacity: 0.06,
   transform: "translate(-50%, -50%)",
-  pointerEvents: "none" as const,
+  pointerEvents: "none",
 };
 
-const payslipHeader = {
-  position: "relative" as const,
+const payslipHeader: CSSProperties = {
+  position: "relative",
   zIndex: 1,
   display: "flex",
   justifyContent: "space-between",
   gap: "20px",
 };
 
-const businessName = {
+const businessName: CSSProperties = {
   fontSize: "20px",
-  color: "#0f766e",
   margin: 0,
 };
 
-const rightHeader = {
-  textAlign: "right" as const,
+const rightHeader: CSSProperties = {
+  textAlign: "right",
 };
 
-const payslipLabel = {
+const payslipLabel: CSSProperties = {
   fontSize: "18px",
-  fontWeight: "700",
+  fontWeight: 700,
   color: "#111827",
   margin: 0,
 };
 
-const smallText = {
+const smallText: CSSProperties = {
   fontSize: "12px",
   color: "#666",
   marginTop: "6px",
 };
 
-const divider = {
+const divider: CSSProperties = {
   height: "1px",
   background: "#e5e7eb",
   margin: "22px 0",
 };
 
-const detailsGrid = {
-  position: "relative" as const,
+const detailsGrid: CSSProperties = {
+  position: "relative",
   zIndex: 1,
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
   gap: "16px",
 };
 
-const label = {
+const label: CSSProperties = {
   fontSize: "12px",
   color: "#777",
   margin: 0,
 };
 
-const value = {
+const value: CSSProperties = {
   fontSize: "14px",
   color: "#111827",
   marginTop: "4px",
 };
 
-const amounts = {
-  position: "relative" as const,
+const amounts: CSSProperties = {
+  position: "relative",
   zIndex: 1,
 };
 
-const row = {
+const row: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   padding: "10px 0",
@@ -263,31 +454,46 @@ const row = {
   fontSize: "14px",
 };
 
-const netRow = {
+const netRow: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   padding: "14px 0",
   marginTop: "8px",
-  borderTop: "2px solid #0f766e",
+  borderTop: "2px solid",
   fontSize: "16px",
-  color: "#0f766e",
 };
 
-const note = {
-  position: "relative" as const,
+const note: CSSProperties = {
+  position: "relative",
   zIndex: 1,
   fontSize: "12px",
   color: "#777",
-  lineHeight: "1.5",
+  lineHeight: 1.5,
   marginTop: "20px",
 };
 
-const printButton = {
+const actions: CSSProperties = {
   marginTop: "18px",
+  display: "flex",
+  gap: "10px",
+};
+
+const printButton: CSSProperties = {
   background: "#0f766e",
   color: "#fff",
   padding: "10px 14px",
   border: "none",
-  borderRadius: "8px",
+  borderRadius: "10px",
   cursor: "pointer",
+  fontWeight: 700,
+};
+
+const downloadButton: CSSProperties = {
+  background: "#0f766e",
+  color: "#fff",
+  padding: "10px 14px",
+  borderRadius: "10px",
+  textDecoration: "none",
+  fontSize: "14px",
+  fontWeight: 700,
 };
