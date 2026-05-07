@@ -34,6 +34,8 @@ type PayslipRecord = {
   net_pay: number | null;
   status: string | null;
   created_at: string | null;
+  viewed_at: string | null;
+  downloaded_at: string | null;
   pdf_url?: string | null;
 };
 
@@ -45,6 +47,7 @@ export default function EmployeePayslipsPage() {
   const [employee, setEmployee] = useState<EmployeeRecord | null>(null);
   const [business, setBusiness] = useState<BusinessRecord | null>(null);
   const [payslips, setPayslips] = useState<PayslipRecord[]>([]);
+  const [openPayslipId, setOpenPayslipId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPayslips();
@@ -115,6 +118,8 @@ export default function EmployeePayslipsPage() {
         net_pay,
         status,
         created_at,
+        viewed_at,
+        downloaded_at,
         pdf_url
       `
       )
@@ -132,30 +137,70 @@ export default function EmployeePayslipsPage() {
     setLoading(false);
   }
 
+  async function markViewed(payslip: PayslipRecord) {
+    setOpenPayslipId(openPayslipId === payslip.id ? null : payslip.id);
+
+    if (payslip.viewed_at) return;
+
+    const timestamp = new Date().toISOString();
+
+    const { error } = await supabase
+      .from("payslips")
+      .update({ viewed_at: timestamp })
+      .eq("id", payslip.id);
+
+    if (error) return;
+
+    setPayslips((current) =>
+      current.map((item) =>
+        item.id === payslip.id ? { ...item, viewed_at: timestamp } : item
+      )
+    );
+  }
+
+  async function markDownloaded(payslip: PayslipRecord) {
+    const timestamp = new Date().toISOString();
+
+    const { error } = await supabase
+      .from("payslips")
+      .update({ downloaded_at: timestamp })
+      .eq("id", payslip.id);
+
+    if (!error) {
+      setPayslips((current) =>
+        current.map((item) =>
+          item.id === payslip.id ? { ...item, downloaded_at: timestamp } : item
+        )
+      );
+    }
+
+    if (payslip.pdf_url) {
+      window.open(payslip.pdf_url, "_blank");
+      return;
+    }
+
+    window.print();
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/");
   }
 
-  function printPayslip() {
-    window.print();
-  }
-
   const primaryColor = business?.primary_color || "#0f766e";
+  const secondaryColor = business?.secondary_color || "#123c69";
 
   return (
     <main style={page}>
       <section
         style={{
           ...hero,
-          background: `linear-gradient(135deg, ${primaryColor}, ${
-            business?.secondary_color || "#123c69"
-          })`,
+          background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
         }}
       >
         <div style={topRow}>
           <a href="/employee" style={heroButton}>
-            Back to Dashboard
+            Dashboard
           </a>
 
           <button onClick={handleLogout} style={heroButton}>
@@ -170,8 +215,8 @@ export default function EmployeePayslipsPage() {
         <h1 style={title}>My Payslips</h1>
 
         <p style={subtitle}>
-          View your issued payslips and download or print copies for your
-          records.
+          View issued payslips, check payment details, and download or print
+          copies for your records.
         </p>
       </section>
 
@@ -181,119 +226,198 @@ export default function EmployeePayslipsPage() {
         <p style={messageStyle}>No payslips available yet.</p>
       )}
 
-      {payslips.map((payslip) => (
-        <section key={payslip.id} style={payslipCard}>
-          {business?.logo_url && (
-            <img
-              src={business.logo_url}
-              alt="Company watermark"
-              style={watermark}
-            />
-          )}
+      <section style={list}>
+        {payslips.map((payslip) => {
+          const isOpen = openPayslipId === payslip.id;
 
-          <div style={payslipHeader}>
-            <div>
-              <h2 style={{ ...businessName, color: primaryColor }}>
-                {business?.trading_name ||
-                  business?.business_name ||
-                  "Business Name"}
-              </h2>
+          return (
+            <article key={payslip.id} style={compactCard}>
+              <button onClick={() => markViewed(payslip)} style={compactHeader}>
+                <div>
+                  <p style={periodText}>
+                    {payslip.pay_period_month}/{payslip.pay_period_year}
+                  </p>
 
-              <p style={smallText}>
-                UIF Ref: {business?.uif_reference_number || "Not provided"}
-              </p>
-            </div>
+                  <p style={compactMeta}>
+                    Net pay: R {money(payslip.net_pay)} ·{" "}
+                    {payslip.status || "Issued"}
+                  </p>
+                </div>
 
-            <div style={rightHeader}>
-              <p style={payslipLabel}>PAYSLIP</p>
-              <p style={smallText}>
-                {payslip.pay_period_month}/{payslip.pay_period_year}
-              </p>
-            </div>
-          </div>
+                <div style={rightCompact}>
+                  <span style={statusPill}>
+                    {payslip.downloaded_at
+                      ? "Downloaded"
+                      : payslip.viewed_at
+                      ? "Viewed"
+                      : "Issued"}
+                  </span>
 
-          <div style={divider} />
-
-          <div style={detailsGrid}>
-            <div>
-              <p style={label}>Employee</p>
-              <p style={value}>{employee?.full_name || "Not provided"}</p>
-            </div>
-
-            <div>
-              <p style={label}>Position</p>
-              <p style={value}>{employee?.position || "Not provided"}</p>
-            </div>
-
-            <div>
-              <p style={label}>ID Number</p>
-              <p style={value}>{employee?.id_number || "Not provided"}</p>
-            </div>
-
-            <div>
-              <p style={label}>Status</p>
-              <p style={value}>{payslip.status || "Issued"}</p>
-            </div>
-          </div>
-
-          <div style={divider} />
-
-          <div style={amounts}>
-            <div style={row}>
-              <span>Basic Pay</span>
-              <strong>R {money(payslip.basic_pay)}</strong>
-            </div>
-
-            <div style={row}>
-              <span>Gross Pay</span>
-              <strong>R {money(payslip.gross_pay)}</strong>
-            </div>
-
-            <div style={row}>
-              <span>Employee UIF Deduction</span>
-              <strong>R {money(payslip.uif_employee)}</strong>
-            </div>
-
-            <div style={row}>
-              <span>PAYE</span>
-              <strong>R {money(payslip.paye)}</strong>
-            </div>
-
-            <div style={row}>
-              <span>Other Deductions</span>
-              <strong>R {money(payslip.other_deductions)}</strong>
-            </div>
-
-            <div style={{ ...netRow, borderTopColor: primaryColor, color: primaryColor }}>
-              <span>Net Pay</span>
-              <strong>R {money(payslip.net_pay)}</strong>
-            </div>
-          </div>
-
-          <p style={note}>
-            This payslip was generated through WageFlow. Employers remain
-            responsible for ensuring payroll, UIF, SARS, and labour compliance.
-          </p>
-
-          <div style={actions}>
-            {payslip.pdf_url ? (
-              <a href={payslip.pdf_url} target="_blank" style={downloadButton}>
-                Download PDF
-              </a>
-            ) : (
-              <button style={printButton} onClick={printPayslip}>
-                Download / Print Payslip
+                  <span style={openText}>{isOpen ? "Hide" : "Open"}</span>
+                </div>
               </button>
-            )}
-          </div>
-        </section>
-      ))}
+
+              {isOpen && (
+                <section style={payslipCard}>
+                  {business?.logo_url && (
+                    <img
+                      src={business.logo_url}
+                      alt="Company watermark"
+                      style={watermark}
+                    />
+                  )}
+
+                  <div style={payslipHeader}>
+                    <div>
+                      <h2 style={{ ...businessName, color: primaryColor }}>
+                        {business?.trading_name ||
+                          business?.business_name ||
+                          "Business Name"}
+                      </h2>
+
+                      <p style={smallText}>
+                        UIF Ref:{" "}
+                        {business?.uif_reference_number || "Not provided"}
+                      </p>
+                    </div>
+
+                    <div style={rightHeader}>
+                      <p style={payslipLabel}>PAYSLIP</p>
+                      <p style={smallText}>
+                        {payslip.pay_period_month}/{payslip.pay_period_year}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={divider} />
+
+                  <div style={detailsGrid}>
+                    <div>
+                      <p style={label}>Employee</p>
+                      <p style={value}>
+                        {employee?.full_name || "Not provided"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p style={label}>Position</p>
+                      <p style={value}>
+                        {employee?.position || "Not provided"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p style={label}>ID Number</p>
+                      <p style={value}>
+                        {employee?.id_number || "Not provided"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p style={label}>Status</p>
+                      <p style={value}>{payslip.status || "Issued"}</p>
+                    </div>
+                  </div>
+
+                  <div style={divider} />
+
+                  <div style={amounts}>
+                    <div style={row}>
+                      <span>Basic Pay</span>
+                      <strong>R {money(payslip.basic_pay)}</strong>
+                    </div>
+
+                    <div style={row}>
+                      <span>Gross Pay</span>
+                      <strong>R {money(payslip.gross_pay)}</strong>
+                    </div>
+
+                    <div style={row}>
+                      <span>Employee UIF Deduction</span>
+                      <strong>R {money(payslip.uif_employee)}</strong>
+                    </div>
+
+                    <div style={row}>
+                      <span>PAYE</span>
+                      <strong>R {money(payslip.paye)}</strong>
+                    </div>
+
+                    <div style={row}>
+                      <span>Other Deductions</span>
+                      <strong>R {money(payslip.other_deductions)}</strong>
+                    </div>
+
+                    <div
+                      style={{
+                        ...netRow,
+                        borderTopColor: primaryColor,
+                        color: primaryColor,
+                      }}
+                    >
+                      <span>Net Pay</span>
+                      <strong>R {money(payslip.net_pay)}</strong>
+                    </div>
+                  </div>
+
+                  <div style={trackingGrid}>
+                    <div style={trackingItem}>
+                      <p style={trackingLabel}>Issued</p>
+                      <p style={trackingValue}>
+                        {formatDate(payslip.created_at)}
+                      </p>
+                    </div>
+
+                    <div style={trackingItem}>
+                      <p style={trackingLabel}>Viewed</p>
+                      <p style={trackingValue}>
+                        {formatDate(payslip.viewed_at)}
+                      </p>
+                    </div>
+
+                    <div style={trackingItem}>
+                      <p style={trackingLabel}>Downloaded</p>
+                      <p style={trackingValue}>
+                        {formatDate(payslip.downloaded_at)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p style={note}>
+                    This payslip was generated through WageFlow. Employers
+                    remain responsible for ensuring payroll, UIF, SARS, and
+                    labour compliance.
+                  </p>
+
+                  <div style={actions}>
+                    <button
+                      style={printButton}
+                      onClick={() => markDownloaded(payslip)}
+                    >
+                      {payslip.pdf_url ? "Download PDF" : "Download / Print"}
+                    </button>
+                  </div>
+                </section>
+              )}
+            </article>
+          );
+        })}
+      </section>
     </main>
   );
 }
 
 function money(value: number | null | undefined) {
   return Number(value || 0).toFixed(2);
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Not yet";
+
+  return new Date(value).toLocaleDateString("en-ZA", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 const page: CSSProperties = {
@@ -305,10 +429,10 @@ const page: CSSProperties = {
 };
 
 const hero: CSSProperties = {
-  padding: "28px",
+  padding: "26px",
   borderRadius: "22px",
   color: "#fff",
-  marginBottom: "24px",
+  marginBottom: "20px",
   boxShadow: "0 16px 40px rgba(15, 118, 110, 0.18)",
 };
 
@@ -316,11 +440,12 @@ const topRow: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   gap: "12px",
-  marginBottom: "22px",
+  marginBottom: "20px",
+  flexWrap: "wrap",
 };
 
 const heroButton: CSSProperties = {
-  padding: "10px 16px",
+  padding: "10px 14px",
   borderRadius: "12px",
   background: "rgba(255,255,255,0.14)",
   border: "1px solid rgba(255,255,255,0.22)",
@@ -362,16 +487,74 @@ const messageStyle: CSSProperties = {
   color: "#52616f",
 };
 
+const list: CSSProperties = {
+  display: "grid",
+  gap: "12px",
+};
+
+const compactCard: CSSProperties = {
+  background: "#fff",
+  border: "1px solid #e3e8ef",
+  borderRadius: "18px",
+  overflow: "hidden",
+  boxShadow: "0 10px 24px rgba(16, 42, 67, 0.04)",
+};
+
+const compactHeader: CSSProperties = {
+  width: "100%",
+  padding: "16px 18px",
+  border: "none",
+  background: "#fff",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "16px",
+  textAlign: "left",
+  cursor: "pointer",
+};
+
+const periodText: CSSProperties = {
+  margin: "0 0 5px",
+  fontSize: "16px",
+  fontWeight: 700,
+  color: "#102a43",
+};
+
+const compactMeta: CSSProperties = {
+  margin: 0,
+  fontSize: "13px",
+  color: "#52616f",
+};
+
+const rightCompact: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
+const statusPill: CSSProperties = {
+  padding: "6px 10px",
+  borderRadius: "999px",
+  background: "#eef7f6",
+  color: "#0f766e",
+  fontSize: "12px",
+  fontWeight: 700,
+};
+
+const openText: CSSProperties = {
+  fontSize: "13px",
+  color: "#0f766e",
+  fontWeight: 700,
+};
+
 const payslipCard: CSSProperties = {
   position: "relative",
   overflow: "hidden",
-  maxWidth: "820px",
   background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: "18px",
-  padding: "30px",
-  marginBottom: "30px",
-  boxShadow: "0 10px 24px rgba(0,0,0,0.04)",
+  borderTop: "1px solid #e5e7eb",
+  padding: "26px",
 };
 
 const watermark: CSSProperties = {
@@ -418,7 +601,7 @@ const smallText: CSSProperties = {
 const divider: CSSProperties = {
   height: "1px",
   background: "#e5e7eb",
-  margin: "22px 0",
+  margin: "20px 0",
 };
 
 const detailsGrid: CSSProperties = {
@@ -426,7 +609,7 @@ const detailsGrid: CSSProperties = {
   zIndex: 1,
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-  gap: "16px",
+  gap: "14px",
 };
 
 const label: CSSProperties = {
@@ -449,7 +632,7 @@ const amounts: CSSProperties = {
 const row: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
-  padding: "10px 0",
+  padding: "9px 0",
   borderBottom: "1px solid #f1f1f1",
   fontSize: "14px",
 };
@@ -457,10 +640,37 @@ const row: CSSProperties = {
 const netRow: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
-  padding: "14px 0",
+  padding: "13px 0",
   marginTop: "8px",
   borderTop: "2px solid",
   fontSize: "16px",
+};
+
+const trackingGrid: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: "10px",
+  marginTop: "18px",
+};
+
+const trackingItem: CSSProperties = {
+  padding: "11px",
+  borderRadius: "13px",
+  background: "#f8fafc",
+  border: "1px solid #eef2f7",
+};
+
+const trackingLabel: CSSProperties = {
+  margin: "0 0 4px",
+  fontSize: "12px",
+  color: "#60758a",
+  fontWeight: 700,
+};
+
+const trackingValue: CSSProperties = {
+  margin: 0,
+  fontSize: "13px",
+  color: "#102a43",
 };
 
 const note: CSSProperties = {
@@ -469,11 +679,11 @@ const note: CSSProperties = {
   fontSize: "12px",
   color: "#777",
   lineHeight: 1.5,
-  marginTop: "20px",
+  marginTop: "18px",
 };
 
 const actions: CSSProperties = {
-  marginTop: "18px",
+  marginTop: "16px",
   display: "flex",
   gap: "10px",
 };
@@ -485,15 +695,5 @@ const printButton: CSSProperties = {
   border: "none",
   borderRadius: "10px",
   cursor: "pointer",
-  fontWeight: 700,
-};
-
-const downloadButton: CSSProperties = {
-  background: "#0f766e",
-  color: "#fff",
-  padding: "10px 14px",
-  borderRadius: "10px",
-  textDecoration: "none",
-  fontSize: "14px",
   fontWeight: 700,
 };
