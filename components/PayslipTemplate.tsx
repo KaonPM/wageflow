@@ -77,7 +77,7 @@ export default function PayslipTemplate({ payslip }: { payslip: PayslipData }) {
           </div>
 
           <div>
-            <h1 style={title}>Example Payslip</h1>
+            <h1 style={title}>Payslip</h1>
             <p style={subtitle}>Pay period: {payslip.pay.period}</p>
           </div>
         </header>
