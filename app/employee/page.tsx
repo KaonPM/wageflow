@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { supabase } from "../lib/supabaseClient";
 
 type DashboardData = {
   employeeName: string;
@@ -21,7 +21,6 @@ type DashboardData = {
 
 export default function EmployeeDashboard() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
