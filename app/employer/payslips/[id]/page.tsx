@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import PayslipTemplate from "@/components/PayslipTemplate";
 import { supabase } from "@/app/lib/supabaseClient";
 
@@ -23,6 +25,7 @@ type PayslipRecord = {
   net_pay: number | null;
   payment_method: string | null;
   payroll_month: string | null;
+  payment_date: string | null;
   pay_period_month: number | null;
   pay_period_year: number | null;
   status: string | null;
@@ -61,12 +64,15 @@ export default function EmployerPayslipViewerPage() {
   const params = useParams();
   const payslipId = String(params.id);
 
+  const payslipRef = useRef<HTMLDivElement>(null);
+
   const [payslip, setPayslip] = useState<PayslipRecord | null>(null);
   const [employee, setEmployee] = useState<EmployeeRecord | null>(null);
   const [business, setBusiness] = useState<BusinessRecord | null>(null);
   const [ytdPayslips, setYtdPayslips] = useState<PayslipRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetchPayslip();
@@ -142,13 +148,54 @@ export default function EmployerPayslipViewerPage() {
     )}`;
   }
 
-  function formatPayDate(monthValue?: string | null) {
-    if (!monthValue) return new Date().toLocaleDateString("en-ZA");
+  function formatPayDate() {
+    if (payslip?.payment_date) {
+      return new Date(payslip.payment_date).toLocaleDateString("en-ZA");
+    }
 
-    const [year, month] = monthValue.split("-");
-    const payDate = new Date(Number(year), Number(month), 0);
+    return new Date().toLocaleDateString("en-ZA");
+  }
 
-    return payDate.toLocaleDateString("en-ZA");
+  async function downloadPdf() {
+    if (!payslipRef.current) return;
+
+    try {
+      setDownloading(true);
+
+      const canvas = await html2canvas(payslipRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      const imageData = canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imageData, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+      const employeeNumber =
+  employee?.employee_number || payslip?.id?.slice(0, 6) || "employee";
+
+const payrollMonth =
+  payslip?.payroll_month || "payslip";
+
+      pdf.save(
+        `WageFlow-Payslip-${employeeNumber}-${payrollMonth}.pdf`
+      );
+    } catch (error) {
+      console.error(error);
+      setMessage("Failed to generate PDF.");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   const templateData = useMemo(() => {
@@ -215,14 +262,18 @@ export default function EmployerPayslipViewerPage() {
       },
       pay: {
         period: formatPayrollPeriod(payslip.payroll_month),
-        payDate: formatPayDate(payslip.payroll_month),
-        payReference: `PAY-${payslip.payroll_month || "MONTH"}-${employee?.employee_number || payslip.id.slice(0, 6)}`,
+        payDate: formatPayDate(),
+        payReference: `PAY-${payslip.payroll_month || "MONTH"}-${
+          employee?.employee_number || payslip.id.slice(0, 6)
+        }`,
       },
       earnings,
       deductions,
       ytd: {
-        from: `01 March ${payslip.pay_period_year || new Date().getFullYear()}`,
-        to: formatPayDate(payslip.payroll_month),
+        from: `01 March ${
+          payslip.pay_period_year || new Date().getFullYear()
+        }`,
+        to: formatPayDate(),
         gross: ytdGross,
         taxable: ytdTaxable,
         paye: ytdPaye,
@@ -241,8 +292,12 @@ export default function EmployerPayslipViewerPage() {
           ← Back to Payslips
         </Link>
 
-        <button style={pdfButton} disabled title="PDF download will be connected next">
-          Download PDF
+        <button
+          style={pdfButton}
+          onClick={downloadPdf}
+          disabled={downloading}
+        >
+          {downloading ? "Preparing PDF..." : "Download PDF"}
         </button>
       </section>
 
@@ -251,7 +306,9 @@ export default function EmployerPayslipViewerPage() {
       ) : message ? (
         <div style={emptyState}>{message}</div>
       ) : templateData ? (
-        <PayslipTemplate payslip={templateData} />
+        <div ref={payslipRef}>
+          <PayslipTemplate payslip={templateData} />
+        </div>
       ) : (
         <div style={emptyState}>Payslip could not be prepared.</div>
       )}
@@ -283,13 +340,13 @@ const backLink = {
 };
 
 const pdfButton = {
-  background: "#e2e8f0",
-  color: "#64748b",
-  border: "1px solid #cbd5e1",
+  background: "#0f766e",
+  color: "#ffffff",
+  border: "none",
   borderRadius: "10px",
   padding: "10px 14px",
   fontWeight: 800,
-  cursor: "not-allowed",
+  cursor: "pointer",
 };
 
 const emptyState = {
