@@ -39,10 +39,17 @@ export default function EmployerPayslipsPage() {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const recordsPerPage = 5;
 
   useEffect(() => {
     fetchPayslips();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, monthFilter]);
 
   async function getBusinessId() {
     const { data: userData } = await supabase.auth.getUser();
@@ -166,6 +173,15 @@ export default function EmployerPayslipsPage() {
     });
   }, [payslips, search, monthFilter]);
 
+  const totalPages = Math.ceil(filteredPayslips.length / recordsPerPage);
+
+  const startIndex = (currentPage - 1) * recordsPerPage;
+
+  const paginatedPayslips = filteredPayslips.slice(
+    startIndex,
+    startIndex + recordsPerPage
+  );
+
   const summary = useMemo(() => {
     return {
       total: payslips.length,
@@ -247,81 +263,123 @@ export default function EmployerPayslipsPage() {
         ) : filteredPayslips.length === 0 ? (
           <div style={emptyState}>No payslips found yet.</div>
         ) : (
-          <div style={tableWrap}>
-            <table style={table}>
-              <thead>
-                <tr>
-                  <th style={th}>Employee</th>
-                  <th style={th}>Month</th>
-                  <th style={th}>Gross</th>
-                  <th style={th}>PAYE</th>
-                  <th style={th}>UIF</th>
-                  <th style={th}>Net Pay</th>
-                  <th style={th}>Payment</th>
-                  <th style={th}>Status</th>
-                  <th style={th}>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredPayslips.map((payslip) => (
-                  <tr key={payslip.id}>
-                    <td style={td}>
-                      <strong>{employeeName(payslip)}</strong>
-                      <br />
-                      <span style={muted}>
-                        {payslip.employees?.employee_number ||
-                          "No employee number"}
-                      </span>
-                    </td>
-
-                    <td style={td}>{payslip.payroll_month || "-"}</td>
-
-                    <td style={td}>
-                      R {Number(payslip.gross_pay || 0).toFixed(2)}
-                    </td>
-
-                    <td style={td}>
-                      R {Number(payslip.paye || 0).toFixed(2)}
-                    </td>
-
-                    <td style={td}>
-                      R {Number(payslip.total_uif || 0).toFixed(2)}
-                    </td>
-
-                    <td style={td}>
-                      <strong>
-                        R {Number(payslip.net_pay || 0).toFixed(2)}
-                      </strong>
-                    </td>
-
-                    <td style={td}>{payslip.payment_method || "-"}</td>
-
-                    <td style={td}>{payslip.status || "generated"}</td>
-
-                    <td style={td}>
-                      <div style={actionGroup}>
-                        <Link href={`/employer/payslips/${payslip.id}`} style={pdfButton}>
-                         View
-                        </Link>
-
-                        <button
-                          style={actionButton}
-                          onClick={() => resendNotification(payslip)}
-                        >
-                          Resend
-                        </button>
-
-                       <Link href={`/employer/payslips/${payslip.id}`} style={pdfButton}>
-                         PDF
-                       </Link>
-                      </div>
-                    </td>
+          <>
+            <div style={tableWrap}>
+              <table style={table}>
+                <thead>
+                  <tr>
+                    <th style={th}>Employee</th>
+                    <th style={th}>Month</th>
+                    <th style={th}>Gross</th>
+                    <th style={th}>PAYE</th>
+                    <th style={th}>UIF</th>
+                    <th style={th}>Net Pay</th>
+                    <th style={th}>Payment</th>
+                    <th style={th}>Status</th>
+                    <th style={th}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+
+                <tbody>
+                  {paginatedPayslips.map((payslip) => (
+                    <tr key={payslip.id}>
+                      <td style={td}>
+                        <strong>{employeeName(payslip)}</strong>
+                        <br />
+                        <span style={muted}>
+                          {payslip.employees?.employee_number ||
+                            "No employee number"}
+                        </span>
+                      </td>
+
+                      <td style={td}>{payslip.payroll_month || "-"}</td>
+
+                      <td style={td}>
+                        R {Number(payslip.gross_pay || 0).toFixed(2)}
+                      </td>
+
+                      <td style={td}>
+                        R {Number(payslip.paye || 0).toFixed(2)}
+                      </td>
+
+                      <td style={td}>
+                        R {Number(payslip.total_uif || 0).toFixed(2)}
+                      </td>
+
+                      <td style={td}>
+                        <strong>
+                          R {Number(payslip.net_pay || 0).toFixed(2)}
+                        </strong>
+                      </td>
+
+                      <td style={td}>{payslip.payment_method || "-"}</td>
+
+                      <td style={td}>{payslip.status || "generated"}</td>
+
+                      <td style={td}>
+                        <div style={actionGroup}>
+                          <Link
+                            href={`/employer/payslips/${payslip.id}`}
+                            style={pdfButton}
+                          >
+                            View
+                          </Link>
+
+                          <button
+                            style={actionButton}
+                            onClick={() => resendNotification(payslip)}
+                          >
+                            Resend
+                          </button>
+
+                          <Link
+                            href={`/employer/payslips/${payslip.id}`}
+                            style={pdfButton}
+                          >
+                            PDF
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={paginationContainer}>
+              <button
+                style={{
+                  ...paginationButton,
+                  opacity: currentPage === 1 ? 0.45 : 1,
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                }}
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => prev - 1)}
+              >
+                Previous
+              </button>
+
+              <span style={pageText}>
+                Page {currentPage} of {totalPages || 1}
+              </span>
+
+              <button
+                style={{
+                  ...paginationButton,
+                  opacity:
+                    currentPage === totalPages || totalPages === 0 ? 0.45 : 1,
+                  cursor:
+                    currentPage === totalPages || totalPages === 0
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+                disabled={currentPage === totalPages || totalPages === 0}
+                onClick={() => setCurrentPage((prev) => prev + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </>
         )}
       </section>
     </main>
@@ -556,4 +614,27 @@ const pdfButton = {
   alignItems: "center",
   justifyContent: "center",
   cursor: "pointer",
+};
+
+const paginationContainer = {
+  display: "flex",
+  justifyContent: "flex-end",
+  alignItems: "center",
+  gap: "12px",
+  marginTop: "18px",
+};
+
+const paginationButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: "8px",
+  padding: "8px 14px",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const pageText = {
+  color: "#475569",
+  fontWeight: 700,
 };
