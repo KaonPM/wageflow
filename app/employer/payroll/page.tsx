@@ -24,6 +24,7 @@ export default function PayrollPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [payrollMonth, setPayrollMonth] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
   const [basicPay, setBasicPay] = useState(0);
   const [bonus, setBonus] = useState(0);
   const [overtimePay, setOvertimePay] = useState(0);
@@ -37,9 +38,12 @@ export default function PayrollPage() {
     fetchEmployees();
 
     const today = new Date();
-    setPayrollMonth(
-      `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
-    );
+    const currentMonth = `${today.getFullYear()}-${String(
+      today.getMonth() + 1
+    ).padStart(2, "0")}`;
+
+    setPayrollMonth(currentMonth);
+    setPaymentDate(today.toISOString().split("T")[0]);
   }, []);
 
   async function getBusinessId() {
@@ -223,6 +227,11 @@ export default function PayrollPage() {
       return;
     }
 
+    if (!paymentDate) {
+      setMessage("Please select a payment date.");
+      return;
+    }
+
     setSaving(true);
     setMessage("Saving payroll and preparing employee notification...");
 
@@ -257,6 +266,7 @@ export default function PayrollPage() {
           sars_payable: calculations.sarsPayable,
           payment_method: paymentMethod,
           payroll_month: payrollMonth,
+          payment_date: paymentDate,
           pay_period_month: Number(month),
           pay_period_year: Number(year),
           status: "generated",
@@ -311,6 +321,14 @@ export default function PayrollPage() {
             type="month"
             value={payrollMonth}
             onChange={(e) => setPayrollMonth(e.target.value)}
+          />
+
+          <label style={label}>Payment Date</label>
+          <input
+            style={input}
+            type="date"
+            value={paymentDate}
+            onChange={(e) => setPaymentDate(e.target.value)}
           />
 
           <label style={label}>Employee</label>
