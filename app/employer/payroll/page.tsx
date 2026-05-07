@@ -16,12 +16,15 @@ type Employee = {
   payment_method: string | null;
   phone: string | null;
   email: string | null;
+  employment_status?: string | null;
 };
 
 const UIF_LIMIT = 17712;
 
 export default function PayrollPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [businessId, setBusinessId] = useState("");
+  const [businessName, setBusinessName] = useState("Kaone Cleaning Services");
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [payrollMonth, setPayrollMonth] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
@@ -33,10 +36,13 @@ export default function PayrollPage() {
   const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(true);
 
   useEffect(() => {
-    fetchEmployees();
+    initialisePayroll();
+  }, []);
 
+  async function initialisePayroll() {
     const today = new Date();
     const currentMonth = `${today.getFullYear()}-${String(
       today.getMonth() + 1
@@ -44,52 +50,81 @@ export default function PayrollPage() {
 
     setPayrollMonth(currentMonth);
     setPaymentDate(today.toISOString().split("T")[0]);
-  }, []);
 
-  async function getBusinessId() {
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
+    await fetchEmployees();
+  }
 
-    if (!userId) return null;
+  async function getEmployerBusiness() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return null;
+
+    const { data: businessByEmployer } = await supabase
+      .from("businesses")
+      .select("id, registered_name, trading_name, business_name, name")
+      .eq("employer_id", user.id)
+      .maybeSingle();
+
+    if (businessByEmployer?.id) return businessByEmployer;
 
     const { data: profile } = await supabase
       .from("profiles")
       .select("business_id")
-      .eq("id", userId)
-      .single();
+      .eq("id", user.id)
+      .maybeSingle();
 
-    if (profile?.business_id) return profile.business_id;
+    if (!profile?.business_id) return null;
 
-    const { data: business } = await supabase
+    const { data: businessByProfile } = await supabase
       .from("businesses")
-      .select("id")
-      .eq("employer_id", userId)
-      .single();
+      .select("id, registered_name, trading_name, business_name, name")
+      .eq("id", profile.business_id)
+      .maybeSingle();
 
-    return business?.id || null;
+    return businessByProfile || null;
   }
 
   async function fetchEmployees() {
-    const businessId = await getBusinessId();
+    setLoadingEmployees(true);
+    setMessage("");
 
-    if (!businessId) {
+    const business = await getEmployerBusiness();
+
+    if (!business?.id) {
+      setEmployees([]);
+      setBusinessId("");
       setMessage("Business profile not found for this employer.");
+      setLoadingEmployees(false);
       return;
     }
+
+    setBusinessId(business.id);
+    setBusinessName(
+      business.trading_name ||
+        business.registered_name ||
+        business.business_name ||
+        business.name ||
+        "Kaone Cleaning Services"
+    );
 
     const { data, error } = await supabase
       .from("employees")
       .select("*")
-      .eq("business_id", businessId)
-      .eq("employment_status", "active")
-      .order("full_name", { ascending: true });
+      .eq("business_id", business.id)
+      .or("employment_status.eq.active,employment_status.is.null")
+      .order("first_name", { ascending: true });
 
     if (error) {
+      setEmployees([]);
       setMessage(error.message);
+      setLoadingEmployees(false);
       return;
     }
 
     setEmployees(data || []);
+    setLoadingEmployees(false);
   }
 
   function getEmployeeName(employee: Employee | undefined) {
@@ -163,11 +198,11 @@ export default function PayrollPage() {
   async function queuePayslipNotifications({
     payslipId,
     employee,
-    businessId,
+    activeBusinessId,
   }: {
     payslipId: string;
     employee: Employee | undefined;
-    businessId: string;
+    activeBusinessId: string;
   }) {
     const employeeName = getEmployeeName(employee);
 
@@ -181,7 +216,7 @@ export default function PayrollPage() {
       notificationRows.push({
         payslip_id: payslipId,
         employee_id: selectedEmployee,
-        business_id: businessId,
+        business_id: activeBusinessId,
         notification_type: "sms",
         recipient: employee.phone,
         message: smsMessage,
@@ -193,7 +228,7 @@ export default function PayrollPage() {
       notificationRows.push({
         payslip_id: payslipId,
         employee_id: selectedEmployee,
-        business_id: businessId,
+        business_id: activeBusinessId,
         notification_type: "email",
         recipient: employee.email,
         message: emailMessage,
@@ -205,7 +240,7 @@ export default function PayrollPage() {
       notificationRows.push({
         payslip_id: payslipId,
         employee_id: selectedEmployee,
-        business_id: businessId,
+        business_id: activeBusinessId,
         notification_type: "manual",
         recipient: "",
         message: smsMessage,
@@ -235,9 +270,9 @@ export default function PayrollPage() {
     setSaving(true);
     setMessage("Saving payroll and preparing employee notification...");
 
-    const businessId = await getBusinessId();
+    const activeBusinessId = businessId || (await getEmployerBusiness())?.id;
 
-    if (!businessId) {
+    if (!activeBusinessId) {
       setMessage("Business profile not found for this employer.");
       setSaving(false);
       return;
@@ -251,7 +286,7 @@ export default function PayrollPage() {
       .insert([
         {
           employee_id: selectedEmployee,
-          business_id: businessId,
+          business_id: activeBusinessId,
           basic_pay: basicPay,
           bonus,
           overtime_pay: overtimePay,
@@ -284,7 +319,7 @@ export default function PayrollPage() {
     await queuePayslipNotifications({
       payslipId: payslipData.id,
       employee,
-      businessId,
+      activeBusinessId,
     });
 
     setMessage(
@@ -301,9 +336,10 @@ export default function PayrollPage() {
           <p style={eyebrow}>WageFlow Employer</p>
           <h1 style={title}>Payroll</h1>
           <p style={subtitle}>
-            Calculate salary, UIF, PAYE, deductions and net pay before generating
-            a payslip.
+            Calculate salary, UIF, PAYE, deductions and net pay for cleaning
+            staff before generating a payslip.
           </p>
+          <p style={businessLine}>Current business: {businessName}</p>
         </div>
 
         <Link href="/employer" style={backButton}>
@@ -313,7 +349,12 @@ export default function PayrollPage() {
 
       <section style={grid}>
         <div style={card}>
-          <h2 style={sectionTitle}>Payroll Details</h2>
+          <div style={cardTop}>
+            <h2 style={sectionTitle}>Payroll Details</h2>
+            <button style={smallButton} onClick={fetchEmployees}>
+              Refresh Employees
+            </button>
+          </div>
 
           <label style={label}>Payroll Month</label>
           <input
@@ -344,10 +385,15 @@ export default function PayrollPage() {
                 const employeeSalary = Number(emp.basic_salary || emp.salary || 0);
                 setBasicPay(employeeSalary);
                 setPaymentMethod(emp.payment_method || "Bank Transfer");
+              } else {
+                setBasicPay(0);
+                setPaymentMethod("Bank Transfer");
               }
             }}
           >
-            <option value="">Select Employee</option>
+            <option value="">
+              {loadingEmployees ? "Loading employees..." : "Select Employee"}
+            </option>
 
             {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>
@@ -355,6 +401,13 @@ export default function PayrollPage() {
               </option>
             ))}
           </select>
+
+          {!loadingEmployees && employees.length === 0 && (
+            <p style={helperText}>
+              No active employees found for this business. Add employees first,
+              then return to payroll.
+            </p>
+          )}
 
           <label style={label}>Age Category for PAYE</label>
           <select
@@ -529,6 +582,13 @@ const subtitle = {
   margin: 0,
 };
 
+const businessLine = {
+  marginTop: "10px",
+  color: "#0f766e",
+  fontSize: "14px",
+  fontWeight: 800,
+};
+
 const backButton = {
   background: "#0f766e",
   color: "#ffffff",
@@ -552,9 +612,17 @@ const card = {
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
 };
 
+const cardTop = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "12px",
+  marginBottom: "18px",
+};
+
 const sectionTitle = {
   fontSize: "22px",
-  margin: "0 0 18px",
+  margin: 0,
   color: "#0f172a",
 };
 
@@ -587,9 +655,28 @@ const button = {
   marginTop: "6px",
 };
 
+const smallButton = {
+  background: "#ecfeff",
+  color: "#0f766e",
+  border: "1px solid #99f6e4",
+  padding: "8px 12px",
+  borderRadius: "10px",
+  cursor: "pointer",
+  fontWeight: 800,
+  fontSize: "12px",
+};
+
 const messageStyle = {
   marginTop: "14px",
   color: "#155e75",
+  fontWeight: 700,
+};
+
+const helperText = {
+  margin: "-6px 0 14px",
+  color: "#b45309",
+  fontSize: "13px",
+  lineHeight: 1.5,
   fontWeight: 700,
 };
 

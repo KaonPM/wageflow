@@ -23,6 +23,8 @@ type Payslip = {
   payroll_month: string | null;
   status: string | null;
   created_at: string | null;
+  viewed_at: string | null;
+  downloaded_at: string | null;
   employees?: {
     full_name: string | null;
     first_name: string | null;
@@ -31,6 +33,11 @@ type Payslip = {
     email: string | null;
     phone: string | null;
   } | null;
+  payslip_notifications?: {
+    id: string;
+    title: string | null;
+    created_at: string | null;
+  }[];
 };
 
 export default function EmployerPayslipsPage() {
@@ -98,6 +105,11 @@ export default function EmployerPayslipsPage() {
           employee_number,
           email,
           phone
+        ),
+        payslip_notifications (
+          id,
+          title,
+          created_at
         )
       `
       )
@@ -153,9 +165,32 @@ export default function EmployerPayslipsPage() {
 
     if (error) {
       setMessage(error.message);
-    } else {
-      setMessage("Payslip notification has been queued.");
+      return;
     }
+
+    const { error: portalNotificationError } = await supabase
+      .from("payslip_notifications")
+      .insert([
+        {
+          payslip_id: payslip.id,
+          employee_id: payslip.employee_id,
+          business_id: businessId,
+          title: "Payslip issued",
+          message: `Your payslip for ${
+            payslip.payroll_month || "the selected payroll month"
+          } is now available in your employee portal.`,
+          type: "payslip",
+          is_read: false,
+        },
+      ]);
+
+    if (portalNotificationError) {
+      setMessage(portalNotificationError.message);
+      return;
+    }
+
+    setMessage("Payslip notification has been queued.");
+    fetchPayslips();
   }
 
   const filteredPayslips = useMemo(() => {
@@ -165,7 +200,6 @@ export default function EmployerPayslipsPage() {
       } ${payslip.status || ""}`.toLowerCase();
 
       const matchesSearch = text.includes(search.toLowerCase());
-
       const matchesMonth =
         !monthFilter || payslip.payroll_month === monthFilter;
 
@@ -174,7 +208,6 @@ export default function EmployerPayslipsPage() {
   }, [payslips, search, monthFilter]);
 
   const totalPages = Math.ceil(filteredPayslips.length / recordsPerPage);
-
   const startIndex = (currentPage - 1) * recordsPerPage;
 
   const paginatedPayslips = filteredPayslips.slice(
@@ -204,8 +237,8 @@ export default function EmployerPayslipsPage() {
           <p style={eyebrow}>WageFlow Employer</p>
           <h1 style={title}>Payslips</h1>
           <p style={subtitle}>
-            View generated payslips, track payroll history and resend employee
-            notifications.
+            View generated payslips, track payroll history, monitor employee
+            activity and resend employee notifications.
           </p>
         </div>
 
@@ -276,6 +309,7 @@ export default function EmployerPayslipsPage() {
                     <th style={th}>Net Pay</th>
                     <th style={th}>Payment</th>
                     <th style={th}>Status</th>
+                    <th style={th}>Employee Activity</th>
                     <th style={th}>Actions</th>
                   </tr>
                 </thead>
@@ -314,7 +348,66 @@ export default function EmployerPayslipsPage() {
 
                       <td style={td}>{payslip.payment_method || "-"}</td>
 
-                      <td style={td}>{payslip.status || "generated"}</td>
+                      <td style={td}>
+                        <span style={statusBadge}>
+                          {payslip.status || "generated"}
+                        </span>
+                      </td>
+
+                      <td style={td}>
+                        <div style={activityColumn}>
+                          <span
+                            style={{
+                              ...activityBadge,
+                              background: payslip.viewed_at
+                                ? "#dcfce7"
+                                : "#f1f5f9",
+                              color: payslip.viewed_at
+                                ? "#166534"
+                                : "#475569",
+                            }}
+                          >
+                            {payslip.viewed_at ? "Viewed" : "Not viewed"}
+                          </span>
+
+                          <span
+                            style={{
+                              ...activityBadge,
+                              background: payslip.downloaded_at
+                                ? "#dbeafe"
+                                : "#f1f5f9",
+                              color: payslip.downloaded_at
+                                ? "#1d4ed8"
+                                : "#475569",
+                            }}
+                          >
+                            {payslip.downloaded_at
+                              ? "Downloaded"
+                              : "Not downloaded"}
+                          </span>
+
+                          <span
+                            style={{
+                              ...activityBadge,
+                              background:
+                                payslip.payslip_notifications &&
+                                payslip.payslip_notifications.length > 0
+                                  ? "#fef3c7"
+                                  : "#f1f5f9",
+                              color:
+                                payslip.payslip_notifications &&
+                                payslip.payslip_notifications.length > 0
+                                  ? "#92400e"
+                                  : "#475569",
+                            }}
+                          >
+                            {payslip.payslip_notifications &&
+                            payslip.payslip_notifications.length > 0
+                              ? "Notification sent"
+                              : "No notification"}
+                          </span>
+                        </div>
+                      </td>
 
                       <td style={td}>
                         <div style={actionGroup}>
@@ -552,7 +645,7 @@ const tableWrap = {
 const table = {
   width: "100%",
   borderCollapse: "collapse" as const,
-  minWidth: "1120px",
+  minWidth: "1260px",
 };
 
 const th = {
@@ -576,20 +669,38 @@ const muted = {
   fontSize: "13px",
 };
 
+const statusBadge = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  background: "#ecfeff",
+  color: "#155e75",
+  fontSize: "12px",
+  fontWeight: 700,
+};
+
+const activityColumn = {
+  display: "flex",
+  flexDirection: "column" as const,
+  gap: "6px",
+  minWidth: "150px",
+};
+
+const activityBadge = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "5px 8px",
+  borderRadius: "999px",
+  fontSize: "11px",
+  fontWeight: 700,
+};
+
 const actionGroup = {
   display: "flex",
   gap: "8px",
   flexWrap: "wrap" as const,
-};
-
-const viewButton = {
-  background: "#0f766e",
-  color: "#ffffff",
-  border: "1px solid #0f766e",
-  borderRadius: "10px",
-  padding: "8px 11px",
-  fontWeight: 800,
-  textDecoration: "none",
 };
 
 const actionButton = {

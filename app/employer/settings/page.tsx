@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
@@ -23,6 +23,27 @@ type Settings = {
   medicalAidEnabled: boolean;
   showLeaveBalances: boolean;
   defaultPaymentMethod: string;
+};
+
+type BusinessRecord = {
+  id: string;
+  business_name?: string | null;
+  trading_name?: string | null;
+  registration_number?: string | null;
+  paye_reference?: string | null;
+  uif_reference?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  logo_url?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
+  paye_enabled?: boolean | null;
+  uif_enabled?: boolean | null;
+  pension_enabled?: boolean | null;
+  medical_aid_enabled?: boolean | null;
+  show_leave_balances?: boolean | null;
+  default_payment_method?: string | null;
 };
 
 const defaultSettings: Settings = {
@@ -79,18 +100,17 @@ export default function EmployerSettingsPage() {
       .from("profiles")
       .select("business_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     let foundBusinessId = profile?.business_id || null;
-
-    let businessQuery = null;
+    let businessQuery: BusinessRecord | null = null;
 
     if (foundBusinessId) {
       const { data } = await supabase
         .from("businesses")
         .select("*")
         .eq("id", foundBusinessId)
-        .single();
+        .maybeSingle();
 
       businessQuery = data;
     }
@@ -100,7 +120,7 @@ export default function EmployerSettingsPage() {
         .from("businesses")
         .select("*")
         .eq("employer_id", user.id)
-        .single();
+        .maybeSingle();
 
       businessQuery = data;
       foundBusinessId = data?.id || null;
@@ -172,6 +192,7 @@ export default function EmployerSettingsPage() {
       default_payment_method: settings.defaultPaymentMethod,
     };
 
+    let savedBusinessId = businessId;
     let error = null;
 
     if (businessId) {
@@ -189,9 +210,10 @@ export default function EmployerSettingsPage() {
         .single();
 
       error = result.error;
+      savedBusinessId = result.data?.id || null;
 
-      if (result.data?.id) {
-        setBusinessId(result.data.id);
+      if (savedBusinessId) {
+        setBusinessId(savedBusinessId);
       }
     }
 
@@ -201,7 +223,15 @@ export default function EmployerSettingsPage() {
       return;
     }
 
+    if (savedBusinessId) {
+      await supabase
+        .from("profiles")
+        .update({ business_id: savedBusinessId })
+        .eq("id", employerId);
+    }
+
     setMessage("Settings saved successfully.");
+    setSaving(false);
 
     setTimeout(() => {
       router.push("/employer");
@@ -481,7 +511,7 @@ function Field({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div style={field}>

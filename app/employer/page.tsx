@@ -1,33 +1,158 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { supabase } from "../lib/supabaseClient";
+
+type Business = {
+  id: string;
+  business_name?: string | null;
+  trading_name?: string | null;
+  registered_name?: string | null;
+  name?: string | null;
+  logo_url?: string | null;
+  status?: string | null;
+  business_status?: string | null;
+};
+
+type Employee = {
+  id: string;
+  business_id?: string | null;
+  basic_salary?: number | null;
+  salary?: number | null;
+  employment_status?: string | null;
+};
+
 export default function EmployerDashboard() {
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  async function getEmployerBusiness() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return null;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("business_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.business_id) {
+      const { data } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("id", profile.business_id)
+        .maybeSingle();
+
+      if (data?.id) return data;
+    }
+
+    const { data } = await supabase
+      .from("businesses")
+      .select("*")
+      .eq("employer_id", user.id)
+      .maybeSingle();
+
+    return data || null;
+  }
+
+  async function loadDashboard() {
+    setLoading(true);
+    setMessage("");
+
+    const businessRecord = await getEmployerBusiness();
+
+    if (!businessRecord?.id) {
+      setBusiness(null);
+      setEmployees([]);
+      setMessage(
+        "Business profile not found. Please complete employer settings first."
+      );
+      setLoading(false);
+      return;
+    }
+
+    setBusiness(businessRecord);
+
+    const { data, error } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("business_id", businessRecord.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setEmployees([]);
+      setMessage(error.message);
+      setLoading(false);
+      return;
+    }
+
+    setEmployees(data || []);
+    setLoading(false);
+  }
+
+  const businessName =
+    business?.trading_name ||
+    business?.business_name ||
+    business?.registered_name ||
+    business?.name ||
+    "Kaone Cleaning Services";
+
+  const businessStatus =
+    business?.status || business?.business_status || "active";
+
+  const formattedStatus =
+    businessStatus.charAt(0).toUpperCase() + businessStatus.slice(1);
+
+  const totalEmployees = employees.length;
+
+  const activeEmployees = useMemo(() => {
+    return employees.filter(
+      (employee) =>
+        !employee.employment_status ||
+        employee.employment_status === "active"
+    ).length;
+  }, [employees]);
+
   return (
     <main style={page}>
       <section style={hero}>
-        <div>
-          <p style={eyebrow}>WageFlow Employer Portal</p>
-          <h1 style={title}>Employer Dashboard</h1>
-          <p style={subtitle}>
-            Manage staff records, payroll, payslips and business settings from
-            one organised workspace.
-          </p>
+        <div style={brandBlock}>
+          <Logo logoUrl={business?.logo_url || ""} businessName={businessName} />
+
+          <div>
+            <h1 style={businessTitle}>{businessName}</h1>
+            <h2 style={dashboardTitle}>Employer Dashboard</h2>
+
+            <p style={subtitle}>
+              Employer dashboard for managing employees, payroll, payslips, HR
+              records and business settings from one organised workspace.
+            </p>
+          </div>
         </div>
 
         <div style={statusCard}>
-          <span style={statusLabel}>Current Status</span>
-          <strong style={statusValue}>Payroll Workspace</strong>
-          <p style={statusText}>
-            Use the cards below to manage employees, process payroll and review
-            payslips.
-          </p>
+          <span style={statusLabel}>Business Status</span>
+          <strong style={statusValue}>{formattedStatus}</strong>
         </div>
       </section>
+
+      {message && <div style={notice}>{message}</div>}
 
       <section style={moduleGrid}>
         <DashboardCard
           icon="👥"
           title="Employees"
-          description="Add staff profiles, job details, bank details and employment records."
+          description="Add and manage employee profiles, job details, salary information, bank details and employment records."
           href="/employer/employees"
           tag="Staff Records"
         />
@@ -35,7 +160,7 @@ export default function EmployerDashboard() {
         <DashboardCard
           icon="💰"
           title="Payroll"
-          description="Capture salary, bonuses, overtime and deductions before generating payslips."
+          description="Capture salaries, bonuses, overtime and deductions before generating payslips."
           href="/employer/payroll"
           tag="Payroll Run"
         />
@@ -49,6 +174,22 @@ export default function EmployerDashboard() {
         />
 
         <DashboardCard
+          icon="🗂️"
+          title="HR"
+          description="Manage leave records, employee documents, warnings, confirmations of employment and HR notes."
+          href="/employer/hr"
+          tag="HR Records"
+        />
+
+        <DashboardCard
+          icon="✅"
+          title="Approvals"
+          description="Review and approve leave requests, overtime submissions, employee changes and other pending HR actions."
+          href="/employer/approvals"
+          tag="Pending Actions"
+        />
+
+        <DashboardCard
           icon="⚙️"
           title="Settings"
           description="Configure company details, branding, PAYE, UIF and payment preferences."
@@ -57,20 +198,51 @@ export default function EmployerDashboard() {
         />
       </section>
 
-      <section style={checklistBox}>
-        <div>
-          <p style={checklistEyebrow}>Monthly Payroll Flow</p>
-          <h2 style={checklistTitle}>Payroll Checklist</h2>
+      <section style={overviewBox}>
+        <div style={overviewHeader}>
+          <div>
+            <p style={overviewEyebrow}>Employee Overview</p>
+            <h2 style={overviewTitle}>Current Workforce</h2>
+          </div>
+
+          <button style={refreshButton} onClick={loadDashboard} disabled={loading}>
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
         </div>
 
-        <div style={checklistGrid}>
-          <ChecklistItem text="Confirm business settings and payment preferences" />
-          <ChecklistItem text="Add or update employee salary information" />
-          <ChecklistItem text="Run payroll and review PAYE and UIF calculations" />
-          <ChecklistItem text="Review payslips and resend employee notifications" />
+        <div style={overviewGrid}>
+          <OverviewCard label="Total Employees" value={String(totalEmployees)} />
+          <OverviewCard label="Active Employees" value={String(activeEmployees)} />
         </div>
       </section>
     </main>
+  );
+}
+
+function Logo({
+  logoUrl,
+  businessName,
+}: {
+  logoUrl: string;
+  businessName: string;
+}) {
+  if (logoUrl) {
+    return (
+      <div style={logoBox}>
+        <img src={logoUrl} alt={`${businessName} logo`} style={logoImage} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={logoFallback}>
+      {businessName
+        .split(" ")
+        .map((word) => word[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()}
+    </div>
   );
 }
 
@@ -88,7 +260,7 @@ function DashboardCard({
   tag: string;
 }) {
   return (
-    <a href={href} style={cardLink}>
+    <Link href={href} style={cardLink}>
       <article style={card}>
         <div style={cardTop}>
           <div style={iconBox}>{icon}</div>
@@ -103,15 +275,15 @@ function DashboardCard({
           <strong>→</strong>
         </div>
       </article>
-    </a>
+    </Link>
   );
 }
 
-function ChecklistItem({ text }: { text: string }) {
+function OverviewCard({ label, value }: { label: string; value: string }) {
   return (
-    <div style={checkItem}>
-      <span style={checkDot}>✓</span>
-      <p style={checkText}>{text}</p>
+    <div style={overviewCard}>
+      <span style={overviewValue}>{value}</span>
+      <p style={overviewLabel}>{label}</p>
     </div>
   );
 }
@@ -126,30 +298,70 @@ const page = {
 
 const hero = {
   display: "grid",
-  gridTemplateColumns: "1.7fr 1fr",
+  gridTemplateColumns: "1.8fr 0.9fr",
   gap: "24px",
   alignItems: "stretch",
   marginBottom: "28px",
 };
 
-const eyebrow = {
-  color: "#0f766e",
-  fontWeight: 800,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  fontSize: "13px",
-  marginBottom: "10px",
+const brandBlock = {
+  display: "flex",
+  alignItems: "center",
+  gap: "24px",
 };
 
-const title = {
+const logoBox = {
+  width: "132px",
+  height: "132px",
+  borderRadius: "26px",
+  background: "#ffffff",
+  border: "1px solid #dbeafe",
+  overflow: "hidden",
+  flexShrink: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 14px 32px rgba(15, 23, 42, 0.08)",
+};
+
+const logoImage = {
+  width: "100%",
+  height: "100%",
+  objectFit: "contain" as const,
+  padding: "10px",
+};
+
+const logoFallback = {
+  width: "132px",
+  height: "132px",
+  borderRadius: "26px",
+  background: "linear-gradient(135deg, #0f766e, #14b8a6)",
+  color: "#ffffff",
+  flexShrink: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: 900,
+  fontSize: "36px",
+  boxShadow: "0 14px 32px rgba(15, 118, 110, 0.22)",
+};
+
+const businessTitle = {
   fontSize: "36px",
   color: "#0f766e",
-  margin: "0 0 12px",
+  margin: "0 0 6px",
   fontWeight: 900,
 };
 
+const dashboardTitle = {
+  color: "#0f172a",
+  fontSize: "23px",
+  margin: "0 0 14px",
+  fontWeight: 800,
+};
+
 const subtitle = {
-  maxWidth: "720px",
+  maxWidth: "760px",
   color: "#64748b",
   fontSize: "16px",
   lineHeight: 1.7,
@@ -160,8 +372,11 @@ const statusCard = {
   background: "linear-gradient(135deg, #0f766e, #14b8a6)",
   color: "#ffffff",
   borderRadius: "22px",
-  padding: "26px",
+  padding: "30px",
   boxShadow: "0 16px 40px rgba(15, 118, 110, 0.22)",
+  display: "flex",
+  flexDirection: "column" as const,
+  justifyContent: "center",
 };
 
 const statusLabel = {
@@ -173,20 +388,23 @@ const statusLabel = {
 
 const statusValue = {
   display: "block",
-  fontSize: "24px",
-  marginBottom: "8px",
+  fontSize: "30px",
+  marginBottom: 0,
 };
 
-const statusText = {
-  margin: 0,
-  fontSize: "14px",
-  lineHeight: 1.5,
-  opacity: 0.95,
+const notice = {
+  background: "#fff7ed",
+  border: "1px solid #fed7aa",
+  color: "#9a3412",
+  borderRadius: "14px",
+  padding: "14px 16px",
+  marginBottom: "18px",
+  fontWeight: 700,
 };
 
 const moduleGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
   gap: "20px",
   marginBottom: "24px",
 };
@@ -194,14 +412,16 @@ const moduleGrid = {
 const cardLink = {
   textDecoration: "none",
   color: "inherit",
+  height: "100%",
 };
 
 const card = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
   borderRadius: "22px",
-  padding: "24px",
-  minHeight: "230px",
+  padding: "22px",
+  height: "100%",
+  minHeight: "220px",
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
   display: "flex",
   flexDirection: "column" as const,
@@ -214,18 +434,18 @@ const cardTop = {
   justifyContent: "space-between",
   alignItems: "center",
   gap: "12px",
-  marginBottom: "18px",
+  marginBottom: "16px",
 };
 
 const iconBox = {
-  width: "48px",
-  height: "48px",
+  width: "46px",
+  height: "46px",
   borderRadius: "16px",
   background: "#ecfeff",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: "22px",
+  fontSize: "21px",
 };
 
 const tagStyle = {
@@ -241,13 +461,13 @@ const tagStyle = {
 const cardTitle = {
   margin: "0 0 10px",
   color: "#0f172a",
-  fontSize: "22px",
+  fontSize: "21px",
 };
 
 const cardText = {
   color: "#64748b",
   fontSize: "14px",
-  lineHeight: 1.6,
+  lineHeight: 1.55,
   margin: 0,
 };
 
@@ -255,12 +475,12 @@ const cardFooter = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  marginTop: "24px",
+  marginTop: "22px",
   color: "#0f766e",
   fontWeight: 800,
 };
 
-const checklistBox = {
+const overviewBox = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
   borderRadius: "22px",
@@ -268,7 +488,15 @@ const checklistBox = {
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.05)",
 };
 
-const checklistEyebrow = {
+const overviewHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "16px",
+  marginBottom: "18px",
+};
+
+const overviewEyebrow = {
   color: "#0f766e",
   fontWeight: 800,
   textTransform: "uppercase" as const,
@@ -277,37 +505,46 @@ const checklistEyebrow = {
   margin: "0 0 8px",
 };
 
-const checklistTitle = {
+const overviewTitle = {
   color: "#0f172a",
   fontSize: "22px",
-  margin: "0 0 18px",
+  margin: 0,
 };
 
-const checklistGrid = {
+const refreshButton = {
+  background: "#ecfeff",
+  color: "#0f766e",
+  border: "1px solid #99f6e4",
+  padding: "9px 14px",
+  borderRadius: "12px",
+  cursor: "pointer",
+  fontWeight: 800,
+};
+
+const overviewGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: "14px",
 };
 
-const checkItem = {
-  display: "flex",
-  alignItems: "flex-start",
-  gap: "10px",
+const overviewCard = {
   background: "#f8fafc",
   border: "1px solid #e2e8f0",
   borderRadius: "16px",
-  padding: "14px",
+  padding: "20px",
 };
 
-const checkDot = {
+const overviewValue = {
+  display: "block",
   color: "#0f766e",
+  fontSize: "30px",
   fontWeight: 900,
+  marginBottom: "6px",
 };
 
-const checkText = {
+const overviewLabel = {
   margin: 0,
   color: "#334155",
   fontSize: "14px",
-  lineHeight: 1.5,
-  fontWeight: 600,
+  fontWeight: 700,
 };

@@ -172,7 +172,7 @@ export default function EmployeeDashboard() {
     console.log("Latest payslip error:", payslipError);
 
     const { count: unreadCount, error: notificationError } = await supabase
-      .from("employee_notifications")
+      .from("payslip_notifications")
       .select("*", { count: "exact", head: true })
       .eq("employee_id", employee.id)
       .eq("is_read", false);

@@ -90,7 +90,7 @@ export default function EmployeeNotificationsPage() {
     setBusiness(businessData || null);
 
     const { data: notificationData, error: notificationError } = await supabase
-      .from("employee_notifications")
+      .from("payslip_notifications")
       .select("id, title, message, type, is_read, created_at")
       .eq("employee_id", employeeData.id)
       .order("created_at", { ascending: false });
@@ -108,7 +108,7 @@ export default function EmployeeNotificationsPage() {
 
   async function markAsRead(notificationId: string) {
     const { error } = await supabase
-      .from("employee_notifications")
+      .from("payslip_notifications")
       .update({ is_read: true })
       .eq("id", notificationId);
 
@@ -128,7 +128,7 @@ export default function EmployeeNotificationsPage() {
     if (!employee) return;
 
     const { error } = await supabase
-      .from("employee_notifications")
+      .from("payslip_notifications")
       .update({ is_read: true })
       .eq("employee_id", employee.id)
       .eq("is_read", false);
