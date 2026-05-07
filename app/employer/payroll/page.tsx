@@ -16,17 +16,15 @@ type Employee = {
   payment_method: string | null;
   phone: string | null;
   email: string | null;
-  employer_id?: string | null;
   business_id?: string | null;
   employment_status?: string | null;
 };
 
 type Business = {
   id: string;
-  employer_id: string | null;
-  registered_name?: string | null;
-  trading_name?: string | null;
   business_name?: string | null;
+  trading_name?: string | null;
+  registered_name?: string | null;
   name?: string | null;
 };
 
@@ -72,29 +70,29 @@ export default function PayrollPage() {
 
     if (!user) return null;
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("business_id")
       .eq("id", user.id)
-      .maybeSingle();
+      .single();
 
-    if (profile?.business_id) {
-      const { data } = await supabase
-        .from("businesses")
-        .select("id, employer_id, registered_name, trading_name, business_name, name")
-        .eq("id", profile.business_id)
-        .maybeSingle();
-
-      if (data?.id) return data;
+    if (profileError || !profile?.business_id) {
+      console.error("Profile lookup failed", profileError);
+      return null;
     }
 
-    const { data } = await supabase
+    const { data: businessRecord, error: businessError } = await supabase
       .from("businesses")
-      .select("id, employer_id, registered_name, trading_name, business_name, name")
-      .eq("employer_id", user.id)
-      .maybeSingle();
+      .select("id, business_name, trading_name, registered_name, name")
+      .eq("id", profile.business_id)
+      .single();
 
-    return data || null;
+    if (businessError) {
+      console.error("Business lookup failed", businessError);
+      return null;
+    }
+
+    return businessRecord;
   }
 
   async function fetchEmployees() {
@@ -114,80 +112,26 @@ export default function PayrollPage() {
     setBusinessId(business.id);
     setBusinessName(
       business.trading_name ||
-        business.registered_name ||
         business.business_name ||
+        business.registered_name ||
         business.name ||
         "Kaone Cleaning Services"
     );
 
-    const { data: businessEmployees, error: businessError } = await supabase
+    const { data, error } = await supabase
       .from("employees")
       .select("*")
       .eq("business_id", business.id)
-      .or("employment_status.eq.active,employment_status.is.null")
       .order("first_name", { ascending: true });
 
-    if (businessError) {
+    if (error) {
       setEmployees([]);
-      setMessage(businessError.message);
+      setMessage(error.message);
       setLoadingEmployees(false);
       return;
     }
 
-    if (businessEmployees && businessEmployees.length > 0) {
-      setEmployees(businessEmployees);
-      setLoadingEmployees(false);
-      return;
-    }
-
-    if (!business.employer_id) {
-      setEmployees([]);
-      setMessage("No active employees found for this business.");
-      setLoadingEmployees(false);
-      return;
-    }
-
-    const { data: employerEmployees, error: employerError } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("employer_id", business.employer_id)
-      .or("employment_status.eq.active,employment_status.is.null")
-      .order("first_name", { ascending: true });
-
-    if (employerError) {
-      setEmployees([]);
-      setMessage(employerError.message);
-      setLoadingEmployees(false);
-      return;
-    }
-
-    if (employerEmployees && employerEmployees.length > 0) {
-      const employeeIdsToRepair = employerEmployees
-        .filter((employee) => employee.business_id !== business.id)
-        .map((employee) => employee.id);
-
-      if (employeeIdsToRepair.length > 0) {
-        await supabase
-          .from("employees")
-          .update({ business_id: business.id, employment_status: "active" })
-          .in("id", employeeIdsToRepair);
-      }
-
-      setEmployees(
-        employerEmployees.map((employee) => ({
-          ...employee,
-          business_id: business.id,
-          employment_status: employee.employment_status || "active",
-        }))
-      );
-
-      setMessage("");
-      setLoadingEmployees(false);
-      return;
-    }
-
-    setEmployees([]);
-    setMessage("No active employees found for this business.");
+    setEmployees(data || []);
     setLoadingEmployees(false);
   }
 
@@ -235,7 +179,9 @@ export default function PayrollPage() {
     const employeeUif = Number((uifSalary * 0.01).toFixed(2));
     const employerUif = Number((uifSalary * 0.01).toFixed(2));
     const totalUif = Number((employeeUif + employerUif).toFixed(2));
+
     const paye = calculatePaye(grossPay * 12, ageCategory);
+
     const totalEmployeeDeductions = employeeUif + paye + otherDeductions;
     const netPay = Number((grossPay - totalEmployeeDeductions).toFixed(2));
     const sarsPayable = Number((paye + employeeUif + employerUif).toFixed(2));
@@ -387,7 +333,7 @@ export default function PayrollPage() {
     <main style={page}>
       <section style={header}>
         <div>
-          <p style={eyebrow}>WageFlow Employer</p>
+          <p style={eyebrow}>Employer Payroll</p>
           <h1 style={title}>Payroll</h1>
           <p style={subtitle}>
             Calculate salary, UIF, PAYE, deductions and net pay before
@@ -457,8 +403,8 @@ export default function PayrollPage() {
 
           {!loadingEmployees && employees.length === 0 && (
             <p style={helperText}>
-              No active employees found for this business. Add employees first,
-              then return to payroll.
+              No employees found for this business. Confirm the employee has the
+              same business_id as the employer profile.
             </p>
           )}
 

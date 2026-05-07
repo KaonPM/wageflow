@@ -19,7 +19,6 @@ type Business = {
 type Employee = {
   id: string;
   business_id?: string | null;
-  employer_id?: string | null;
   basic_salary?: number | null;
   salary?: number | null;
   employment_status?: string | null;
@@ -42,29 +41,29 @@ export default function EmployerDashboard() {
 
     if (!user) return null;
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("business_id")
       .eq("id", user.id)
-      .maybeSingle();
+      .single();
 
-    if (profile?.business_id) {
-      const { data } = await supabase
-        .from("businesses")
-        .select("*")
-        .eq("id", profile.business_id)
-        .maybeSingle();
-
-      if (data?.id) return data as Business;
+    if (profileError || !profile?.business_id) {
+      console.error("Profile lookup failed", profileError);
+      return null;
     }
 
-    const { data } = await supabase
+    const { data: businessRecord, error: businessError } = await supabase
       .from("businesses")
       .select("*")
-      .eq("employer_id", user.id)
-      .maybeSingle();
+      .eq("id", profile.business_id)
+      .single();
 
-    return (data as Business) || null;
+    if (businessError) {
+      console.error("Business lookup failed", businessError);
+      return null;
+    }
+
+    return businessRecord;
   }
 
   async function loadDashboard() {
@@ -85,70 +84,20 @@ export default function EmployerDashboard() {
 
     setBusiness(businessRecord);
 
-    const { data: businessEmployees, error: businessError } = await supabase
+    const { data, error } = await supabase
       .from("employees")
       .select("*")
       .eq("business_id", businessRecord.id)
       .order("created_at", { ascending: false });
 
-    if (businessError) {
+    if (error) {
       setEmployees([]);
-      setMessage(businessError.message);
+      setMessage(error.message);
       setLoading(false);
       return;
     }
 
-    if (businessEmployees && businessEmployees.length > 0) {
-      setEmployees(businessEmployees);
-      setLoading(false);
-      return;
-    }
-
-    if (!businessRecord.employer_id) {
-      setEmployees([]);
-      setLoading(false);
-      return;
-    }
-
-    const { data: employerEmployees, error: employerError } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("employer_id", businessRecord.employer_id)
-      .order("created_at", { ascending: false });
-
-    if (employerError) {
-      setEmployees([]);
-      setMessage(employerError.message);
-      setLoading(false);
-      return;
-    }
-
-    if (employerEmployees && employerEmployees.length > 0) {
-      const employeesToRepair = employerEmployees
-        .filter((employee) => employee.business_id !== businessRecord.id)
-        .map((employee) => employee.id);
-
-      if (employeesToRepair.length > 0) {
-        await supabase
-          .from("employees")
-          .update({
-            business_id: businessRecord.id,
-            employment_status: "active",
-          })
-          .in("id", employeesToRepair);
-      }
-
-      setEmployees(
-        employerEmployees.map((employee) => ({
-          ...employee,
-          business_id: businessRecord.id,
-          employment_status: employee.employment_status || "active",
-        }))
-      );
-    } else {
-      setEmployees([]);
-    }
-
+    setEmployees(data || []);
     setLoading(false);
   }
 
