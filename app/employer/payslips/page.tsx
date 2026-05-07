@@ -302,7 +302,7 @@ export default function EmployerPayslipsPage() {
                     <td style={td}>
                       <div style={actionGroup}>
                         <Link href={`/employer/payslips/${payslip.id}`} style={pdfButton}>
-                         VIEW
+                         View
                         </Link>
 
                         <button
