@@ -45,7 +45,7 @@ export default function EmployeeDashboard() {
       .from("employee_accounts")
       .select(
         `
-        portal_enabled,
+        portal_enable,
         employee:employees (
           id,
           full_name,
@@ -71,7 +71,7 @@ export default function EmployeeDashboard() {
       .eq("auth_user_id", user.id)
       .single();
 
-    if (accountError || !account || !account.portal_enabled) {
+    if (accountError || !account || !account.portal_enable) {
       console.log(accountError);
 
       setData(null);
