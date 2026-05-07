@@ -1,35 +1,206 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "../../lib/supabaseClient";
+
+type Settings = {
+  businessName: string;
+  tradingName: string;
+  registrationNumber: string;
+  payeReference: string;
+  uifReference: string;
+  address: string;
+  phone: string;
+  email: string;
+  logoUrl: string;
+  primaryColor: string;
+  secondaryColor: string;
+  payeEnabled: boolean;
+  uifEnabled: boolean;
+  pensionEnabled: boolean;
+  medicalAidEnabled: boolean;
+  showLeaveBalances: boolean;
+  defaultPaymentMethod: string;
+};
+
+const defaultSettings: Settings = {
+  businessName: "",
+  tradingName: "",
+  registrationNumber: "",
+  payeReference: "",
+  uifReference: "",
+  address: "",
+  phone: "",
+  email: "",
+  logoUrl: "",
+  primaryColor: "#0f766e",
+  secondaryColor: "#f59e0b",
+  payeEnabled: true,
+  uifEnabled: true,
+  pensionEnabled: false,
+  medicalAidEnabled: false,
+  showLeaveBalances: true,
+  defaultPaymentMethod: "Bank Transfer",
+};
 
 export default function EmployerSettingsPage() {
   const router = useRouter();
 
-  const [settings, setSettings] = useState({
-    primaryColor: "#0f766e",
-    secondaryColor: "#f59e0b",
-    payeEnabled: true,
-    uifEnabled: true,
-    pensionEnabled: false,
-    medicalAidEnabled: false,
-    showLeaveBalances: true,
-    defaultPaymentMethod: "Bank Transfer",
-  });
-
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [employerId, setEmployerId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  function handleToggle(field: keyof typeof settings) {
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  async function loadSettings() {
+    setLoading(true);
+    setMessage("");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setMessage("You are not logged in.");
+      setLoading(false);
+      return;
+    }
+
+    setEmployerId(user.id);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("business_id")
+      .eq("id", user.id)
+      .single();
+
+    let foundBusinessId = profile?.business_id || null;
+
+    let businessQuery = null;
+
+    if (foundBusinessId) {
+      const { data } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("id", foundBusinessId)
+        .single();
+
+      businessQuery = data;
+    }
+
+    if (!businessQuery) {
+      const { data } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("employer_id", user.id)
+        .single();
+
+      businessQuery = data;
+      foundBusinessId = data?.id || null;
+    }
+
+    if (businessQuery) {
+      setBusinessId(foundBusinessId);
+
+      setSettings({
+        businessName: businessQuery.business_name || "",
+        tradingName: businessQuery.trading_name || "",
+        registrationNumber: businessQuery.registration_number || "",
+        payeReference: businessQuery.paye_reference || "",
+        uifReference: businessQuery.uif_reference || "",
+        address: businessQuery.address || "",
+        phone: businessQuery.phone || "",
+        email: businessQuery.email || "",
+        logoUrl: businessQuery.logo_url || "",
+        primaryColor: businessQuery.primary_color || "#0f766e",
+        secondaryColor: businessQuery.secondary_color || "#f59e0b",
+        payeEnabled: businessQuery.paye_enabled ?? true,
+        uifEnabled: businessQuery.uif_enabled ?? true,
+        pensionEnabled: businessQuery.pension_enabled ?? false,
+        medicalAidEnabled: businessQuery.medical_aid_enabled ?? false,
+        showLeaveBalances: businessQuery.show_leave_balances ?? true,
+        defaultPaymentMethod:
+          businessQuery.default_payment_method || "Bank Transfer",
+      });
+    }
+
+    setLoading(false);
+  }
+
+  function handleToggle(field: keyof Settings) {
     setSettings((prev) => ({
       ...prev,
       [field]: !prev[field],
     }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     setSaving(true);
+    setMessage("");
+
+    if (!employerId) {
+      setMessage("Employer account not found.");
+      setSaving(false);
+      return;
+    }
+
+    const payload = {
+      employer_id: employerId,
+      business_name: settings.businessName,
+      trading_name: settings.tradingName,
+      registration_number: settings.registrationNumber,
+      paye_reference: settings.payeReference,
+      uif_reference: settings.uifReference,
+      address: settings.address,
+      phone: settings.phone,
+      email: settings.email,
+      logo_url: settings.logoUrl,
+      primary_color: settings.primaryColor,
+      secondary_color: settings.secondaryColor,
+      paye_enabled: settings.payeEnabled,
+      uif_enabled: settings.uifEnabled,
+      pension_enabled: settings.pensionEnabled,
+      medical_aid_enabled: settings.medicalAidEnabled,
+      show_leave_balances: settings.showLeaveBalances,
+      default_payment_method: settings.defaultPaymentMethod,
+    };
+
+    let error = null;
+
+    if (businessId) {
+      const result = await supabase
+        .from("businesses")
+        .update(payload)
+        .eq("id", businessId);
+
+      error = result.error;
+    } else {
+      const result = await supabase
+        .from("businesses")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      error = result.error;
+
+      if (result.data?.id) {
+        setBusinessId(result.data.id);
+      }
+    }
+
+    if (error) {
+      setMessage(error.message);
+      setSaving(false);
+      return;
+    }
+
     setMessage("Settings saved successfully.");
 
     setTimeout(() => {
@@ -44,8 +215,7 @@ export default function EmployerSettingsPage() {
           <p style={eyebrow}>WageFlow Employer</p>
           <h1 style={title}>Employer Settings</h1>
           <p style={subtitle}>
-            Configure branding, payroll behaviour and payslip preferences for your
-            business.
+            Configure business identity, payroll behaviour and payslip branding.
           </p>
         </div>
 
@@ -56,133 +226,268 @@ export default function EmployerSettingsPage() {
 
       {message && <div style={notice}>{message}</div>}
 
-      <section style={grid}>
-        <div style={card}>
-          <div style={cardHeader}>
-            <div style={iconCircle}>🎨</div>
+      {loading ? (
+        <div style={emptyState}>Loading employer settings...</div>
+      ) : (
+        <>
+          <section style={grid}>
+            <div style={card}>
+              <div style={cardHeader}>
+                <div style={iconCircle}>🏢</div>
 
-            <div>
-              <h2 style={cardTitle}>Payslip Branding</h2>
-              <p style={cardSubtitle}>
-                Personalise your payslip appearance and company identity.
-              </p>
+                <div>
+                  <h2 style={cardTitle}>Business Details</h2>
+                  <p style={cardSubtitle}>
+                    These details appear on the payslip employer section.
+                  </p>
+                </div>
+              </div>
+
+              <Field label="Registered Business Name">
+                <input
+                  style={input}
+                  value={settings.businessName}
+                  onChange={(e) =>
+                    setSettings({ ...settings, businessName: e.target.value })
+                  }
+                />
+              </Field>
+
+              <Field label="Trading Name">
+                <input
+                  style={input}
+                  value={settings.tradingName}
+                  onChange={(e) =>
+                    setSettings({ ...settings, tradingName: e.target.value })
+                  }
+                />
+              </Field>
+
+              <Field label="Company Registration Number">
+                <input
+                  style={input}
+                  value={settings.registrationNumber}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      registrationNumber: e.target.value,
+                    })
+                  }
+                />
+              </Field>
+
+              <Field label="Business Address">
+                <textarea
+                  style={textarea}
+                  value={settings.address}
+                  onChange={(e) =>
+                    setSettings({ ...settings, address: e.target.value })
+                  }
+                />
+              </Field>
             </div>
-          </div>
 
-          <div style={field}>
-            <label style={label}>Primary Colour</label>
-            <input
-              type="color"
-              value={settings.primaryColor}
-              onChange={(e) =>
-                setSettings({ ...settings, primaryColor: e.target.value })
-              }
-              style={colorInput}
-            />
-          </div>
+            <div style={card}>
+              <div style={cardHeader}>
+                <div style={iconCircle}>📞</div>
 
-          <div style={field}>
-            <label style={label}>Secondary Colour</label>
-            <input
-              type="color"
-              value={settings.secondaryColor}
-              onChange={(e) =>
-                setSettings({ ...settings, secondaryColor: e.target.value })
-              }
-              style={colorInput}
-            />
-          </div>
+                <div>
+                  <h2 style={cardTitle}>Contact Details</h2>
+                  <p style={cardSubtitle}>
+                    These details are displayed on employee payslips.
+                  </p>
+                </div>
+              </div>
 
-          <div style={field}>
-            <label style={label}>Company Logo</label>
-            <input type="file" style={fileInput} />
-          </div>
-        </div>
+              <Field label="Business Phone">
+                <input
+                  style={input}
+                  value={settings.phone}
+                  onChange={(e) =>
+                    setSettings({ ...settings, phone: e.target.value })
+                  }
+                />
+              </Field>
 
-        <div style={card}>
-          <div style={cardHeader}>
-            <div style={iconCircle}>💰</div>
+              <Field label="Business Email">
+                <input
+                  style={input}
+                  type="email"
+                  value={settings.email}
+                  onChange={(e) =>
+                    setSettings({ ...settings, email: e.target.value })
+                  }
+                />
+              </Field>
 
-            <div>
-              <h2 style={cardTitle}>Payroll Settings</h2>
-              <p style={cardSubtitle}>
-                Configure payroll deductions and payslip behaviour.
-              </p>
+              <Field label="Logo URL">
+                <input
+                  style={input}
+                  placeholder="/wageflow-logo.png or hosted logo URL"
+                  value={settings.logoUrl}
+                  onChange={(e) =>
+                    setSettings({ ...settings, logoUrl: e.target.value })
+                  }
+                />
+              </Field>
+
+              <div style={colourGrid}>
+                <Field label="Primary Colour">
+                  <input
+                    type="color"
+                    value={settings.primaryColor}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        primaryColor: e.target.value,
+                      })
+                    }
+                    style={colorInput}
+                  />
+                </Field>
+
+                <Field label="Secondary Colour">
+                  <input
+                    type="color"
+                    value={settings.secondaryColor}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        secondaryColor: e.target.value,
+                      })
+                    }
+                    style={colorInput}
+                  />
+                </Field>
+              </div>
             </div>
-          </div>
 
-          <Toggle
-            label="Enable PAYE"
-            checked={settings.payeEnabled}
-            onChange={() => handleToggle("payeEnabled")}
-          />
+            <div style={card}>
+              <div style={cardHeader}>
+                <div style={iconCircle}>🧾</div>
 
-          <Toggle
-            label="Enable UIF"
-            checked={settings.uifEnabled}
-            onChange={() => handleToggle("uifEnabled")}
-          />
+                <div>
+                  <h2 style={cardTitle}>SARS and UIF References</h2>
+                  <p style={cardSubtitle}>
+                    These references support payroll record keeping.
+                  </p>
+                </div>
+              </div>
 
-          <Toggle
-            label="Enable Pension Fund"
-            checked={settings.pensionEnabled}
-            onChange={() => handleToggle("pensionEnabled")}
-          />
+              <Field label="PAYE Reference Number">
+                <input
+                  style={input}
+                  value={settings.payeReference}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      payeReference: e.target.value,
+                    })
+                  }
+                />
+              </Field>
 
-          <Toggle
-            label="Enable Medical Aid"
-            checked={settings.medicalAidEnabled}
-            onChange={() => handleToggle("medicalAidEnabled")}
-          />
+              <Field label="UIF Reference Number">
+                <input
+                  style={input}
+                  value={settings.uifReference}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      uifReference: e.target.value,
+                    })
+                  }
+                />
+              </Field>
 
-          <Toggle
-            label="Show Leave Balances on Payslip"
-            checked={settings.showLeaveBalances}
-            onChange={() => handleToggle("showLeaveBalances")}
-          />
-        </div>
+              <Toggle
+                label="Enable PAYE"
+                checked={settings.payeEnabled}
+                onChange={() => handleToggle("payeEnabled")}
+              />
 
-        <div style={card}>
-          <div style={cardHeader}>
-            <div style={iconCircle}>🏦</div>
-
-            <div>
-              <h2 style={cardTitle}>Payment Preferences</h2>
-              <p style={cardSubtitle}>
-                Select the default payment method for payroll processing.
-              </p>
+              <Toggle
+                label="Enable UIF"
+                checked={settings.uifEnabled}
+                onChange={() => handleToggle("uifEnabled")}
+              />
             </div>
+
+            <div style={card}>
+              <div style={cardHeader}>
+                <div style={iconCircle}>💰</div>
+
+                <div>
+                  <h2 style={cardTitle}>Payslip Preferences</h2>
+                  <p style={cardSubtitle}>
+                    Control optional payslip and payroll items.
+                  </p>
+                </div>
+              </div>
+
+              <Toggle
+                label="Enable Pension Fund"
+                checked={settings.pensionEnabled}
+                onChange={() => handleToggle("pensionEnabled")}
+              />
+
+              <Toggle
+                label="Enable Medical Aid"
+                checked={settings.medicalAidEnabled}
+                onChange={() => handleToggle("medicalAidEnabled")}
+              />
+
+              <Toggle
+                label="Show Leave Balances on Payslip"
+                checked={settings.showLeaveBalances}
+                onChange={() => handleToggle("showLeaveBalances")}
+              />
+
+              <Field label="Default Payment Method">
+                <select
+                  value={settings.defaultPaymentMethod}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      defaultPaymentMethod: e.target.value,
+                    })
+                  }
+                  style={select}
+                >
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Cash">Cash</option>
+                  <option value="EFT">EFT</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Mobile Payment">Mobile Payment</option>
+                  <option value="Other">Other</option>
+                </select>
+              </Field>
+            </div>
+          </section>
+
+          <div style={buttonRow}>
+            <button onClick={handleSave} style={saveButton} disabled={saving}>
+              {saving ? "Saving..." : "Save Settings"}
+            </button>
           </div>
-
-          <div style={field}>
-            <label style={label}>Default Payment Method</label>
-
-            <select
-              value={settings.defaultPaymentMethod}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  defaultPaymentMethod: e.target.value,
-                })
-              }
-              style={select}
-            >
-              <option value="Bank Transfer">Bank Transfer</option>
-              <option value="Cash">Cash</option>
-              <option value="EFT">EFT</option>
-              <option value="Cheque">Cheque</option>
-              <option value="Mobile Money">Mobile Money</option>
-            </select>
-          </div>
-        </div>
-      </section>
-
-      <div style={buttonRow}>
-        <button onClick={handleSave} style={saveButton} disabled={saving}>
-          {saving ? "Saving..." : "Save Settings"}
-        </button>
-      </div>
+        </>
+      )}
     </main>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={field}>
+      <label style={labelStyle}>{label}</label>
+      {children}
+    </div>
   );
 }
 
@@ -258,7 +563,7 @@ const title = {
 };
 
 const subtitle = {
-  maxWidth: "720px",
+  maxWidth: "760px",
   color: "#64748b",
   fontSize: "15px",
   lineHeight: 1.6,
@@ -280,100 +585,125 @@ const notice = {
   color: "#155e75",
   borderRadius: "14px",
   padding: "14px 16px",
-  marginBottom: "18px",
+  marginBottom: "16px",
   fontWeight: 700,
+};
+
+const emptyState = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: "18px",
+  padding: "22px",
 };
 
 const grid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-  gap: "24px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))",
+  gap: "20px",
 };
 
 const card = {
   background: "#ffffff",
-  borderRadius: "18px",
-  padding: "26px",
   border: "1px solid #e2e8f0",
-  boxShadow: "0 10px 30px rgba(15, 118, 110, 0.08)",
+  borderRadius: "20px",
+  padding: "22px",
+  boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
 };
 
 const cardHeader = {
   display: "flex",
-  gap: "16px",
-  alignItems: "flex-start",
-  marginBottom: "26px",
+  alignItems: "center",
+  gap: "14px",
+  marginBottom: "20px",
 };
 
 const iconCircle = {
-  width: "48px",
-  height: "48px",
+  width: "44px",
+  height: "44px",
   borderRadius: "14px",
   background: "#ecfeff",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: "22px",
+  fontSize: "21px",
 };
 
 const cardTitle = {
-  margin: "0 0 6px",
+  margin: "0 0 4px",
   color: "#0f172a",
   fontSize: "20px",
 };
 
 const cardSubtitle = {
-  margin: 0,
   color: "#64748b",
-  fontSize: "14px",
   lineHeight: 1.5,
+  margin: 0,
+  fontSize: "13px",
 };
 
 const field = {
-  marginBottom: "18px",
+  marginBottom: "14px",
 };
 
-const label = {
+const labelStyle = {
   display: "block",
   color: "#475569",
-  fontSize: "13px",
-  fontWeight: 700,
-  marginBottom: "8px",
+  fontSize: "12px",
+  fontWeight: 800,
+  marginBottom: "6px",
 };
 
-const colorInput = {
+const input = {
   width: "100%",
-  height: "46px",
-  border: "1px solid #cbd5e1",
-  borderRadius: "10px",
-  padding: "4px",
-  background: "#ffffff",
-};
-
-const fileInput = {
-  width: "100%",
-  padding: "12px",
-  borderRadius: "10px",
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-};
-
-const select = {
-  width: "100%",
-  padding: "12px",
+  padding: "10px 11px",
   borderRadius: "10px",
   border: "1px solid #cbd5e1",
   background: "#ffffff",
   color: "#0f172a",
+};
+
+const textarea = {
+  width: "100%",
+  minHeight: "92px",
+  padding: "10px 11px",
+  borderRadius: "10px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
+  fontFamily: "Arial, sans-serif",
+};
+
+const select = {
+  width: "100%",
+  padding: "10px 11px",
+  borderRadius: "10px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
+};
+
+const colourGrid = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "14px",
+};
+
+const colorInput = {
+  width: "100%",
+  height: "42px",
+  border: "1px solid #cbd5e1",
+  borderRadius: "10px",
+  background: "#ffffff",
+  cursor: "pointer",
 };
 
 const toggleRow = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  gap: "18px",
-  padding: "14px 0",
-  borderBottom: "1px solid #e2e8f0",
+  gap: "16px",
+  padding: "12px 0",
+  borderBottom: "1px solid #f1f5f9",
 };
 
 const toggleLabel = {
@@ -399,14 +729,13 @@ const switchSlider = {
 const switchCircle = {
   width: "24px",
   height: "24px",
-  background: "#ffffff",
   borderRadius: "50%",
-  display: "block",
+  background: "#ffffff",
   transition: "0.2s",
 };
 
 const buttonRow = {
-  marginTop: "26px",
+  marginTop: "24px",
   display: "flex",
   justifyContent: "flex-end",
 };
@@ -416,7 +745,7 @@ const saveButton = {
   color: "#ffffff",
   border: "none",
   borderRadius: "12px",
-  padding: "13px 22px",
+  padding: "12px 20px",
   fontWeight: 800,
   cursor: "pointer",
 };
