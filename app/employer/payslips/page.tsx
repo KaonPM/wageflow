@@ -200,9 +200,15 @@ export default function EmployerPayslipsPage() {
 
       <section style={summaryGrid}>
         <SummaryCard label="Payslips Generated" value={String(summary.total)} />
-        <SummaryCard label="Gross Payroll" value={`R ${summary.gross.toFixed(2)}`} />
+        <SummaryCard
+          label="Gross Payroll"
+          value={`R ${summary.gross.toFixed(2)}`}
+        />
         <SummaryCard label="Net Payroll" value={`R ${summary.net.toFixed(2)}`} />
-        <SummaryCard label="SARS/UIF Payable" value={`R ${summary.sars.toFixed(2)}`} />
+        <SummaryCard
+          label="SARS/UIF Payable"
+          value={`R ${summary.sars.toFixed(2)}`}
+        />
       </section>
 
       {message && <div style={notice}>{message}</div>}
@@ -270,16 +276,38 @@ export default function EmployerPayslipsPage() {
                     </td>
 
                     <td style={td}>{payslip.payroll_month || "-"}</td>
-                    <td style={td}>R {Number(payslip.gross_pay || 0).toFixed(2)}</td>
-                    <td style={td}>R {Number(payslip.paye || 0).toFixed(2)}</td>
-                    <td style={td}>R {Number(payslip.total_uif || 0).toFixed(2)}</td>
+
                     <td style={td}>
-                      <strong>R {Number(payslip.net_pay || 0).toFixed(2)}</strong>
+                      R {Number(payslip.gross_pay || 0).toFixed(2)}
                     </td>
+
+                    <td style={td}>
+                      R {Number(payslip.paye || 0).toFixed(2)}
+                    </td>
+
+                    <td style={td}>
+                      R {Number(payslip.total_uif || 0).toFixed(2)}
+                    </td>
+
+                    <td style={td}>
+                      <strong>
+                        R {Number(payslip.net_pay || 0).toFixed(2)}
+                      </strong>
+                    </td>
+
                     <td style={td}>{payslip.payment_method || "-"}</td>
+
                     <td style={td}>{payslip.status || "generated"}</td>
+
                     <td style={td}>
                       <div style={actionGroup}>
+                        <Link
+                          href={`/employer/payslips/${payslip.id}`}
+                          style={viewButton}
+                        >
+                          View
+                        </Link>
+
                         <button
                           style={actionButton}
                           onClick={() => resendNotification(payslip)}
@@ -472,7 +500,7 @@ const tableWrap = {
 const table = {
   width: "100%",
   borderCollapse: "collapse" as const,
-  minWidth: "1050px",
+  minWidth: "1120px",
 };
 
 const th = {
@@ -499,6 +527,17 @@ const muted = {
 const actionGroup = {
   display: "flex",
   gap: "8px",
+  flexWrap: "wrap" as const,
+};
+
+const viewButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  border: "1px solid #0f766e",
+  borderRadius: "10px",
+  padding: "8px 11px",
+  fontWeight: 800,
+  textDecoration: "none",
 };
 
 const actionButton = {
