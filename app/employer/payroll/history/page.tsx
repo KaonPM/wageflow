@@ -105,7 +105,7 @@ export default function PayrollHistoryPage() {
         (sum, run) => sum + Number(run.total_net_pay || 0),
         0
       ),
-      sars: filteredRuns.reduce(
+      payeUif: filteredRuns.reduce(
         (sum, run) => sum + Number(run.sars_payable || 0),
         0
       ),
@@ -116,21 +116,16 @@ export default function PayrollHistoryPage() {
     <main style={page}>
       <section style={header}>
         <div>
-          <p style={eyebrow}>Employer Payroll</p>
           <h1 style={title}>Payroll History</h1>
           <p style={subtitle}>
-            View payroll runs, monthly totals, PAYE, UIF, SARS payable amounts,
-            and generated payroll batches.
+            View payroll runs, monthly totals, PAYE, UIF amounts, and generated
+            payroll batches.
           </p>
         </div>
 
         <div style={headerActions}>
-          <Link href="/employer/payroll" style={secondaryLink}>
-            Run Payroll
-          </Link>
-
-          <Link href="/employer" style={backButton}>
-            ← Back to Employer Dashboard
+          <Link href="/employer/payroll" style={backButton}>
+            ← Back to Payroll
           </Link>
         </div>
       </section>
@@ -140,7 +135,10 @@ export default function PayrollHistoryPage() {
         <SummaryCard label="Employees Paid" value={String(totals.employees)} />
         <SummaryCard label="Gross Payroll" value={`R ${money(totals.gross)}`} />
         <SummaryCard label="Net Payroll" value={`R ${money(totals.net)}`} />
-        <SummaryCard label="SARS/UIF Payable" value={`R ${money(totals.sars)}`} />
+        <SummaryCard
+          label="PAYE/UIF Payable"
+          value={`R ${money(totals.payeUif)}`}
+        />
       </section>
 
       {message && <div style={notice}>{message}</div>}
@@ -182,7 +180,7 @@ export default function PayrollHistoryPage() {
                   <th style={th}>PAYE</th>
                   <th style={th}>UIF</th>
                   <th style={th}>Net Pay</th>
-                  <th style={th}>SARS/UIF</th>
+                  <th style={th}>PAYE/UIF</th>
                   <th style={th}>Status</th>
                   <th style={th}>Created</th>
                   <th style={th}>Action</th>
@@ -277,15 +275,6 @@ const header = {
   flexWrap: "wrap" as const,
 };
 
-const eyebrow = {
-  color: "#0f766e",
-  fontWeight: 800,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  fontSize: "12px",
-  marginBottom: "8px",
-};
-
 const title = {
   fontSize: "34px",
   color: "#0f766e",
@@ -314,16 +303,6 @@ const backButton = {
   borderRadius: "12px",
   textDecoration: "none",
   fontWeight: 700,
-};
-
-const secondaryLink = {
-  background: "#ecfeff",
-  color: "#0f766e",
-  border: "1px solid #99f6e4",
-  padding: "10px 18px",
-  borderRadius: "12px",
-  textDecoration: "none",
-  fontWeight: 800,
 };
 
 const summaryGrid = {
