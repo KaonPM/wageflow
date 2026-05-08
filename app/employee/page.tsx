@@ -9,17 +9,9 @@ type DashboardData = {
   employeeName: string;
   employeeStatus: string;
   employerName: string;
+  logoUrl: string | null;
   primaryColor: string;
   secondaryColor: string;
-  latestPayslip: {
-    id: string;
-    payroll_month: string | null;
-    pay_period_month: string | number | null;
-    pay_period_year: string | number | null;
-    net_pay: number | null;
-    status: string | null;
-    created_at: string | null;
-  } | null;
   unreadNotifications: number;
 };
 
@@ -42,20 +34,6 @@ export default function EmployeeDashboard() {
     loadDashboard();
   }, []);
 
-  function payslipPeriod(
-    payslip: DashboardData["latestPayslip"]
-  ) {
-    if (!payslip) return "Not issued yet";
-
-    if (payslip.payroll_month) return payslip.payroll_month;
-
-    if (payslip.pay_period_month && payslip.pay_period_year) {
-      return `${payslip.pay_period_month}/${payslip.pay_period_year}`;
-    }
-
-    return "Payroll period not set";
-  }
-
   async function loadDashboard() {
     setLoading(true);
     setDebugInfo(null);
@@ -64,9 +42,6 @@ export default function EmployeeDashboard() {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
-
-    console.log("Logged in user:", user);
-    console.log("User error:", userError);
 
     if (userError || !user) {
       router.push("/login");
@@ -78,9 +53,6 @@ export default function EmployeeDashboard() {
       .select("id, employee_id, auth_user_id, portal_enabled")
       .eq("auth_user_id", user.id)
       .maybeSingle();
-
-    console.log("Employee account:", account);
-    console.log("Employee account error:", accountError);
 
     if (accountError) {
       setDebugInfo({
@@ -97,8 +69,7 @@ export default function EmployeeDashboard() {
 
     if (!account) {
       setDebugInfo({
-        message:
-          "No employee account is linked to the currently logged-in user.",
+        message: "No employee account is linked to the currently logged-in user.",
         userId: user.id,
         userEmail: user.email,
         account,
@@ -131,18 +102,11 @@ export default function EmployeeDashboard() {
         business_id,
         full_name,
         status,
-        employment_status,
-        position,
-        department,
-        leave_balance,
-        overtime_enabled
+        employment_status
       `
       )
       .eq("id", account.employee_id)
       .maybeSingle();
-
-    console.log("Employee record:", employee);
-    console.log("Employee lookup error:", employeeError);
 
     if (employeeError || !employee) {
       setDebugInfo({
@@ -159,7 +123,7 @@ export default function EmployeeDashboard() {
       return;
     }
 
-    const { data: business, error: businessError } = await supabase
+    const { data: business } = await supabase
       .from("businesses")
       .select(
         `
@@ -168,54 +132,26 @@ export default function EmployeeDashboard() {
         trading_name,
         primary_color,
         secondary_color,
-        logo_url,
-        show_leave_balances
+        logo_url
       `
       )
       .eq("id", employee.business_id)
       .maybeSingle();
 
-    console.log("Business record:", business);
-    console.log("Business lookup error:", businessError);
-
-    const { data: latestPayslip, error: payslipError } = await supabase
-      .from("payslips")
-      .select(
-        `
-        id,
-        payroll_month,
-        pay_period_month,
-        pay_period_year,
-        net_pay,
-        status,
-        created_at
-      `
-      )
-      .eq("employee_id", employee.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    console.log("Latest payslip:", latestPayslip);
-    console.log("Latest payslip error:", payslipError);
-
-    const { count: unreadCount, error: notificationError } = await supabase
+    const { count: unreadCount } = await supabase
       .from("payslip_notifications")
       .select("*", { count: "exact", head: true })
       .eq("employee_id", employee.id)
       .eq("is_read", false);
-
-    console.log("Unread notifications:", unreadCount);
-    console.log("Notification count error:", notificationError);
 
     setData({
       employeeName: employee.full_name,
       employeeStatus: employee.employment_status || employee.status || "active",
       employerName:
         business?.trading_name || business?.business_name || "Your Employer",
+      logoUrl: business?.logo_url || null,
       primaryColor: business?.primary_color || "#0f766e",
       secondaryColor: business?.secondary_color || "#123c69",
-      latestPayslip: latestPayslip || null,
       unreadNotifications: unreadCount || 0,
     });
 
@@ -237,7 +173,9 @@ export default function EmployeeDashboard() {
   if (loading) {
     return (
       <main style={page}>
-        <div style={loadingCard}>Loading employee portal...</div>
+        <div style={shell}>
+          <div style={loadingCard}>Loading employee portal...</div>
+        </div>
       </main>
     );
   }
@@ -245,44 +183,47 @@ export default function EmployeeDashboard() {
   if (!data) {
     return (
       <main style={page}>
-        <div style={loadingCard}>
-          <h2 style={{ marginTop: 0 }}>Employee portal access issue</h2>
-
-          <p>
-            The page could not load the employee dashboard. Below is the exact
-            reason returned by the page.
-          </p>
-
-          <div style={debugBox}>
-            <p>
-              <strong>Reason:</strong> {debugInfo?.message || "Unknown issue"}
-            </p>
+        <div style={shell}>
+          <div style={loadingCard}>
+            <h2 style={{ marginTop: 0 }}>Employee portal access issue</h2>
 
             <p>
-              <strong>Logged-in email:</strong>{" "}
-              {debugInfo?.userEmail || "Not available"}
+              The page could not load the employee dashboard. Below is the exact
+              reason returned by the page.
             </p>
 
-            <p>
-              <strong>Logged-in user ID:</strong>{" "}
-              {debugInfo?.userId || "Not available"}
-            </p>
+            <div style={debugBox}>
+              <p>
+                <strong>Reason:</strong>{" "}
+                {debugInfo?.message || "Unknown issue"}
+              </p>
 
-            <pre style={preStyle}>
-              {JSON.stringify(
-                {
-                  account: debugInfo?.account,
-                  error: debugInfo?.error,
-                },
-                null,
-                2
-              )}
-            </pre>
+              <p>
+                <strong>Logged-in email:</strong>{" "}
+                {debugInfo?.userEmail || "Not available"}
+              </p>
+
+              <p>
+                <strong>Logged-in user ID:</strong>{" "}
+                {debugInfo?.userId || "Not available"}
+              </p>
+
+              <pre style={preStyle}>
+                {JSON.stringify(
+                  {
+                    account: debugInfo?.account,
+                    error: debugInfo?.error,
+                  },
+                  null,
+                  2
+                )}
+              </pre>
+            </div>
+
+            <button onClick={loadDashboard} style={retryButton}>
+              Retry
+            </button>
           </div>
-
-          <button onClick={loadDashboard} style={retryButton}>
-            Retry
-          </button>
         </div>
       </main>
     );
@@ -290,151 +231,141 @@ export default function EmployeeDashboard() {
 
   return (
     <main style={page}>
-      <section
-        style={{
-          ...heroCard,
-          background: `linear-gradient(135deg, ${data.primaryColor}, ${data.secondaryColor})`,
-        }}
-      >
-        <div style={heroTopRow}>
-          <a href="/" style={homeButton}>
-            Home
-          </a>
+      <div style={shell}>
+        <section style={heroCard}>
+          <div style={heroLayout}>
+            <div style={logoWrap}>
+              {data.logoUrl ? (
+                <img src={data.logoUrl} alt={data.employerName} style={logo} />
+              ) : (
+                <span style={logoInitial}>{data.employerName.charAt(0)}</span>
+              )}
+            </div>
 
-          <button onClick={handleLogout} style={logoutButton}>
-            Logout
-          </button>
-        </div>
+            <div style={heroContent}>
+              <div style={heroTopRow}>
+                <div>
+                  <h1 style={businessName}>{data.employerName}</h1>
+                  <h2 style={dashboardTitle}>Employee Dashboard</h2>
+                </div>
 
-        <div>
-          <p style={eyebrow}>{data.employerName} Employee Portal</p>
+                <div style={topActions}>
+                  <a href="/" style={homeButton}>
+                    Home
+                  </a>
 
-          <h1 style={title}>Welcome back, {data.employeeName}</h1>
+                  <button onClick={handleLogout} style={logoutButton}>
+                    Logout
+                  </button>
+                </div>
+              </div>
 
-          <p style={subtitle}>
-            View your payslips, profile details, HR documents, leave updates,
-            overtime records, and important employer notifications.
-          </p>
-        </div>
+              <p style={subtitle}>
+                Welcome back, {data.employeeName}. Access your employee profile,
+                payslips, leave requests, overtime records, HR records and
+                disciplinary records from one organised workspace.
+              </p>
 
-        <div style={statusBadge}>
-          Employee Status: {capitalise(data.employeeStatus)}
-        </div>
+              <div style={statusRow}>
+                <div style={statusBadge}>
+                  Employee Status: {capitalise(data.employeeStatus)}
+                </div>
 
-        <p style={poweredBy}>Powered by WageFlow</p>
-      </section>
-
-      <section style={summaryGrid}>
-        <div style={summaryCard}>
-          <p style={summaryLabel}>Latest Payslip</p>
-
-          <h2 style={summaryValue}>
-            {data.latestPayslip
-              ? payslipPeriod(data.latestPayslip)
-              : "Not issued yet"}
-          </h2>
-
-          <p style={summaryText}>
-            {data.latestPayslip
-              ? `Net pay: R${Number(data.latestPayslip.net_pay || 0).toFixed(2)}`
-              : "Your most recent payslip will appear here once your employer issues it."}
-          </p>
-
-          <a href="/employee/payslips" style={primaryButton}>
-            Open
-          </a>
-        </div>
-
-        <div style={summaryCard}>
-          <p style={summaryLabel}>Notifications</p>
-
-          <h2 style={summaryValue}>{data.unreadNotifications} unread</h2>
-
-          <p style={summaryText}>
-            View payroll notices, payslip updates, HR reminders, and employer
-            messages.
-          </p>
-
-          <a href="/employee/notifications" style={secondaryButton}>
-            Open
-          </a>
-        </div>
-      </section>
-
-      <section style={sectionHeader}>
-        <h2 style={sectionTitle}>Employee Self-Service</h2>
-
-        <p style={sectionText}>
-          Quick access to your payroll and HR information.
-        </p>
-      </section>
-
-      <section style={grid}>
-        <a href="/employee/payslips" style={link}>
-          <div style={card}>
-            <div style={cardIcon}>📄</div>
-            <h3 style={cardTitle}>My Payslips</h3>
-            <p style={cardText}>
-              View issued payslips and download PDF copies when available.
-            </p>
-            <span style={openText}>Open</span>
+                <div style={statusBadge}>
+                  {data.unreadNotifications} unread notification
+                  {data.unreadNotifications === 1 ? "" : "s"}
+                </div>
+              </div>
+            </div>
           </div>
-        </a>
+        </section>
 
-        <a href="/employee/profile" style={link}>
-          <div style={card}>
-            <div style={cardIcon}>👤</div>
-            <h3 style={cardTitle}>Profile Details</h3>
-            <p style={cardText}>
-              Check your employee number, job details, tax number, and payment
-              method.
-            </p>
-            <span style={openText}>Open</span>
-          </div>
-        </a>
+        <section style={sectionHeader}>
+          <h2 style={sectionTitle}>Employee Dashboard</h2>
 
-        <a href="/employee/notifications" style={link}>
-          <div style={card}>
-            <div style={cardIcon}>🔔</div>
-            <h3 style={cardTitle}>Notifications</h3>
-            <p style={cardText}>
-              See payroll notices, payslip updates, HR reminders, and employer
-              messages.
-            </p>
-            <span style={openText}>Open</span>
-          </div>
-        </a>
-
-        <div style={disabledCard}>
-          <div style={cardIcon}>🌿</div>
-          <h3 style={cardTitle}>Leave Requests</h3>
-          <p style={cardText}>
-            Future access for leave balances, requests, and approval tracking.
+          <p style={sectionText}>
+            Use the cards below to manage your employee records, payroll
+            information and HR requests.
           </p>
-          <span style={comingSoon}>Coming soon</span>
-        </div>
+        </section>
 
-        <div style={disabledCard}>
-          <div style={cardIcon}>⏱️</div>
-          <h3 style={cardTitle}>Overtime</h3>
-          <p style={cardText}>
-            Future access for overtime requests, approval status, and payroll
-            links.
-          </p>
-          <span style={comingSoon}>Coming soon</span>
-        </div>
+        <section style={grid}>
+          <DashboardCard
+            icon="👤"
+            eyebrow="My Details"
+            title="Employee Profile"
+            description="View your personal details, job details, banking information, emergency contact and employee profile records."
+            href="/employee/profile"
+          />
 
-        <div style={disabledCard}>
-          <div style={cardIcon}>📁</div>
-          <h3 style={cardTitle}>Employee Documents</h3>
-          <p style={cardText}>
-            Future access for confirmations, records, contracts, and HR
-            documents.
-          </p>
-          <span style={comingSoon}>Coming soon</span>
-        </div>
-      </section>
+          <DashboardCard
+            icon="📄"
+            eyebrow="Payroll"
+            title="My Payslips"
+            description="View issued payslips, payment dates, net pay, payment method and PDF copies when available."
+            href="/employee/payslips"
+          />
+
+          <DashboardCard
+            icon="🌿"
+            eyebrow="Leave"
+            title="Manage Leave"
+            description="Submit leave requests, view leave history and track pending, approved or declined requests."
+            href="/employee/leave"
+          />
+
+          <DashboardCard
+            icon="⏱️"
+            eyebrow="Overtime"
+            title="Manage Overtime"
+            description="Submit overtime requests, view overtime history and track approval status."
+            href="/employee/overtime"
+          />
+
+          <DashboardCard
+            icon="🗂️"
+            eyebrow="HR"
+            title="HR Records"
+            description="View shared HR records, leave records, employment notes and records linked to your profile."
+            href="/employee/hr-records"
+          />
+
+        </section>
+      </div>
     </main>
+  );
+}
+
+function DashboardCard({
+  icon,
+  eyebrow,
+  title,
+  description,
+  href,
+}: {
+  icon: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  href: string;
+}) {
+  return (
+    <a href={href} style={link}>
+      <div style={card}>
+        <div style={cardIcon}>{icon}</div>
+
+        <p style={cardEyebrow}>{eyebrow}</p>
+
+        <h3 style={cardTitle}>{title}</h3>
+
+        <p style={cardText}>{description}</p>
+
+        <div style={cardFooter}>
+          <span style={openText}>Open</span>
+          <span style={arrow}>→</span>
+        </div>
+      </div>
+    </a>
   );
 }
 
@@ -448,20 +379,27 @@ const page: CSSProperties = {
   padding: "32px",
   fontFamily: "Arial, sans-serif",
   background: "#f4f7fb",
-  color: "#102a43",
+  color: "#111827",
+};
+
+const shell: CSSProperties = {
+  width: "100%",
+  maxWidth: "1180px",
+  margin: "0 auto",
 };
 
 const loadingCard: CSSProperties = {
   padding: "24px",
-  background: "#fff",
-  border: "1px solid #e3e8ef",
-  borderRadius: "18px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "24px",
+  boxShadow: "0 14px 36px rgba(15, 23, 42, 0.06)",
 };
 
 const debugBox: CSSProperties = {
   marginTop: "16px",
   padding: "16px",
-  borderRadius: "14px",
+  borderRadius: "16px",
   background: "#f8fafc",
   border: "1px solid #e2e8f0",
 };
@@ -482,35 +420,96 @@ const retryButton: CSSProperties = {
   borderRadius: "12px",
   border: "none",
   background: "#0f766e",
-  color: "#fff",
+  color: "#ffffff",
   fontSize: "14px",
   fontWeight: 700,
   cursor: "pointer",
 };
 
 const heroCard: CSSProperties = {
+  padding: "32px",
+  borderRadius: "28px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  marginBottom: "28px",
+  boxShadow: "0 18px 45px rgba(15, 23, 42, 0.07)",
+};
+
+const heroLayout: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "120px 1fr",
+  gap: "28px",
+  alignItems: "center",
+};
+
+const logoWrap: CSSProperties = {
+  width: "120px",
+  height: "120px",
+  borderRadius: "28px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
   display: "flex",
-  flexDirection: "column",
-  gap: "18px",
-  padding: "28px",
-  borderRadius: "22px",
-  color: "#fff",
-  marginBottom: "24px",
-  boxShadow: "0 16px 40px rgba(15, 118, 110, 0.18)",
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.06)",
+};
+
+const logo: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "contain",
+  padding: "10px",
+};
+
+const logoInitial: CSSProperties = {
+  fontSize: "42px",
+  fontWeight: 800,
+  color: "#0f766e",
+};
+
+const heroContent: CSSProperties = {
+  minWidth: 0,
 };
 
 const heroTopRow: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "16px",
+  flexWrap: "wrap",
+};
+
+const businessName: CSSProperties = {
+  margin: 0,
+  fontSize: "38px",
+  lineHeight: 1.1,
+  fontWeight: 800,
+  color: "#0f766e",
+  letterSpacing: "-0.03em",
+};
+
+const dashboardTitle: CSSProperties = {
+  margin: "10px 0 0",
+  fontSize: "24px",
+  lineHeight: 1.2,
+  fontWeight: 800,
+  color: "#111827",
+};
+
+const topActions: CSSProperties = {
+  display: "flex",
   alignItems: "center",
+  gap: "10px",
+  flexWrap: "wrap",
 };
 
 const homeButton: CSSProperties = {
   padding: "10px 16px",
-  borderRadius: "12px",
-  background: "rgba(255,255,255,0.14)",
-  border: "1px solid rgba(255,255,255,0.22)",
-  color: "#fff",
+  borderRadius: "14px",
+  background: "#0f766e",
+  border: "1px solid #0f766e",
+  color: "#ffffff",
   textDecoration: "none",
   fontSize: "14px",
   fontWeight: 700,
@@ -518,109 +517,38 @@ const homeButton: CSSProperties = {
 
 const logoutButton: CSSProperties = {
   padding: "10px 16px",
-  borderRadius: "12px",
-  border: "1px solid rgba(255,255,255,0.22)",
-  background: "rgba(255,255,255,0.14)",
-  color: "#fff",
+  borderRadius: "14px",
+  border: "1px solid #e5e7eb",
+  background: "#ffffff",
+  color: "#111827",
   fontSize: "14px",
   fontWeight: 700,
   cursor: "pointer",
 };
 
-const eyebrow: CSSProperties = {
-  margin: "0 0 8px",
-  fontSize: "13px",
-  fontWeight: 700,
-  letterSpacing: "0.04em",
-  textTransform: "uppercase",
-  opacity: 0.9,
-};
-
-const title: CSSProperties = {
-  fontSize: "30px",
-  margin: "0 0 10px",
-  lineHeight: 1.15,
-};
-
 const subtitle: CSSProperties = {
-  maxWidth: "760px",
-  fontSize: "15px",
-  lineHeight: 1.6,
-  margin: 0,
-  opacity: 0.92,
+  maxWidth: "820px",
+  fontSize: "16px",
+  lineHeight: 1.65,
+  margin: "18px 0 0",
+  color: "#5f6f82",
+};
+
+const statusRow: CSSProperties = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap",
+  marginTop: "22px",
 };
 
 const statusBadge: CSSProperties = {
-  alignSelf: "flex-start",
-  padding: "9px 13px",
+  padding: "10px 16px",
   borderRadius: "999px",
-  background: "rgba(255, 255, 255, 0.16)",
-  border: "1px solid rgba(255, 255, 255, 0.28)",
+  background: "#f3f4f6",
+  color: "#111827",
+  fontWeight: 700,
   fontSize: "13px",
-  fontWeight: 700,
-};
-
-const poweredBy: CSSProperties = {
-  margin: 0,
-  fontSize: "12px",
-  opacity: 0.78,
-};
-
-const summaryGrid: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-  gap: "18px",
-  marginBottom: "28px",
-};
-
-const summaryCard: CSSProperties = {
-  padding: "22px",
-  borderRadius: "18px",
-  background: "#fff",
-  border: "1px solid #e3e8ef",
-  boxShadow: "0 10px 24px rgba(16, 42, 67, 0.06)",
-};
-
-const summaryLabel: CSSProperties = {
-  margin: "0 0 8px",
-  color: "#60758a",
-  fontSize: "13px",
-  fontWeight: 700,
-};
-
-const summaryValue: CSSProperties = {
-  margin: "0 0 8px",
-  fontSize: "20px",
-  color: "#102a43",
-};
-
-const summaryText: CSSProperties = {
-  margin: "0 0 16px",
-  fontSize: "14px",
-  lineHeight: 1.5,
-  color: "#52616f",
-};
-
-const primaryButton: CSSProperties = {
-  display: "inline-flex",
-  padding: "10px 16px",
-  borderRadius: "12px",
-  background: "#0f766e",
-  color: "#fff",
-  textDecoration: "none",
-  fontSize: "14px",
-  fontWeight: 700,
-};
-
-const secondaryButton: CSSProperties = {
-  display: "inline-flex",
-  padding: "10px 16px",
-  borderRadius: "12px",
-  background: "#eef7f6",
-  color: "#0f766e",
-  textDecoration: "none",
-  fontSize: "14px",
-  fontWeight: 700,
+  border: "1px solid #e5e7eb",
 };
 
 const sectionHeader: CSSProperties = {
@@ -629,19 +557,23 @@ const sectionHeader: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: "0 0 6px",
-  fontSize: "21px",
+  fontSize: "18px",
+  fontWeight: 800,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "#334155",
 };
 
 const sectionText: CSSProperties = {
   margin: 0,
   fontSize: "14px",
-  color: "#60758a",
+  color: "#64748b",
 };
 
 const grid: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-  gap: "18px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+  gap: "20px",
 };
 
 const link: CSSProperties = {
@@ -650,22 +582,15 @@ const link: CSSProperties = {
 };
 
 const card: CSSProperties = {
-  minHeight: "175px",
-  padding: "20px",
-  border: "1px solid #e3e8ef",
-  borderRadius: "18px",
-  background: "#fff",
+  minHeight: "220px",
+  padding: "24px",
+  border: "1px solid #e5e7eb",
+  borderRadius: "24px",
+  background: "#ffffff",
   cursor: "pointer",
-  boxShadow: "0 10px 24px rgba(16, 42, 67, 0.05)",
-};
-
-const disabledCard: CSSProperties = {
-  minHeight: "175px",
-  padding: "20px",
-  border: "1px solid #e3e8ef",
-  borderRadius: "18px",
-  background: "#f9fbfd",
-  opacity: 0.86,
+  boxShadow: "0 14px 34px rgba(15, 23, 42, 0.06)",
+  display: "flex",
+  flexDirection: "column",
 };
 
 const cardIcon: CSSProperties = {
@@ -676,34 +601,46 @@ const cardIcon: CSSProperties = {
   justifyContent: "center",
   borderRadius: "14px",
   background: "#eef7f6",
-  marginBottom: "14px",
+  marginBottom: "16px",
   fontSize: "20px",
 };
 
-const cardTitle: CSSProperties = {
-  margin: "0 0 8px",
-  fontSize: "17px",
-};
-
-const cardText: CSSProperties = {
-  margin: "0 0 16px",
-  fontSize: "14px",
-  lineHeight: 1.5,
-  color: "#52616f",
-};
-
-const openText: CSSProperties = {
-  fontSize: "14px",
-  fontWeight: 700,
+const cardEyebrow: CSSProperties = {
+  margin: "0 0 10px",
+  fontSize: "13px",
+  fontWeight: 800,
   color: "#0f766e",
 };
 
-const comingSoon: CSSProperties = {
-  display: "inline-flex",
-  padding: "7px 10px",
-  borderRadius: "999px",
-  background: "#eef2f7",
-  color: "#52616f",
-  fontSize: "12px",
-  fontWeight: 700,
+const cardTitle: CSSProperties = {
+  margin: "0 0 10px",
+  fontSize: "22px",
+  lineHeight: 1.2,
+  fontWeight: 500,
+  color: "#111827",
+};
+
+const cardText: CSSProperties = {
+  margin: "0 0 18px",
+  fontSize: "14px",
+  lineHeight: 1.55,
+  color: "#5f6f82",
+};
+
+const cardFooter: CSSProperties = {
+  marginTop: "auto",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+};
+
+const openText: CSSProperties = {
+  fontSize: "15px",
+  fontWeight: 800,
+  color: "#0f766e",
+};
+
+const arrow: CSSProperties = {
+  fontSize: "18px",
+  color: "#94a3b8",
 };
