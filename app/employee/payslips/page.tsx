@@ -24,14 +24,17 @@ type BusinessRecord = {
 
 type PayslipRecord = {
   id: string;
+  payroll_month: string | null;
   pay_period_month: string | number | null;
   pay_period_year: string | number | null;
   basic_pay: number | null;
   gross_pay: number | null;
   uif_employee: number | null;
+  total_uif: number | null;
   paye: number | null;
   other_deductions: number | null;
   net_pay: number | null;
+  payment_method: string | null;
   status: string | null;
   created_at: string | null;
   viewed_at: string | null;
@@ -52,6 +55,16 @@ export default function EmployeePayslipsPage() {
   useEffect(() => {
     fetchPayslips();
   }, []);
+
+  function payslipPeriod(payslip: PayslipRecord) {
+    if (payslip.payroll_month) return payslip.payroll_month;
+
+    if (payslip.pay_period_month && payslip.pay_period_year) {
+      return `${payslip.pay_period_month}/${payslip.pay_period_year}`;
+    }
+
+    return "Payroll period not set";
+  }
 
   async function fetchPayslips() {
     setLoading(true);
@@ -108,14 +121,17 @@ export default function EmployeePayslipsPage() {
       .select(
         `
         id,
+        payroll_month,
         pay_period_month,
         pay_period_year,
         basic_pay,
         gross_pay,
         uif_employee,
+        total_uif,
         paye,
         other_deductions,
         net_pay,
+        payment_method,
         status,
         created_at,
         viewed_at,
@@ -209,7 +225,9 @@ export default function EmployeePayslipsPage() {
         </div>
 
         <p style={eyebrow}>
-          {business?.trading_name || business?.business_name || "Employee Portal"}
+          {business?.trading_name ||
+            business?.business_name ||
+            "Employee Portal"}
         </p>
 
         <h1 style={title}>My Payslips</h1>
@@ -234,9 +252,7 @@ export default function EmployeePayslipsPage() {
             <article key={payslip.id} style={compactCard}>
               <button onClick={() => markViewed(payslip)} style={compactHeader}>
                 <div>
-                  <p style={periodText}>
-                    {payslip.pay_period_month}/{payslip.pay_period_year}
-                  </p>
+                  <p style={periodText}>{payslipPeriod(payslip)}</p>
 
                   <p style={compactMeta}>
                     Net pay: R {money(payslip.net_pay)} ·{" "}
@@ -283,9 +299,7 @@ export default function EmployeePayslipsPage() {
 
                     <div style={rightHeader}>
                       <p style={payslipLabel}>PAYSLIP</p>
-                      <p style={smallText}>
-                        {payslip.pay_period_month}/{payslip.pay_period_year}
-                      </p>
+                      <p style={smallText}>{payslipPeriod(payslip)}</p>
                     </div>
                   </div>
 
@@ -314,6 +328,13 @@ export default function EmployeePayslipsPage() {
                     </div>
 
                     <div>
+                      <p style={label}>Payment Method</p>
+                      <p style={value}>
+                        {payslip.payment_method || "Not provided"}
+                      </p>
+                    </div>
+
+                    <div>
                       <p style={label}>Status</p>
                       <p style={value}>{payslip.status || "Issued"}</p>
                     </div>
@@ -335,6 +356,11 @@ export default function EmployeePayslipsPage() {
                     <div style={row}>
                       <span>Employee UIF Deduction</span>
                       <strong>R {money(payslip.uif_employee)}</strong>
+                    </div>
+
+                    <div style={row}>
+                      <span>Total UIF</span>
+                      <strong>R {money(payslip.total_uif)}</strong>
                     </div>
 
                     <div style={row}>
