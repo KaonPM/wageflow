@@ -29,6 +29,17 @@ type Business = {
   name?: string | null;
 };
 
+type PayrollRun = {
+  id: string;
+  payroll_month: string;
+  employee_count: number;
+  total_gross_pay: number;
+  total_net_pay: number;
+  sars_payable: number;
+  status: string;
+  created_at: string;
+};
+
 const UIF_LIMIT = 17712;
 
 export default function PayrollPage() {
@@ -47,6 +58,11 @@ export default function PayrollPage() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [recentRuns, setRecentRuns] = useState<PayrollRun[]>([]);
+  const [runMonthFilter, setRunMonthFilter] = useState("");
+  const [runDateFilter, setRunDateFilter] = useState("");
+  const [showAllRuns, setShowAllRuns] = useState(false);
 
   useEffect(() => {
     initialisePayroll();
@@ -143,6 +159,26 @@ export default function PayrollPage() {
 
     setEmployees(activeEmployees);
     setLoadingEmployees(false);
+
+    await fetchRecentRuns(business.id);
+  }
+
+  async function fetchRecentRuns(activeBusinessId?: string) {
+    const resolvedBusinessId = activeBusinessId || businessId;
+
+    if (!resolvedBusinessId) return;
+
+    const { data, error } = await supabase
+      .from("payroll_runs")
+      .select(
+        "id, payroll_month, employee_count, total_gross_pay, total_net_pay, sars_payable, status, created_at"
+      )
+      .eq("business_id", resolvedBusinessId)
+      .order("created_at", { ascending: false });
+
+    if (!error) {
+      setRecentRuns(data || []);
+    }
   }
 
   function getEmployeeName(employee: Employee | undefined) {
@@ -207,6 +243,22 @@ export default function PayrollPage() {
       sarsPayable,
     };
   }, [basicPay, bonus, overtimePay, otherDeductions, ageCategory]);
+
+  const filteredRuns = useMemo(() => {
+    return recentRuns.filter((run) => {
+      const matchesMonth = !runMonthFilter || run.payroll_month === runMonthFilter;
+
+      const createdDate = run.created_at
+        ? new Date(run.created_at).toISOString().split("T")[0]
+        : "";
+
+      const matchesDate = !runDateFilter || createdDate === runDateFilter;
+
+      return matchesMonth && matchesDate;
+    });
+  }, [recentRuns, runMonthFilter, runDateFilter]);
+
+  const visibleRuns = showAllRuns ? filteredRuns : filteredRuns.slice(0, 5);
 
   async function queuePayslipNotifications({
     payslipId,
@@ -294,14 +346,13 @@ export default function PayrollPage() {
     const [year, month] = payrollMonth.split("-");
     const employee = employees.find((item) => item.id === selectedEmployee);
 
-    const { data: existingPayslip, error: existingPayslipError } =
-      await supabase
-        .from("payslips")
-        .select("id")
-        .eq("business_id", activeBusinessId)
-        .eq("employee_id", selectedEmployee)
-        .eq("payroll_month", payrollMonth)
-        .maybeSingle();
+    const { data: existingPayslip, error: existingPayslipError } = await supabase
+      .from("payslips")
+      .select("id")
+      .eq("business_id", activeBusinessId)
+      .eq("employee_id", selectedEmployee)
+      .eq("payroll_month", payrollMonth)
+      .maybeSingle();
 
     if (existingPayslipError) {
       setMessage(existingPayslipError.message);
@@ -321,21 +372,7 @@ export default function PayrollPage() {
 
     const { data: existingRun, error: existingRunError } = await supabase
       .from("payroll_runs")
-      .select(
-        `
-        id,
-        employee_count,
-        total_basic_pay,
-        total_gross_pay,
-        total_paye,
-        total_uif_employee,
-        total_uif_employer,
-        total_uif,
-        total_other_deductions,
-        total_net_pay,
-        sars_payable
-      `
-      )
+      .select("*")
       .eq("business_id", activeBusinessId)
       .eq("payroll_month", payrollMonth)
       .maybeSingle();
@@ -461,6 +498,8 @@ export default function PayrollPage() {
       activeBusinessId,
     });
 
+    await fetchRecentRuns(activeBusinessId);
+
     setMessage("Payslip generated successfully and linked to payroll run.");
     setSaving(false);
   }
@@ -471,11 +510,11 @@ export default function PayrollPage() {
         <div>
           <p style={eyebrow}>Employer Payroll</p>
           <h1 style={title}>Payroll</h1>
+          <p style={businessLine}>{businessName}</p>
           <p style={subtitle}>
-            Calculate salary, UIF, PAYE, deductions and net pay before
-            generating a payslip.
+            Generate payslips, review payroll runs, and access payroll records
+            from one compact workspace.
           </p>
-          <p style={businessLine}>Current business: {businessName}</p>
         </div>
 
         <Link href="/employer" style={backButton}>
@@ -483,176 +522,304 @@ export default function PayrollPage() {
         </Link>
       </section>
 
-      <section style={grid}>
-        <div style={card}>
-          <div style={cardTop}>
-            <h2 style={sectionTitle}>Payroll Details</h2>
-            <button style={smallButton} onClick={fetchEmployees}>
-              Refresh Employees
+      <section style={actionGrid}>
+        <button
+          style={actionCard}
+          onClick={() => setShowGenerateForm((current) => !current)}
+        >
+          <span style={actionIcon}>＋</span>
+          <strong style={actionTitle}>Generate Payslip</strong>
+          <span style={actionText}>
+            Calculate payroll and issue an employee payslip.
+          </span>
+        </button>
+
+        <Link href="/employer/payroll/history" style={actionCardLink}>
+          <span style={actionIcon}>📊</span>
+          <strong style={actionTitle}>Payroll History</strong>
+          <span style={actionText}>
+            View payroll runs, monthly totals, and batches.
+          </span>
+        </Link>
+
+        <Link href="/employer/payslips" style={actionCardLink}>
+          <span style={actionIcon}>📄</span>
+          <strong style={actionTitle}>Payslip Records</strong>
+          <span style={actionText}>
+            Search and manage generated employee payslips.
+          </span>
+        </Link>
+
+        <div style={disabledActionCard}>
+          <span style={actionIcon}>🧾</span>
+          <strong style={actionTitle}>Compliance Summary</strong>
+          <span style={actionText}>
+            SARS, PAYE and UIF overview. Coming soon.
+          </span>
+        </div>
+      </section>
+
+      {showGenerateForm && (
+        <section style={grid}>
+          <div style={card}>
+            <div style={cardTop}>
+              <h2 style={sectionTitle}>Payroll Details</h2>
+              <button style={smallButton} onClick={fetchEmployees}>
+                Refresh Employees
+              </button>
+            </div>
+
+            <label style={label}>Payroll Month</label>
+            <input
+              style={input}
+              type="month"
+              value={payrollMonth}
+              onChange={(e) => setPayrollMonth(e.target.value)}
+            />
+
+            <label style={label}>Payment Date</label>
+            <input
+              style={input}
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+            />
+
+            <label style={label}>Employee</label>
+            <select
+              style={input}
+              value={selectedEmployee}
+              onChange={(e) => {
+                const emp = employees.find((x) => x.id === e.target.value);
+
+                setSelectedEmployee(e.target.value);
+
+                if (emp) {
+                  setBasicPay(Number(emp.basic_salary || emp.salary || 0));
+                  setPaymentMethod(emp.payment_method || "Bank Transfer");
+                } else {
+                  setBasicPay(0);
+                  setPaymentMethod("Bank Transfer");
+                }
+              }}
+            >
+              <option value="">
+                {loadingEmployees ? "Loading employees..." : "Select Employee"}
+              </option>
+
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {getEmployeeName(emp)}
+                </option>
+              ))}
+            </select>
+
+            {!loadingEmployees && employees.length === 0 && (
+              <p style={helperText}>
+                No active employees found for this business.
+              </p>
+            )}
+
+            <label style={label}>Age Category for PAYE</label>
+            <select
+              style={input}
+              value={ageCategory}
+              onChange={(e) => setAgeCategory(e.target.value)}
+            >
+              <option value="under65">Under 65</option>
+              <option value="65to74">65 to 74</option>
+              <option value="75plus">75 and older</option>
+            </select>
+
+            <label style={label}>Payment Method</label>
+            <select
+              style={input}
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            >
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cash">Cash</option>
+              <option value="EFT">EFT</option>
+              <option value="Mobile Payment">Mobile Payment</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <label style={label}>Basic Pay</label>
+            <input
+              style={input}
+              type="number"
+              value={basicPay}
+              onChange={(e) => setBasicPay(Number(e.target.value || 0))}
+            />
+
+            <label style={label}>Bonus</label>
+            <input
+              style={input}
+              type="number"
+              value={bonus}
+              onChange={(e) => setBonus(Number(e.target.value || 0))}
+            />
+
+            <label style={label}>Overtime Pay</label>
+            <input
+              style={input}
+              type="number"
+              value={overtimePay}
+              onChange={(e) => setOvertimePay(Number(e.target.value || 0))}
+            />
+
+            <label style={label}>Other Deductions</label>
+            <input
+              style={input}
+              type="number"
+              value={otherDeductions}
+              onChange={(e) => setOtherDeductions(Number(e.target.value || 0))}
+            />
+
+            <button style={button} onClick={generatePayslip} disabled={saving}>
+              {saving ? "Generating..." : "Generate Payslip"}
+            </button>
+
+            {message && <p style={messageStyle}>{message}</p>}
+          </div>
+
+          <div style={card}>
+            <h2 style={sectionTitle}>Payroll Calculation</h2>
+
+            <CalculationRow label="Basic Pay" value={basicPay} />
+            <CalculationRow label="Bonus" value={bonus} />
+            <CalculationRow label="Overtime Pay" value={overtimePay} />
+            <CalculationRow
+              label="Gross Pay"
+              value={calculations.grossPay}
+              strong
+            />
+
+            <div style={divider} />
+
+            <CalculationRow
+              label="Employee UIF Deduction"
+              value={calculations.employeeUif}
+            />
+            <CalculationRow label="PAYE Deduction" value={calculations.paye} />
+            <CalculationRow label="Other Deductions" value={otherDeductions} />
+            <CalculationRow
+              label="Total Employee Deductions"
+              value={calculations.totalEmployeeDeductions}
+              strong
+            />
+
+            <div style={divider} />
+
+            <CalculationRow
+              label="Employer UIF Contribution"
+              value={calculations.employerUif}
+            />
+            <CalculationRow
+              label="Total UIF Payable"
+              value={calculations.totalUif}
+            />
+            <CalculationRow
+              label="Total Payable to SARS/UIF"
+              value={calculations.sarsPayable}
+              strong
+            />
+
+            <div style={netBox}>
+              <span>Net Pay to Employee</span>
+              <strong>R {calculations.netPay.toFixed(2)}</strong>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section style={recentCard}>
+        <div style={recentTop}>
+          <div>
+            <h2 style={sectionTitle}>Recent Payroll Activity</h2>
+            <p style={recentIntro}>
+              Latest payroll runs. Showing five by default.
+            </p>
+          </div>
+
+          <div style={filters}>
+            <input
+              style={filterInput}
+              type="month"
+              value={runMonthFilter}
+              onChange={(e) => setRunMonthFilter(e.target.value)}
+            />
+
+            <input
+              style={filterInput}
+              type="date"
+              value={runDateFilter}
+              onChange={(e) => setRunDateFilter(e.target.value)}
+            />
+
+            <button
+              style={smallButton}
+              onClick={() => {
+                setRunMonthFilter("");
+                setRunDateFilter("");
+              }}
+            >
+              Clear
             </button>
           </div>
-
-          <label style={label}>Payroll Month</label>
-          <input
-            style={input}
-            type="month"
-            value={payrollMonth}
-            onChange={(e) => setPayrollMonth(e.target.value)}
-          />
-
-          <label style={label}>Payment Date</label>
-          <input
-            style={input}
-            type="date"
-            value={paymentDate}
-            onChange={(e) => setPaymentDate(e.target.value)}
-          />
-
-          <label style={label}>Employee</label>
-          <select
-            style={input}
-            value={selectedEmployee}
-            onChange={(e) => {
-              const emp = employees.find((x) => x.id === e.target.value);
-
-              setSelectedEmployee(e.target.value);
-
-              if (emp) {
-                setBasicPay(Number(emp.basic_salary || emp.salary || 0));
-                setPaymentMethod(emp.payment_method || "Bank Transfer");
-              } else {
-                setBasicPay(0);
-                setPaymentMethod("Bank Transfer");
-              }
-            }}
-          >
-            <option value="">
-              {loadingEmployees ? "Loading employees..." : "Select Employee"}
-            </option>
-
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {getEmployeeName(emp)}
-              </option>
-            ))}
-          </select>
-
-          {!loadingEmployees && employees.length === 0 && (
-            <p style={helperText}>
-              No active employees found for this business.
-            </p>
-          )}
-
-          <label style={label}>Age Category for PAYE</label>
-          <select
-            style={input}
-            value={ageCategory}
-            onChange={(e) => setAgeCategory(e.target.value)}
-          >
-            <option value="under65">Under 65</option>
-            <option value="65to74">65 to 74</option>
-            <option value="75plus">75 and older</option>
-          </select>
-
-          <label style={label}>Payment Method</label>
-          <select
-            style={input}
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-          >
-            <option value="Bank Transfer">Bank Transfer</option>
-            <option value="Cash">Cash</option>
-            <option value="EFT">EFT</option>
-            <option value="Mobile Payment">Mobile Payment</option>
-            <option value="Other">Other</option>
-          </select>
-
-          <label style={label}>Basic Pay</label>
-          <input
-            style={input}
-            type="number"
-            value={basicPay}
-            onChange={(e) => setBasicPay(Number(e.target.value || 0))}
-          />
-
-          <label style={label}>Bonus</label>
-          <input
-            style={input}
-            type="number"
-            value={bonus}
-            onChange={(e) => setBonus(Number(e.target.value || 0))}
-          />
-
-          <label style={label}>Overtime Pay</label>
-          <input
-            style={input}
-            type="number"
-            value={overtimePay}
-            onChange={(e) => setOvertimePay(Number(e.target.value || 0))}
-          />
-
-          <label style={label}>Other Deductions</label>
-          <input
-            style={input}
-            type="number"
-            value={otherDeductions}
-            onChange={(e) => setOtherDeductions(Number(e.target.value || 0))}
-          />
-
-          <button style={button} onClick={generatePayslip} disabled={saving}>
-            {saving ? "Generating..." : "Generate Payslip"}
-          </button>
-
-          {message && <p style={messageStyle}>{message}</p>}
         </div>
 
-        <div style={card}>
-          <h2 style={sectionTitle}>Payroll Calculation</h2>
+        {visibleRuns.length === 0 ? (
+          <div style={emptyState}>No payroll activity found yet.</div>
+        ) : (
+          <div style={tableWrap}>
+            <table style={table}>
+              <thead>
+                <tr>
+                  <th style={th}>Month</th>
+                  <th style={th}>Employees</th>
+                  <th style={th}>Gross</th>
+                  <th style={th}>Net</th>
+                  <th style={th}>SARS/UIF</th>
+                  <th style={th}>Created</th>
+                  <th style={th}>Open</th>
+                </tr>
+              </thead>
 
-          <CalculationRow label="Basic Pay" value={basicPay} />
-          <CalculationRow label="Bonus" value={bonus} />
-          <CalculationRow label="Overtime Pay" value={overtimePay} />
-          <CalculationRow
-            label="Gross Pay"
-            value={calculations.grossPay}
-            strong
-          />
-
-          <div style={divider} />
-
-          <CalculationRow
-            label="Employee UIF Deduction"
-            value={calculations.employeeUif}
-          />
-          <CalculationRow label="PAYE Deduction" value={calculations.paye} />
-          <CalculationRow label="Other Deductions" value={otherDeductions} />
-          <CalculationRow
-            label="Total Employee Deductions"
-            value={calculations.totalEmployeeDeductions}
-            strong
-          />
-
-          <div style={divider} />
-
-          <CalculationRow
-            label="Employer UIF Contribution"
-            value={calculations.employerUif}
-          />
-          <CalculationRow
-            label="Total UIF Payable"
-            value={calculations.totalUif}
-          />
-          <CalculationRow
-            label="Total Payable to SARS/UIF"
-            value={calculations.sarsPayable}
-            strong
-          />
-
-          <div style={netBox}>
-            <span>Net Pay to Employee</span>
-            <strong>R {calculations.netPay.toFixed(2)}</strong>
+              <tbody>
+                {visibleRuns.map((run) => (
+                  <tr key={run.id}>
+                    <td style={td}>
+                      <strong>{run.payroll_month}</strong>
+                    </td>
+                    <td style={td}>{run.employee_count || 0}</td>
+                    <td style={td}>R {money(run.total_gross_pay)}</td>
+                    <td style={td}>R {money(run.total_net_pay)}</td>
+                    <td style={td}>R {money(run.sars_payable)}</td>
+                    <td style={td}>{formatDate(run.created_at)}</td>
+                    <td style={td}>
+                      <Link
+                        href={`/employer/payroll/history/${run.id}`}
+                        style={openButton}
+                      >
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
+
+        {filteredRuns.length > 5 && (
+          <button
+            style={viewMoreButton}
+            onClick={() => setShowAllRuns((current) => !current)}
+          >
+            {showAllRuns ? "Show Less" : "View More"}
+          </button>
+        )}
       </section>
     </main>
   );
@@ -677,6 +844,20 @@ function CalculationRow({
   );
 }
 
+function money(value: number | null | undefined) {
+  return Number(value || 0).toFixed(2);
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "-";
+
+  return new Date(value).toLocaleDateString("en-ZA", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 const page = {
   minHeight: "100vh",
   padding: "38px",
@@ -690,7 +871,8 @@ const header = {
   justifyContent: "space-between",
   alignItems: "flex-start",
   gap: "20px",
-  marginBottom: "28px",
+  marginBottom: "22px",
+  flexWrap: "wrap" as const,
 };
 
 const eyebrow = {
@@ -705,7 +887,7 @@ const eyebrow = {
 const title = {
   fontSize: "34px",
   color: "#0f766e",
-  margin: "0 0 10px",
+  margin: "0 0 6px",
   fontWeight: 900,
 };
 
@@ -714,13 +896,13 @@ const subtitle = {
   color: "#64748b",
   fontSize: "15px",
   lineHeight: 1.6,
-  margin: 0,
+  margin: "8px 0 0",
 };
 
 const businessLine = {
-  marginTop: "10px",
-  color: "#0f766e",
-  fontSize: "14px",
+  margin: 0,
+  color: "#0f172a",
+  fontSize: "15px",
   fontWeight: 800,
 };
 
@@ -733,10 +915,68 @@ const backButton = {
   fontWeight: 700,
 };
 
+const actionGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+  gap: "14px",
+  marginBottom: "20px",
+};
+
+const actionCard = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: "18px",
+  padding: "18px",
+  textAlign: "left" as const,
+  cursor: "pointer",
+  boxShadow: "0 10px 24px rgba(15, 23, 42, 0.05)",
+};
+
+const actionCardLink = {
+  ...actionCard,
+  display: "block",
+  color: "inherit",
+  textDecoration: "none",
+};
+
+const disabledActionCard = {
+  ...actionCard,
+  opacity: 0.75,
+  cursor: "not-allowed",
+  background: "#f8fafc",
+};
+
+const actionIcon = {
+  display: "inline-flex",
+  width: "34px",
+  height: "34px",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "12px",
+  background: "#ecfeff",
+  color: "#0f766e",
+  marginBottom: "10px",
+};
+
+const actionTitle = {
+  display: "block",
+  color: "#0f172a",
+  fontSize: "16px",
+  marginBottom: "6px",
+};
+
+const actionText = {
+  display: "block",
+  color: "#64748b",
+  fontSize: "13px",
+  lineHeight: 1.45,
+};
+
 const grid = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
   gap: "20px",
+  marginBottom: "20px",
 };
 
 const card = {
@@ -845,4 +1085,94 @@ const netBox = {
   justifyContent: "space-between",
   gap: "16px",
   fontSize: "18px",
+};
+
+const recentCard = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: "20px",
+  padding: "22px",
+};
+
+const recentTop = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "16px",
+  marginBottom: "16px",
+  flexWrap: "wrap" as const,
+};
+
+const recentIntro = {
+  margin: "6px 0 0",
+  color: "#64748b",
+  fontSize: "13px",
+};
+
+const filters = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap" as const,
+};
+
+const filterInput = {
+  padding: "9px 10px",
+  border: "1px solid #cbd5e1",
+  borderRadius: "10px",
+  minWidth: "150px",
+};
+
+const emptyState = {
+  background: "#ecfeff",
+  border: "1px solid #a5f3fc",
+  color: "#155e75",
+  borderRadius: "16px",
+  padding: "18px",
+  fontWeight: 700,
+};
+
+const tableWrap = {
+  width: "100%",
+  overflowX: "auto" as const,
+};
+
+const table = {
+  width: "100%",
+  borderCollapse: "collapse" as const,
+  minWidth: "860px",
+};
+
+const th = {
+  textAlign: "left" as const,
+  padding: "12px",
+  background: "#f8fafc",
+  borderBottom: "1px solid #e2e8f0",
+  color: "#475569",
+  fontSize: "12px",
+  textTransform: "uppercase" as const,
+};
+
+const td = {
+  padding: "12px",
+  borderBottom: "1px solid #e2e8f0",
+};
+
+const openButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  padding: "8px 13px",
+  borderRadius: "10px",
+  textDecoration: "none",
+  fontWeight: 800,
+};
+
+const viewMoreButton = {
+  marginTop: "14px",
+  background: "#ffffff",
+  color: "#0f766e",
+  border: "1px solid #0f766e",
+  borderRadius: "10px",
+  padding: "9px 14px",
+  fontWeight: 800,
+  cursor: "pointer",
 };
