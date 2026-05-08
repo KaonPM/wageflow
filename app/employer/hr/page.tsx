@@ -31,7 +31,7 @@ export default function EmployerHRPage() {
           icon="⚖️"
           title="Disciplinary Records"
           description="Record disciplinary incidents, warning letters, hearings, outcomes and follow-up actions."
-          href="/employer/hr/disciplinary"
+          href="/employer/hr/disciplinary-records"
           tag="Records"
         />
 
