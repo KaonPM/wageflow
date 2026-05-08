@@ -6,9 +6,10 @@ export default function EmployerHRPage() {
       <section style={header}>
         <div>
           <h1 style={title}>HR Records</h1>
+
           <p style={subtitle}>
-            Manage employee documents, confirmations, warnings, disciplinary
-            records and internal HR notes from one workspace.
+            Manage employee documents, disciplinary records, HR approvals and
+            internal HR notes from one workspace.
           </p>
         </div>
 
@@ -21,33 +22,25 @@ export default function EmployerHRPage() {
         <ModuleCard
           icon="📁"
           title="Employee Documents"
-          description="Upload contracts of employment, IDs, proof of address, certificates and other staff documents."
+          description="Upload contracts, IDs, proof of address, certificates and other staff documents."
           href="/employer/hr/documents"
           tag="Uploads"
         />
 
         <ModuleCard
-          icon="📝"
-          title="Employment Confirmations"
-          description="Generate confirmation of employment letters from stored employee records."
-          href="/employer/hr/confirmations"
-          tag="Generate"
-        />
-
-        <ModuleCard
-          icon="⚠️"
-          title="Warning Records"
-          description="Create and store written warnings, final warnings and related HR notes."
-          href="/employer/hr/warnings"
-          tag="Records"
-        />
-
-        <ModuleCard
           icon="⚖️"
           title="Disciplinary Records"
-          description="Record disciplinary incidents, hearings, outcomes and follow-up actions."
+          description="Record disciplinary incidents, warning letters, hearings, outcomes and follow-up actions."
           href="/employer/hr/disciplinary"
           tag="Records"
+        />
+
+        <ModuleCard
+          icon="✅"
+          title="HR Approvals"
+          description="Manage leave requests, overtime requests, approval status, approval notes and employee notifications."
+          href="/employer/hr/approvals"
+          tag="Approvals"
         />
 
         <ModuleCard
@@ -57,15 +50,6 @@ export default function EmployerHRPage() {
           href="/employer/hr/notes"
           tag="Notes"
         />
-      </section>
-
-      <section style={infoBox}>
-        <h2 style={infoTitle}>HR records approach</h2>
-        <p style={infoText}>
-          Upload-based records such as contracts and IDs will use secure
-          document storage. Generated records such as confirmations and warnings
-          will be created from employee data and saved for future reference.
-        </p>
       </section>
     </main>
   );
@@ -93,6 +77,7 @@ function ModuleCard({
         </div>
 
         <h2 style={cardTitle}>{title}</h2>
+
         <p style={cardText}>{description}</p>
 
         <div style={cardFooter}>
@@ -149,7 +134,6 @@ const grid = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
   gap: "18px",
-  marginBottom: "24px",
 };
 
 const link = {
@@ -218,24 +202,4 @@ const cardFooter = {
   marginTop: "20px",
   color: "#0f766e",
   fontWeight: 800,
-};
-
-const infoBox = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
-  borderRadius: "20px",
-  padding: "22px",
-};
-
-const infoTitle = {
-  margin: "0 0 8px",
-  color: "#0f172a",
-  fontSize: "20px",
-};
-
-const infoText = {
-  margin: 0,
-  color: "#64748b",
-  fontSize: "14px",
-  lineHeight: 1.6,
 };
