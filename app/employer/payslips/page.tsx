@@ -233,7 +233,6 @@ export default function EmployerPayslipsPage() {
     <main style={page}>
       <section style={header}>
         <div>
-          <p style={eyebrow}>WageFlow Employer</p>
           <h1 style={title}>Payslips</h1>
           <p style={subtitle}>
             View generated payslips, track payroll history, monitor employee
@@ -241,8 +240,8 @@ export default function EmployerPayslipsPage() {
           </p>
         </div>
 
-        <Link href="/employer" style={backButton}>
-          ← Back to Employer Dashboard
+        <Link href="/employer/payroll" style={backButton}>
+          ← Back to Payroll
         </Link>
       </section>
 
@@ -254,7 +253,7 @@ export default function EmployerPayslipsPage() {
         />
         <SummaryCard label="Net Payroll" value={`R ${summary.net.toFixed(2)}`} />
         <SummaryCard
-          label="SARS/UIF Payable"
+          label="PAYE/UIF Payable"
           value={`R ${summary.sars.toFixed(2)}`}
         />
       </section>
@@ -498,15 +497,6 @@ const header = {
   alignItems: "flex-start",
   gap: "20px",
   marginBottom: "28px",
-};
-
-const eyebrow = {
-  color: "#0f766e",
-  fontWeight: 800,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  fontSize: "12px",
-  marginBottom: "8px",
 };
 
 const title = {
