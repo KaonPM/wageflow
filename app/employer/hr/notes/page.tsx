@@ -115,7 +115,6 @@ export default function HRNotesPage() {
 
   function editLatestNote(employee: Employee) {
     const latestNote = getLatestNote(employee.id);
-
     setSelectedEmployee(employee);
 
     if (!latestNote) {
@@ -219,12 +218,10 @@ export default function HRNotesPage() {
         <div style={styles.cardTop}>
           <div>
             <h2 style={styles.cardTitle}>Employee Notes Overview</h2>
-            <p style={styles.muted}>
-              Select an employee to view notes or add a new internal HR note.
-            </p>
+            <p style={styles.muted}>Select an employee to view or add HR notes.</p>
           </div>
 
-          <button style={styles.lightButton} onClick={loadPageData}>
+          <button style={styles.smallButton} onClick={loadPageData}>
             Refresh
           </button>
         </div>
@@ -271,16 +268,16 @@ export default function HRNotesPage() {
                   </div>
 
                   <div style={styles.actions}>
-                    <button style={styles.primaryButton} onClick={() => viewNotes(employee)}>
-                      View Notes
+                    <button style={styles.primarySmallButton} onClick={() => viewNotes(employee)}>
+                      View
                     </button>
 
-                    <button style={styles.lightButton} onClick={() => startNewNote(employee)}>
-                      Add Note
+                    <button style={styles.smallButton} onClick={() => startNewNote(employee)}>
+                      Add
                     </button>
 
-                    <button style={styles.lightButton} onClick={() => editLatestNote(employee)}>
-                      Edit Latest
+                    <button style={styles.smallButton} onClick={() => editLatestNote(employee)}>
+                      Edit
                     </button>
                   </div>
                 </div>
@@ -295,13 +292,11 @@ export default function HRNotesPage() {
           <div style={styles.cardTop}>
             <div>
               <h2 style={styles.cardTitle}>Notes for {getEmployeeName(selectedEmployee)}</h2>
-              <p style={styles.muted}>
-                View note history and record new internal HR notes for this employee.
-              </p>
+              <p style={styles.muted}>View note history and manage internal HR notes.</p>
             </div>
 
             <button
-              style={styles.lightButton}
+              style={styles.smallButton}
               onClick={() => {
                 setSelectedEmployee(null);
                 clearForm();
@@ -335,7 +330,7 @@ export default function HRNotesPage() {
                     </p>
                   </div>
 
-                  <button style={styles.primaryButton} onClick={() => editNote(note)}>
+                  <button style={styles.primarySmallButton} onClick={() => editNote(note)}>
                     Edit
                   </button>
                 </div>
@@ -347,10 +342,7 @@ export default function HRNotesPage() {
 
       {selectedEmployee && (
         <section style={styles.card}>
-          <h2 style={styles.cardTitle}>
-            {editingNote ? "Edit HR Note" : "Add HR Note"}
-          </h2>
-
+          <h2 style={styles.cardTitle}>{editingNote ? "Edit HR Note" : "Add HR Note"}</h2>
           <p style={styles.muted}>Employee: {getEmployeeName(selectedEmployee)}</p>
 
           <div style={styles.formGrid}>
@@ -389,11 +381,11 @@ export default function HRNotesPage() {
           </label>
 
           <div style={styles.actions}>
-            <button style={styles.primaryButton} onClick={saveNote} disabled={saving}>
-              {saving ? "Saving..." : editingNote ? "Update Note" : "Save Note"}
+            <button style={styles.primarySmallButton} onClick={saveNote} disabled={saving}>
+              {saving ? "Saving..." : editingNote ? "Update" : "Save"}
             </button>
 
-            <button style={styles.lightButton} onClick={clearForm}>
+            <button style={styles.smallButton} onClick={clearForm}>
               Clear
             </button>
           </div>
@@ -416,34 +408,34 @@ function formatDate(value: string | null) {
 const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: "100vh",
-    padding: "38px 42px",
+    padding: "32px 38px",
     background: "#f4f7f6",
     color: "#1f2937",
   },
   header: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "18px",
+    gap: "16px",
     alignItems: "flex-start",
-    marginBottom: "26px",
+    marginBottom: "22px",
     flexWrap: "wrap",
   },
   title: {
     margin: 0,
-    fontSize: "34px",
+    fontSize: "32px",
     color: "#2f7d6d",
     fontWeight: 800,
   },
   subtitle: {
-    marginTop: "10px",
+    marginTop: "8px",
     color: "#667085",
-    fontSize: "15px",
+    fontSize: "14px",
   },
   backButton: {
     background: "#2f7d6d",
     color: "#ffffff",
-    padding: "13px 18px",
-    borderRadius: "12px",
+    padding: "12px 16px",
+    borderRadius: "11px",
     textDecoration: "none",
     fontWeight: 800,
     whiteSpace: "nowrap",
@@ -451,42 +443,42 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     background: "#ffffff",
-    borderRadius: "20px",
-    padding: "24px",
-    marginBottom: "24px",
-    boxShadow: "0 12px 28px rgba(16, 24, 40, 0.06)",
+    borderRadius: "18px",
+    padding: "20px",
+    marginBottom: "18px",
+    boxShadow: "0 10px 24px rgba(16, 24, 40, 0.05)",
     border: "1px solid #e6ecea",
   },
   cardTop: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: "16px",
-    marginBottom: "20px",
+    gap: "14px",
+    marginBottom: "16px",
     flexWrap: "wrap",
   },
   cardTitle: {
     margin: 0,
-    fontSize: "22px",
+    fontSize: "20px",
     color: "#2c2333",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   muted: {
-    margin: "6px 0 0",
-    color: "#667085",
-    fontSize: "14px",
-    lineHeight: 1.5,
-  },
-  smallText: {
     margin: "5px 0 0",
     color: "#667085",
     fontSize: "13px",
+    lineHeight: 1.45,
+  },
+  smallText: {
+    margin: "4px 0 0",
+    color: "#667085",
+    fontSize: "12px",
   },
   emptyState: {
     background: "#f8fbfa",
     border: "1px dashed #bad8d1",
-    borderRadius: "16px",
-    padding: "20px",
+    borderRadius: "14px",
+    padding: "16px",
   },
   emptyTitle: {
     margin: 0,
@@ -498,126 +490,131 @@ const styles: Record<string, React.CSSProperties> = {
     overflowX: "auto",
   },
   employeeTableHeader: {
-    minWidth: "920px",
+    minWidth: "820px",
     display: "grid",
-    gridTemplateColumns: "2fr 0.7fr 1.7fr 2fr",
-    gap: "16px",
-    padding: "14px 8px",
+    gridTemplateColumns: "2fr 0.6fr 1.7fr 1.3fr",
+    gap: "14px",
+    padding: "12px 8px",
     borderBottom: "1px solid #e5e7eb",
     fontWeight: 800,
     color: "#2c2333",
+    fontSize: "14px",
   },
   employeeTableRow: {
-    minWidth: "920px",
+    minWidth: "820px",
     display: "grid",
-    gridTemplateColumns: "2fr 0.7fr 1.7fr 2fr",
-    gap: "16px",
+    gridTemplateColumns: "2fr 0.6fr 1.7fr 1.3fr",
+    gap: "14px",
     alignItems: "center",
-    padding: "18px 8px",
+    padding: "13px 8px",
     borderBottom: "1px solid #eef2f1",
   },
   noteBadge: {
-    display: "inline-block",
-    minWidth: "34px",
-    textAlign: "center",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "30px",
+    height: "30px",
     background: "#e8f5f2",
     color: "#225f54",
-    padding: "8px 12px",
     borderRadius: "999px",
     fontWeight: 800,
+    fontSize: "13px",
   },
   categoryBadge: {
     display: "inline-block",
-    background: "#ecfeff",
-    color: "#0f766e",
-    padding: "7px 11px",
+    background: "#e8f5f2",
+    color: "#225f54",
+    padding: "6px 10px",
     borderRadius: "999px",
-    fontSize: "12px",
+    fontSize: "11px",
     fontWeight: 800,
   },
   actions: {
     display: "flex",
-    gap: "10px",
+    gap: "8px",
     flexWrap: "wrap",
     alignItems: "center",
   },
-  primaryButton: {
+  primarySmallButton: {
     border: "none",
     background: "#2f7d6d",
     color: "#ffffff",
-    padding: "12px 17px",
-    borderRadius: "12px",
+    padding: "9px 13px",
+    borderRadius: "10px",
     fontWeight: 800,
     cursor: "pointer",
-    boxShadow: "0 8px 18px rgba(47, 125, 109, 0.18)",
+    fontSize: "13px",
+    boxShadow: "0 6px 14px rgba(47, 125, 109, 0.16)",
   },
-  lightButton: {
+  smallButton: {
     border: "1px solid #cfd8d5",
     background: "#ffffff",
     color: "#35514c",
-    padding: "11px 16px",
-    borderRadius: "11px",
+    padding: "9px 13px",
+    borderRadius: "10px",
     fontWeight: 800,
     cursor: "pointer",
+    fontSize: "13px",
   },
   noteList: {
     display: "grid",
-    gap: "14px",
+    gap: "10px",
   },
   noteCard: {
     display: "grid",
     gridTemplateColumns: "1fr auto",
-    gap: "16px",
+    gap: "14px",
     alignItems: "center",
     background: "#f8fbfa",
     border: "1px solid #e6ecea",
-    borderRadius: "16px",
-    padding: "18px",
+    borderRadius: "14px",
+    padding: "14px",
   },
   noteTopLine: {
     display: "flex",
     alignItems: "center",
-    gap: "10px",
+    gap: "9px",
     flexWrap: "wrap",
     color: "#2c2333",
   },
   noteBody: {
-    margin: "10px 0 0",
+    margin: "8px 0 0",
     color: "#1f2937",
-    fontSize: "14px",
-    lineHeight: 1.6,
+    fontSize: "13px",
+    lineHeight: 1.5,
   },
   formGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "16px",
-    marginTop: "18px",
-    marginBottom: "16px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "14px",
+    marginTop: "16px",
+    marginBottom: "14px",
   },
   label: {
     display: "grid",
-    gap: "8px",
+    gap: "7px",
     fontWeight: 800,
     color: "#2c2333",
-    fontSize: "14px",
-    marginBottom: "16px",
+    fontSize: "13px",
+    marginBottom: "14px",
   },
   input: {
     border: "1px solid #d0d5dd",
-    borderRadius: "12px",
-    padding: "12px",
-    fontSize: "14px",
+    borderRadius: "11px",
+    padding: "10px",
+    fontSize: "13px",
     background: "#ffffff",
     color: "#101828",
   },
   textarea: {
     border: "1px solid #d0d5dd",
-    borderRadius: "12px",
-    padding: "12px",
-    fontSize: "14px",
+    borderRadius: "11px",
+    padding: "10px",
+    fontSize: "13px",
     background: "#ffffff",
     color: "#101828",
-    minHeight: "120px",
+    minHeight: "100px",
     resize: "vertical",
   },
 };
