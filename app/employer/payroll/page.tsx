@@ -497,13 +497,13 @@ export default function PayrollPage() {
           </span>
         </Link>
 
-        <div style={disabledActionCard}>
-          <span style={actionIcon}>🧾</span>
-          <strong style={actionTitle}>Compliance Summary</strong>
-          <span style={actionText}>
-            PAYE and UIF overview. Coming soon.
-          </span>
-        </div>
+        <Link href="/employer/payroll/compliance" style={actionCardLink}>
+        <span style={actionIcon}>🧾</span>
+        <strong style={actionTitle}>Compliance Summary</strong>
+        <span style={actionText}>
+         Review PAYE, UIF and EMP201-ready monthly totals.
+        </span>
+        </Link>
       </section>
 
       {showGenerateForm && (
