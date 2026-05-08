@@ -501,7 +501,7 @@ export default function PayrollPage() {
           <span style={actionIcon}>🧾</span>
           <strong style={actionTitle}>Compliance Summary</strong>
           <span style={actionText}>
-            SARS, PAYE and UIF overview. Coming soon.
+            PAYE and UIF overview. Coming soon.
           </span>
         </div>
       </section>

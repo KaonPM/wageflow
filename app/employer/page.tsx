@@ -135,8 +135,8 @@ export default function EmployerDashboard() {
             <h2 style={dashboardTitle}>Employer Dashboard</h2>
 
             <p style={subtitle}>
-              Employer dashboard for managing employees, payroll, payslips, HR
-              records and business settings from one organised workspace.
+              Employer dashboard for managing employees, payroll, HR records,
+              approvals and business settings from one organised workspace.
             </p>
           </div>
         </div>
@@ -161,25 +161,25 @@ export default function EmployerDashboard() {
         <DashboardCard
           icon="💰"
           title="Payroll"
-          description="Capture salaries, bonuses, overtime and deductions before generating payslips."
+          description="Generate payslips, view payroll history, manage payslip records and review payroll totals."
           href="/employer/payroll"
-          tag="Payroll Run"
-        />
-
-        <DashboardCard
-          icon="📄"
-          title="Payslips"
-          description="View payslip history, download PDFs and resend employee notifications."
-          href="/employer/payslips"
-          tag="Payslip Centre"
+          tag="Payroll Workspace"
         />
 
         <DashboardCard
           icon="🗂️"
-          title="HR"
+          title="HR Records"
           description="Manage leave records, employee documents, warnings, confirmations of employment and HR notes."
           href="/employer/hr"
           tag="HR Records"
+        />
+
+        <DashboardCard
+          icon="✅"
+          title="Approvals"
+          description="Review leave requests, overtime approvals, disciplinary confirmations and pending HR actions."
+          href="/employer/approvals"
+          tag="Action Centre"
         />
 
         <DashboardCard
