@@ -33,11 +33,7 @@ type Payslip = {
     email: string | null;
     phone: string | null;
   } | null;
-  payslip_notifications?: {
-    id: string;
-    title: string | null;
-    created_at: string | null;
-  }[];
+  notification_count?: number;
 };
 
 export default function EmployerPayslipsPage() {
@@ -68,7 +64,7 @@ export default function EmployerPayslipsPage() {
       .from("profiles")
       .select("business_id")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (profile?.business_id) return profile.business_id;
 
@@ -76,7 +72,7 @@ export default function EmployerPayslipsPage() {
       .from("businesses")
       .select("id")
       .eq("employer_id", userId)
-      .single();
+      .maybeSingle();
 
     return business?.id || null;
   }
@@ -89,11 +85,12 @@ export default function EmployerPayslipsPage() {
 
     if (!businessId) {
       setMessage("Business profile not found for this employer.");
+      setPayslips([]);
       setLoading(false);
       return;
     }
 
-    const { data, error } = await supabase
+    const { data: payslipData, error: payslipError } = await supabase
       .from("payslips")
       .select(
         `
@@ -105,24 +102,45 @@ export default function EmployerPayslipsPage() {
           employee_number,
           email,
           phone
-        ),
-        payslip_notifications (
-          id,
-          title,
-          created_at
         )
       `
       )
       .eq("business_id", businessId)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      setMessage(error.message);
+    if (payslipError) {
+      setMessage(payslipError.message);
       setPayslips([]);
-    } else {
-      setPayslips(data || []);
+      setLoading(false);
+      return;
     }
 
+    const payslipRows = payslipData || [];
+    const payslipIds = payslipRows.map((item) => item.id);
+
+    let notificationCounts: Record<string, number> = {};
+
+    if (payslipIds.length > 0) {
+      const { data: notifications, error: notificationError } = await supabase
+        .from("payslip_notifications")
+        .select("id, payslip_id")
+        .eq("business_id", businessId)
+        .in("payslip_id", payslipIds);
+
+      if (!notificationError && notifications) {
+        notificationCounts = notifications.reduce((acc, item) => {
+          acc[item.payslip_id] = (acc[item.payslip_id] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+      }
+    }
+
+    const enrichedPayslips = payslipRows.map((item) => ({
+      ...item,
+      notification_count: notificationCounts[item.id] || 0,
+    }));
+
+    setPayslips(enrichedPayslips);
     setLoading(false);
   }
 
@@ -137,6 +155,8 @@ export default function EmployerPayslipsPage() {
   }
 
   async function resendNotification(payslip: Payslip) {
+    setMessage("");
+
     const businessId = await getBusinessId();
 
     if (!businessId) {
@@ -165,27 +185,6 @@ export default function EmployerPayslipsPage() {
 
     if (error) {
       setMessage(error.message);
-      return;
-    }
-
-    const { error: portalNotificationError } = await supabase
-      .from("payslip_notifications")
-      .insert([
-        {
-          payslip_id: payslip.id,
-          employee_id: payslip.employee_id,
-          business_id: businessId,
-          title: "Payslip issued",
-          message: `Your payslip for ${
-            payslip.payroll_month || "the selected payroll month"
-          } is now available in your employee portal.`,
-          type: "payslip",
-          is_read: false,
-        },
-      ]);
-
-    if (portalNotificationError) {
-      setMessage(portalNotificationError.message);
       return;
     }
 
@@ -390,20 +389,17 @@ export default function EmployerPayslipsPage() {
                             style={{
                               ...activityBadge,
                               background:
-                                payslip.payslip_notifications &&
-                                payslip.payslip_notifications.length > 0
+                                Number(payslip.notification_count || 0) > 0
                                   ? "#fef3c7"
                                   : "#f1f5f9",
                               color:
-                                payslip.payslip_notifications &&
-                                payslip.payslip_notifications.length > 0
+                                Number(payslip.notification_count || 0) > 0
                                   ? "#92400e"
                                   : "#475569",
                             }}
                           >
-                            {payslip.payslip_notifications &&
-                            payslip.payslip_notifications.length > 0
-                              ? "Notification sent"
+                            {Number(payslip.notification_count || 0) > 0
+                              ? "Notification queued"
                               : "No notification"}
                           </span>
                         </div>
