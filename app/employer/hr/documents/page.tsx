@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
 
@@ -12,15 +12,13 @@ type Employee = {
 
 type DocumentRecord = {
   id: string;
+  business_id: string;
+  employee_id: string;
   document_name: string;
   document_category: string;
   file_url: string;
   notes: string | null;
   uploaded_at: string;
-  employees?: {
-    first_name: string | null;
-    last_name: string | null;
-  } | null;
 };
 
 export default function EmployeeDocumentsPage() {
@@ -31,13 +29,21 @@ export default function EmployeeDocumentsPage() {
   const [documentCategory, setDocumentCategory] = useState("Contract");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    fetchEmployees();
-    fetchDocuments();
+    initialisePage();
   }, []);
+
+  async function initialisePage() {
+    await fetchEmployees();
+    await fetchDocuments();
+  }
 
   async function getBusinessId() {
     const {
@@ -50,9 +56,17 @@ export default function EmployeeDocumentsPage() {
       .from("profiles")
       .select("business_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    return profile?.business_id || null;
+    if (profile?.business_id) return profile.business_id;
+
+    const { data: business } = await supabase
+      .from("businesses")
+      .select("id")
+      .eq("employer_id", user.id)
+      .maybeSingle();
+
+    return business?.id || null;
   }
 
   async function fetchEmployees() {
@@ -74,22 +88,51 @@ export default function EmployeeDocumentsPage() {
 
     if (!businessId) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("employee_documents")
-      .select(
-        `
-        *,
-        employees (
-          first_name,
-          last_name
-        )
-      `
-      )
+      .select("*")
       .eq("business_id", businessId)
       .order("uploaded_at", { ascending: false });
 
+    if (error) {
+      setMessage(error.message);
+      setDocuments([]);
+      return;
+    }
+
     setDocuments(data || []);
   }
+
+  function employeeName(employee_id: string) {
+    const employee = employees.find((item) => item.id === employee_id);
+
+    return (
+      `${employee?.first_name || ""} ${employee?.last_name || ""}`.trim() ||
+      "Employee"
+    );
+  }
+
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((document) => {
+      const employee = employeeName(document.employee_id).toLowerCase();
+
+      const text = `${document.document_name || ""} ${
+        document.document_category || ""
+      } ${employee}`.toLowerCase();
+
+      const matchesSearch = text.includes(search.toLowerCase());
+
+      const matchesCategory =
+        categoryFilter === "all" ||
+        document.document_category === categoryFilter;
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [documents, employees, search, categoryFilter]);
+
+  const visibleDocuments = showAll
+    ? filteredDocuments
+    : filteredDocuments.slice(0, 5);
 
   async function uploadDocument() {
     setMessage("");
@@ -109,7 +152,8 @@ export default function EmployeeDocumentsPage() {
       return;
     }
 
-    const filePath = `${businessId}/${Date.now()}-${file.name}`;
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const filePath = `${businessId}/${employeeId}/${Date.now()}-${safeFileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("employee-documents")
@@ -149,11 +193,13 @@ export default function EmployeeDocumentsPage() {
     setDocumentCategory("Contract");
     setNotes("");
     setFile(null);
+    setFileInputKey((current) => current + 1);
+    setShowAll(false);
 
     setMessage("Document uploaded successfully.");
-    setSaving(false);
+    await fetchDocuments();
 
-    fetchDocuments();
+    setSaving(false);
   }
 
   return (
@@ -227,6 +273,7 @@ export default function EmployeeDocumentsPage() {
             <label style={label}>Upload File</label>
 
             <input
+              key={fileInputKey}
               style={input}
               type="file"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
@@ -248,51 +295,108 @@ export default function EmployeeDocumentsPage() {
       </section>
 
       <section style={card}>
-        <h2 style={sectionTitle}>Recent Uploads</h2>
+        <div style={toolbar}>
+          <div>
+            <h2 style={sectionTitleNoMargin}>Recent Uploads</h2>
+            <p style={smallText}>Showing five documents by default.</p>
+          </div>
 
-        <div style={tableWrap}>
-          <table style={table}>
-            <thead>
-              <tr>
-                <th style={th}>Employee</th>
-                <th style={th}>Document</th>
-                <th style={th}>Category</th>
-                <th style={th}>Uploaded</th>
-                <th style={th}>Action</th>
-              </tr>
-            </thead>
+          <div style={filters}>
+            <input
+              style={filterInput}
+              placeholder="Search document or employee"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
 
-            <tbody>
-              {documents.slice(0, 5).map((document) => (
-                <tr key={document.id}>
-                  <td style={td}>
-                    {document.employees?.first_name}{" "}
-                    {document.employees?.last_name}
-                  </td>
+            <select
+              style={filterInput}
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="all">All categories</option>
+              <option value="Contract">Contract</option>
+              <option value="ID Document">ID Document</option>
+              <option value="Proof of Address">Proof of Address</option>
+              <option value="Certificate">Certificate</option>
+              <option value="Warning">Warning</option>
+              <option value="Other">Other</option>
+            </select>
 
-                  <td style={td}>{document.document_name}</td>
+            <button
+              style={outlineButton}
+              onClick={() => {
+                setSearch("");
+                setCategoryFilter("all");
+                setShowAll(false);
+              }}
+            >
+              Clear
+            </button>
 
-                  <td style={td}>{document.document_category}</td>
-
-                  <td style={td}>
-                    {new Date(document.uploaded_at).toLocaleDateString()}
-                  </td>
-
-                  <td style={td}>
-                    <a
-                      href={document.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={viewButton}
-                    >
-                      View
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <button style={outlineButton} onClick={fetchDocuments}>
+              Refresh
+            </button>
+          </div>
         </div>
+
+        {visibleDocuments.length === 0 ? (
+          <div style={emptyState}>No documents uploaded yet.</div>
+        ) : (
+          <>
+            <div style={tableWrap}>
+              <table style={table}>
+                <thead>
+                  <tr>
+                    <th style={th}>Employee</th>
+                    <th style={th}>Document</th>
+                    <th style={th}>Category</th>
+                    <th style={th}>Uploaded</th>
+                    <th style={th}>Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {visibleDocuments.map((document) => (
+                    <tr key={document.id}>
+                      <td style={td}>{employeeName(document.employee_id)}</td>
+
+                      <td style={td}>{document.document_name}</td>
+
+                      <td style={td}>{document.document_category}</td>
+
+                      <td style={td}>
+                        {new Date(document.uploaded_at).toLocaleDateString(
+                          "en-ZA"
+                        )}
+                      </td>
+
+                      <td style={td}>
+                        <a
+                          href={document.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={viewButton}
+                        >
+                          View
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredDocuments.length > 5 && (
+              <button
+                style={viewMoreButton}
+                onClick={() => setShowAll((current) => !current)}
+              >
+                {showAll ? "Show Less" : "View More"}
+              </button>
+            )}
+          </>
+        )}
       </section>
     </main>
   );
@@ -324,6 +428,7 @@ const subtitle = {
   color: "#64748b",
   fontSize: "15px",
   lineHeight: 1.6,
+  margin: 0,
 };
 
 const backButton = {
@@ -357,6 +462,18 @@ const sectionTitle = {
   margin: "0 0 18px",
   color: "#0f172a",
   fontSize: "22px",
+};
+
+const sectionTitleNoMargin = {
+  margin: 0,
+  color: "#0f172a",
+  fontSize: "22px",
+};
+
+const smallText = {
+  margin: "6px 0 0",
+  color: "#64748b",
+  fontSize: "13px",
 };
 
 const grid = {
@@ -400,6 +517,47 @@ const button = {
   cursor: "pointer",
 };
 
+const toolbar = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "16px",
+  flexWrap: "wrap" as const,
+  marginBottom: "18px",
+};
+
+const filters = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap" as const,
+};
+
+const filterInput = {
+  padding: "10px",
+  borderRadius: "10px",
+  border: "1px solid #cbd5e1",
+  minWidth: "180px",
+};
+
+const outlineButton = {
+  background: "#ffffff",
+  color: "#0f766e",
+  border: "1px solid #0f766e",
+  borderRadius: "10px",
+  padding: "10px 14px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const emptyState = {
+  background: "#ecfeff",
+  border: "1px solid #a5f3fc",
+  color: "#155e75",
+  borderRadius: "16px",
+  padding: "18px",
+  fontWeight: 700,
+};
+
 const tableWrap = {
   overflowX: "auto" as const,
 };
@@ -428,4 +586,15 @@ const viewButton = {
   borderRadius: "8px",
   textDecoration: "none",
   fontWeight: 700,
+};
+
+const viewMoreButton = {
+  marginTop: "14px",
+  background: "#ffffff",
+  color: "#0f766e",
+  border: "1px solid #0f766e",
+  borderRadius: "10px",
+  padding: "9px 14px",
+  fontWeight: 800,
+  cursor: "pointer",
 };
