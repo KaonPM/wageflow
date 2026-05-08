@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -155,13 +155,12 @@ export default function EmployeeProfilePage() {
     router.push("/");
   }
 
-  const primaryColor = business?.primary_color || "#0f766e";
-  const secondaryColor = business?.secondary_color || "#123c69";
-
   if (loading) {
     return (
       <main style={page}>
-        <div style={messageCard}>Loading profile details...</div>
+        <div style={shell}>
+          <div style={messageCard}>Loading profile details...</div>
+        </div>
       </main>
     );
   }
@@ -169,182 +168,200 @@ export default function EmployeeProfilePage() {
   if (message || !employee) {
     return (
       <main style={page}>
-        <div style={messageCard}>{message || "Profile unavailable."}</div>
+        <div style={shell}>
+          <div style={messageCard}>{message || "Profile unavailable."}</div>
+        </div>
       </main>
     );
   }
 
   return (
     <main style={page}>
-      <section
-        style={{
-          ...hero,
-          background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-        }}
-      >
-        <div style={topRow}>
-          <a href="/" style={heroButton}>
-            Home
-          </a>
+      <div style={shell}>
+        <section style={heroCard}>
+          <div style={heroTopRow}>
+            <div>
+              <h1 style={businessName}>
+                {business?.trading_name ||
+                  business?.business_name ||
+                  "Employee Portal"}
+              </h1>
 
-          <div style={buttonGroup}>
-            <a href="/employee" style={heroButton}>
-              Dashboard
-            </a>
+              <h2 style={dashboardTitle}>My Profile</h2>
+            </div>
 
-            <button onClick={handleLogout} style={heroButton}>
-              Logout
-            </button>
+            <div style={topActions}>
+              <a href="/employee" style={primaryButton}>
+                ← Back to Dashboard
+              </a>
+
+              <a href="/" style={secondaryButton}>
+                Home
+              </a>
+
+              <button onClick={handleLogout} style={secondaryButton}>
+                Logout
+              </button>
+            </div>
           </div>
-        </div>
 
-        <p style={eyebrow}>
-          {business?.trading_name || business?.business_name || "Employee Portal"}
-        </p>
-
-        <h1 style={title}>My Profile</h1>
-
-        <p style={subtitle}>
-          View your personal, employment, payroll, tax, and HR information.
-        </p>
-      </section>
-
-      <section style={summaryGrid}>
-        <div style={summaryCard}>
-          <p style={summaryLabel}>Employee</p>
-          <h2 style={summaryValue}>{employee.full_name || "Not provided"}</h2>
-          <p style={summaryText}>
-            {employee.position || "Position not provided"}
+          <p style={subtitle}>
+            View your personal, employment, payroll, tax and HR information.
+            This profile is read-only and managed by your employer.
           </p>
-        </div>
+        </section>
 
-        <div style={summaryCard}>
-          <p style={summaryLabel}>Employee Status</p>
-          <h2 style={summaryValue}>
-            {capitalise(employee.employment_status || employee.status || "active")}
-          </h2>
-          <p style={summaryText}>
-            Employee No: {employee.employee_number || "Not provided"}
-          </p>
-        </div>
-
-        <div style={summaryCard}>
-          <p style={summaryLabel}>HR Snapshot</p>
-          <h2 style={summaryValue}>
-            {business?.show_leave_balances === false
-              ? "Leave hidden"
-              : `${employee.leave_balance || 0} days leave`}
-          </h2>
-          <p style={summaryText}>
-            Overtime: {employee.overtime_enabled ? "Enabled" : "Not enabled"}
-          </p>
-        </div>
-      </section>
-
-      <ProfileSection
-        title="Personal Details"
-        isOpen={openSection === "personal"}
-        onToggle={() =>
-          setOpenSection(openSection === "personal" ? "" : "personal")
-        }
-      >
-        <InfoGrid>
-          <Info label="Full Name" value={employee.full_name} />
-          <Info label="First Name" value={employee.first_name} />
-          <Info label="Last Name" value={employee.last_name} />
-          <Info label="ID Number" value={employee.id_number} />
-          <Info label="Email" value={employee.email} />
-          <Info label="Phone" value={employee.phone} />
-        </InfoGrid>
-      </ProfileSection>
-
-      <ProfileSection
-        title="Employment Details"
-        isOpen={openSection === "employment"}
-        onToggle={() =>
-          setOpenSection(openSection === "employment" ? "" : "employment")
-        }
-      >
-        <InfoGrid>
-          <Info label="Employee Number" value={employee.employee_number} />
-          <Info label="Position" value={employee.position} />
-          <Info label="Department" value={employee.department} />
-          <Info label="Employment Type" value={employee.employment_type} />
-          <Info
-            label="Employment Status"
-            value={employee.employment_status || employee.status}
+        <section style={summaryGrid}>
+          <SummaryCard
+            label="Employee"
+            value={employee.full_name || "Not provided"}
+            text={employee.position || "Position not provided"}
           />
-          <Info label="Start Date" value={formatDate(employee.start_date)} />
-        </InfoGrid>
-      </ProfileSection>
 
-      <ProfileSection
-        title="Payroll and Payment Details"
-        isOpen={openSection === "payroll"}
-        onToggle={() =>
-          setOpenSection(openSection === "payroll" ? "" : "payroll")
-        }
-      >
-        <InfoGrid>
-          <Info label="Salary Type" value={employee.salary_type} />
-          <Info label="Pay Frequency" value={employee.pay_frequency} />
-          <Info label="Payment Method" value={employee.payment_method} />
-          <Info label="Bank Name" value={employee.bank_name} />
-          <Info label="Account Type" value={employee.account_type} />
-          <Info
-            label="Account Number"
-            value={maskAccount(employee.account_number)}
+          <SummaryCard
+            label="Employee Status"
+            value={capitalise(
+              employee.employment_status || employee.status || "active"
+            )}
+            text={`Employee No: ${employee.employee_number || "Not provided"}`}
           />
-        </InfoGrid>
-      </ProfileSection>
 
-      <ProfileSection
-        title="Tax, UIF and HR Details"
-        isOpen={openSection === "tax"}
-        onToggle={() => setOpenSection(openSection === "tax" ? "" : "tax")}
-      >
-        <InfoGrid>
-          <Info label="Tax Number" value={employee.tax_number} />
-          <Info label="UIF Number" value={employee.uif_number} />
-          <Info
-            label="UIF Registered"
-            value={employee.uif_registered ? "Yes" : "No"}
-          />
-          <Info
-            label="Leave Balance"
+          <SummaryCard
+            label="HR Snapshot"
             value={
               business?.show_leave_balances === false
-                ? "Hidden by employer"
-                : `${employee.leave_balance || 0} days`
+                ? "Leave hidden"
+                : `${employee.leave_balance || 0} days leave`
             }
+            text={`Overtime: ${
+              employee.overtime_enabled ? "Enabled" : "Not enabled"
+            }`}
           />
-          <Info
-            label="Overtime Enabled"
-            value={employee.overtime_enabled ? "Yes" : "No"}
-          />
-        </InfoGrid>
-      </ProfileSection>
+        </section>
 
-      <ProfileSection
-        title="Employer Details"
-        isOpen={openSection === "employer"}
-        onToggle={() =>
-          setOpenSection(openSection === "employer" ? "" : "employer")
-        }
-      >
-        <InfoGrid>
-          <Info label="Business Name" value={business?.business_name} />
-          <Info label="Trading Name" value={business?.trading_name} />
-          <Info
-            label="Registration Number"
-            value={business?.registration_number}
-          />
-          <Info label="Contact Person" value={business?.contact_person} />
-          <Info label="Employer Email" value={business?.email} />
-          <Info label="Employer Phone" value={business?.phone} />
-        </InfoGrid>
-      </ProfileSection>
+        <ProfileSection
+          title="Personal Details"
+          isOpen={openSection === "personal"}
+          onToggle={() =>
+            setOpenSection(openSection === "personal" ? "" : "personal")
+          }
+        >
+          <InfoGrid>
+            <Info label="Full Name" value={employee.full_name} />
+            <Info label="First Name" value={employee.first_name} />
+            <Info label="Last Name" value={employee.last_name} />
+            <Info label="ID Number" value={employee.id_number} />
+            <Info label="Email" value={employee.email} />
+            <Info label="Phone" value={employee.phone} />
+          </InfoGrid>
+        </ProfileSection>
+
+        <ProfileSection
+          title="Employment Details"
+          isOpen={openSection === "employment"}
+          onToggle={() =>
+            setOpenSection(openSection === "employment" ? "" : "employment")
+          }
+        >
+          <InfoGrid>
+            <Info label="Employee Number" value={employee.employee_number} />
+            <Info label="Position" value={employee.position} />
+            <Info label="Department" value={employee.department} />
+            <Info label="Employment Type" value={employee.employment_type} />
+            <Info
+              label="Employment Status"
+              value={employee.employment_status || employee.status}
+            />
+            <Info label="Start Date" value={formatDate(employee.start_date)} />
+          </InfoGrid>
+        </ProfileSection>
+
+        <ProfileSection
+          title="Payroll and Banking Details"
+          isOpen={openSection === "payroll"}
+          onToggle={() =>
+            setOpenSection(openSection === "payroll" ? "" : "payroll")
+          }
+        >
+          <InfoGrid>
+            <Info label="Salary Type" value={employee.salary_type} />
+            <Info label="Pay Frequency" value={employee.pay_frequency} />
+            <Info label="Payment Method" value={employee.payment_method} />
+            <Info label="Bank Name" value={employee.bank_name} />
+            <Info label="Account Type" value={employee.account_type} />
+            <Info
+              label="Account Number"
+              value={maskAccount(employee.account_number)}
+            />
+          </InfoGrid>
+        </ProfileSection>
+
+        <ProfileSection
+          title="Tax, UIF and HR Details"
+          isOpen={openSection === "tax"}
+          onToggle={() => setOpenSection(openSection === "tax" ? "" : "tax")}
+        >
+          <InfoGrid>
+            <Info label="Tax Number" value={employee.tax_number} />
+            <Info label="UIF Number" value={employee.uif_number} />
+            <Info
+              label="UIF Registered"
+              value={employee.uif_registered ? "Yes" : "No"}
+            />
+            <Info
+              label="Leave Balance"
+              value={
+                business?.show_leave_balances === false
+                  ? "Hidden by employer"
+                  : `${employee.leave_balance || 0} days`
+              }
+            />
+            <Info
+              label="Overtime Enabled"
+              value={employee.overtime_enabled ? "Yes" : "No"}
+            />
+          </InfoGrid>
+        </ProfileSection>
+
+        <ProfileSection
+          title="Employer Details"
+          isOpen={openSection === "employer"}
+          onToggle={() =>
+            setOpenSection(openSection === "employer" ? "" : "employer")
+          }
+        >
+          <InfoGrid>
+            <Info label="Business Name" value={business?.business_name} />
+            <Info label="Trading Name" value={business?.trading_name} />
+            <Info
+              label="Registration Number"
+              value={business?.registration_number}
+            />
+            <Info label="Contact Person" value={business?.contact_person} />
+            <Info label="Employer Email" value={business?.email} />
+            <Info label="Employer Phone" value={business?.phone} />
+          </InfoGrid>
+        </ProfileSection>
+      </div>
     </main>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  text,
+}: {
+  label: string;
+  value: string;
+  text: string;
+}) {
+  return (
+    <div style={summaryCard}>
+      <p style={summaryLabel}>{label}</p>
+      <h2 style={summaryValue}>{value}</h2>
+      <p style={summaryText}>{text}</p>
+    </div>
   );
 }
 
@@ -357,13 +374,13 @@ function ProfileSection({
   title: string;
   isOpen: boolean;
   onToggle: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section style={sectionCard}>
       <button onClick={onToggle} style={sectionButton}>
         <span>{title}</span>
-        <span>{isOpen ? "Hide" : "Open"}</span>
+        <span style={sectionButtonAction}>{isOpen ? "Hide" : "Open"}</span>
       </button>
 
       {isOpen && <div style={sectionContent}>{children}</div>}
@@ -371,7 +388,7 @@ function ProfileSection({
   );
 }
 
-function InfoGrid({ children }: { children: React.ReactNode }) {
+function InfoGrid({ children }: { children: ReactNode }) {
   return <div style={infoGrid}>{children}</div>;
 }
 
@@ -397,6 +414,7 @@ function capitalise(value: string) {
 
 function formatDate(value?: string | null) {
   if (!value) return "Not provided";
+
   return new Date(value).toLocaleDateString("en-ZA", {
     year: "numeric",
     month: "short",
@@ -415,63 +433,85 @@ const page: CSSProperties = {
   padding: "32px",
   fontFamily: "Arial, sans-serif",
   background: "#f4f7fb",
-  color: "#102a43",
+  color: "#111827",
 };
 
-const hero: CSSProperties = {
-  padding: "26px",
-  borderRadius: "22px",
-  color: "#fff",
-  marginBottom: "22px",
-  boxShadow: "0 16px 40px rgba(15, 118, 110, 0.18)",
+const shell: CSSProperties = {
+  width: "100%",
+  maxWidth: "1180px",
+  margin: "0 auto",
 };
 
-const topRow: CSSProperties = {
+const heroCard: CSSProperties = {
+  padding: "32px",
+  borderRadius: "28px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  marginBottom: "24px",
+  boxShadow: "0 18px 45px rgba(15, 23, 42, 0.07)",
+};
+
+const heroTopRow: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
-  gap: "12px",
-  marginBottom: "20px",
+  alignItems: "flex-start",
+  gap: "16px",
   flexWrap: "wrap",
 };
 
-const buttonGroup: CSSProperties = {
+const businessName: CSSProperties = {
+  margin: 0,
+  fontSize: "38px",
+  lineHeight: 1.1,
+  fontWeight: 800,
+  color: "#0f766e",
+  letterSpacing: "-0.03em",
+};
+
+const dashboardTitle: CSSProperties = {
+  margin: "10px 0 0",
+  fontSize: "24px",
+  lineHeight: 1.2,
+  fontWeight: 800,
+  color: "#111827",
+};
+
+const subtitle: CSSProperties = {
+  maxWidth: "820px",
+  fontSize: "16px",
+  lineHeight: 1.65,
+  margin: "18px 0 0",
+  color: "#5f6f82",
+};
+
+const topActions: CSSProperties = {
   display: "flex",
+  alignItems: "center",
   gap: "10px",
   flexWrap: "wrap",
 };
 
-const heroButton: CSSProperties = {
-  padding: "10px 14px",
-  borderRadius: "12px",
-  background: "rgba(255,255,255,0.14)",
-  border: "1px solid rgba(255,255,255,0.22)",
-  color: "#fff",
+const primaryButton: CSSProperties = {
+  padding: "10px 16px",
+  borderRadius: "14px",
+  background: "#0f766e",
+  border: "1px solid #0f766e",
+  color: "#ffffff",
+  textDecoration: "none",
+  fontSize: "14px",
+  fontWeight: 700,
+};
+
+const secondaryButton: CSSProperties = {
+  padding: "10px 16px",
+  borderRadius: "14px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  color: "#111827",
   textDecoration: "none",
   fontSize: "14px",
   fontWeight: 700,
   cursor: "pointer",
-};
-
-const eyebrow: CSSProperties = {
-  margin: "0 0 8px",
-  fontSize: "13px",
-  fontWeight: 700,
-  textTransform: "uppercase",
-  letterSpacing: "0.04em",
-  opacity: 0.9,
-};
-
-const title: CSSProperties = {
-  fontSize: "30px",
-  margin: "0 0 10px",
-};
-
-const subtitle: CSSProperties = {
-  maxWidth: "720px",
-  fontSize: "15px",
-  lineHeight: 1.6,
-  margin: 0,
-  opacity: 0.92,
 };
 
 const summaryGrid: CSSProperties = {
@@ -482,87 +522,95 @@ const summaryGrid: CSSProperties = {
 };
 
 const summaryCard: CSSProperties = {
-  padding: "18px",
-  borderRadius: "18px",
-  background: "#fff",
-  border: "1px solid #e3e8ef",
-  boxShadow: "0 10px 24px rgba(16, 42, 67, 0.05)",
+  padding: "20px",
+  borderRadius: "22px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 14px 34px rgba(15, 23, 42, 0.06)",
 };
 
 const summaryLabel: CSSProperties = {
-  margin: "0 0 6px",
-  color: "#60758a",
-  fontSize: "12px",
-  fontWeight: 700,
+  margin: "0 0 8px",
+  color: "#64748b",
+  fontSize: "13px",
+  fontWeight: 800,
 };
 
 const summaryValue: CSSProperties = {
-  margin: "0 0 6px",
-  fontSize: "18px",
+  margin: "0 0 8px",
+  fontSize: "20px",
+  color: "#111827",
 };
 
 const summaryText: CSSProperties = {
   margin: 0,
-  fontSize: "13px",
-  color: "#52616f",
+  fontSize: "14px",
+  color: "#5f6f82",
 };
 
 const sectionCard: CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e3e8ef",
-  borderRadius: "18px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "22px",
   marginBottom: "12px",
   overflow: "hidden",
+  boxShadow: "0 12px 28px rgba(15, 23, 42, 0.05)",
 };
 
 const sectionButton: CSSProperties = {
   width: "100%",
-  padding: "15px 18px",
+  padding: "16px 20px",
   border: "none",
-  background: "#fff",
+  background: "#ffffff",
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
   fontSize: "15px",
-  fontWeight: 700,
-  color: "#102a43",
+  fontWeight: 800,
+  color: "#111827",
   cursor: "pointer",
 };
 
+const sectionButtonAction: CSSProperties = {
+  color: "#0f766e",
+  fontSize: "14px",
+};
+
 const sectionContent: CSSProperties = {
-  padding: "0 18px 18px",
+  padding: "0 20px 20px",
 };
 
 const infoGrid: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
   gap: "12px",
 };
 
 const infoItem: CSSProperties = {
-  padding: "13px",
-  borderRadius: "14px",
+  padding: "14px",
+  borderRadius: "16px",
   background: "#f8fafc",
   border: "1px solid #eef2f7",
 };
 
 const infoLabel: CSSProperties = {
-  margin: "0 0 5px",
+  margin: "0 0 6px",
   fontSize: "12px",
-  color: "#60758a",
-  fontWeight: 700,
+  color: "#64748b",
+  fontWeight: 800,
 };
 
 const infoValue: CSSProperties = {
   margin: 0,
   fontSize: "14px",
-  color: "#102a43",
-  lineHeight: 1.4,
+  color: "#111827",
+  lineHeight: 1.45,
 };
 
 const messageCard: CSSProperties = {
-  padding: "22px",
-  borderRadius: "18px",
-  background: "#fff",
-  border: "1px solid #e3e8ef",
+  padding: "24px",
+  borderRadius: "24px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 14px 36px rgba(15, 23, 42, 0.06)",
 };
