@@ -29,17 +29,6 @@ type Business = {
   name?: string | null;
 };
 
-type PayrollRun = {
-  id: string;
-  payroll_month: string;
-  employee_count: number;
-  total_gross_pay: number;
-  total_net_pay: number;
-  sars_payable: number;
-  status: string;
-  created_at: string;
-};
-
 const UIF_LIMIT = 17712;
 
 export default function PayrollPage() {
@@ -59,10 +48,6 @@ export default function PayrollPage() {
   const [saving, setSaving] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
-  const [recentRuns, setRecentRuns] = useState<PayrollRun[]>([]);
-  const [runMonthFilter, setRunMonthFilter] = useState("");
-  const [runDateFilter, setRunDateFilter] = useState("");
-  const [showAllRuns, setShowAllRuns] = useState(false);
 
   useEffect(() => {
     initialisePayroll();
@@ -159,26 +144,6 @@ export default function PayrollPage() {
 
     setEmployees(activeEmployees);
     setLoadingEmployees(false);
-
-    await fetchRecentRuns(business.id);
-  }
-
-  async function fetchRecentRuns(activeBusinessId?: string) {
-    const resolvedBusinessId = activeBusinessId || businessId;
-
-    if (!resolvedBusinessId) return;
-
-    const { data, error } = await supabase
-      .from("payroll_runs")
-      .select(
-        "id, payroll_month, employee_count, total_gross_pay, total_net_pay, sars_payable, status, created_at"
-      )
-      .eq("business_id", resolvedBusinessId)
-      .order("created_at", { ascending: false });
-
-    if (!error) {
-      setRecentRuns(data || []);
-    }
   }
 
   function getEmployeeName(employee: Employee | undefined) {
@@ -243,22 +208,6 @@ export default function PayrollPage() {
       sarsPayable,
     };
   }, [basicPay, bonus, overtimePay, otherDeductions, ageCategory]);
-
-  const filteredRuns = useMemo(() => {
-    return recentRuns.filter((run) => {
-      const matchesMonth = !runMonthFilter || run.payroll_month === runMonthFilter;
-
-      const createdDate = run.created_at
-        ? new Date(run.created_at).toISOString().split("T")[0]
-        : "";
-
-      const matchesDate = !runDateFilter || createdDate === runDateFilter;
-
-      return matchesMonth && matchesDate;
-    });
-  }, [recentRuns, runMonthFilter, runDateFilter]);
-
-  const visibleRuns = showAllRuns ? filteredRuns : filteredRuns.slice(0, 5);
 
   async function queuePayslipNotifications({
     payslipId,
@@ -346,13 +295,14 @@ export default function PayrollPage() {
     const [year, month] = payrollMonth.split("-");
     const employee = employees.find((item) => item.id === selectedEmployee);
 
-    const { data: existingPayslip, error: existingPayslipError } = await supabase
-      .from("payslips")
-      .select("id")
-      .eq("business_id", activeBusinessId)
-      .eq("employee_id", selectedEmployee)
-      .eq("payroll_month", payrollMonth)
-      .maybeSingle();
+    const { data: existingPayslip, error: existingPayslipError } =
+      await supabase
+        .from("payslips")
+        .select("id")
+        .eq("business_id", activeBusinessId)
+        .eq("employee_id", selectedEmployee)
+        .eq("payroll_month", payrollMonth)
+        .maybeSingle();
 
     if (existingPayslipError) {
       setMessage(existingPayslipError.message);
@@ -498,8 +448,6 @@ export default function PayrollPage() {
       activeBusinessId,
     });
 
-    await fetchRecentRuns(activeBusinessId);
-
     setMessage("Payslip generated successfully and linked to payroll run.");
     setSaving(false);
   }
@@ -508,7 +456,6 @@ export default function PayrollPage() {
     <main style={page}>
       <section style={header}>
         <div>
-          <p style={eyebrow}>Employer Payroll</p>
           <h1 style={title}>Payroll</h1>
           <p style={businessLine}>{businessName}</p>
           <p style={subtitle}>
@@ -732,95 +679,6 @@ export default function PayrollPage() {
           </div>
         </section>
       )}
-
-      <section style={recentCard}>
-        <div style={recentTop}>
-          <div>
-            <h2 style={sectionTitle}>Recent Payroll Activity</h2>
-            <p style={recentIntro}>
-              Latest payroll runs. Showing five by default.
-            </p>
-          </div>
-
-          <div style={filters}>
-            <input
-              style={filterInput}
-              type="month"
-              value={runMonthFilter}
-              onChange={(e) => setRunMonthFilter(e.target.value)}
-            />
-
-            <input
-              style={filterInput}
-              type="date"
-              value={runDateFilter}
-              onChange={(e) => setRunDateFilter(e.target.value)}
-            />
-
-            <button
-              style={smallButton}
-              onClick={() => {
-                setRunMonthFilter("");
-                setRunDateFilter("");
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-
-        {visibleRuns.length === 0 ? (
-          <div style={emptyState}>No payroll activity found yet.</div>
-        ) : (
-          <div style={tableWrap}>
-            <table style={table}>
-              <thead>
-                <tr>
-                  <th style={th}>Month</th>
-                  <th style={th}>Employees</th>
-                  <th style={th}>Gross</th>
-                  <th style={th}>Net</th>
-                  <th style={th}>SARS/UIF</th>
-                  <th style={th}>Created</th>
-                  <th style={th}>Open</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {visibleRuns.map((run) => (
-                  <tr key={run.id}>
-                    <td style={td}>
-                      <strong>{run.payroll_month}</strong>
-                    </td>
-                    <td style={td}>{run.employee_count || 0}</td>
-                    <td style={td}>R {money(run.total_gross_pay)}</td>
-                    <td style={td}>R {money(run.total_net_pay)}</td>
-                    <td style={td}>R {money(run.sars_payable)}</td>
-                    <td style={td}>{formatDate(run.created_at)}</td>
-                    <td style={td}>
-                      <Link
-                        href={`/employer/payroll/history/${run.id}`}
-                        style={openButton}
-                      >
-                        Open
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {filteredRuns.length > 5 && (
-          <button
-            style={viewMoreButton}
-            onClick={() => setShowAllRuns((current) => !current)}
-          >
-            {showAllRuns ? "Show Less" : "View More"}
-          </button>
-        )}
-      </section>
     </main>
   );
 }
@@ -844,20 +702,6 @@ function CalculationRow({
   );
 }
 
-function money(value: number | null | undefined) {
-  return Number(value || 0).toFixed(2);
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return "-";
-
-  return new Date(value).toLocaleDateString("en-ZA", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 const page = {
   minHeight: "100vh",
   padding: "38px",
@@ -875,20 +719,18 @@ const header = {
   flexWrap: "wrap" as const,
 };
 
-const eyebrow = {
-  color: "#0f766e",
-  fontWeight: 800,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  fontSize: "12px",
-  marginBottom: "8px",
-};
-
 const title = {
   fontSize: "34px",
   color: "#0f766e",
   margin: "0 0 6px",
   fontWeight: 900,
+};
+
+const businessLine = {
+  margin: 0,
+  color: "#0f172a",
+  fontSize: "15px",
+  fontWeight: 800,
 };
 
 const subtitle = {
@@ -897,13 +739,6 @@ const subtitle = {
   fontSize: "15px",
   lineHeight: 1.6,
   margin: "8px 0 0",
-};
-
-const businessLine = {
-  margin: 0,
-  color: "#0f172a",
-  fontSize: "15px",
-  fontWeight: 800,
 };
 
 const backButton = {
@@ -1085,94 +920,4 @@ const netBox = {
   justifyContent: "space-between",
   gap: "16px",
   fontSize: "18px",
-};
-
-const recentCard = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
-  borderRadius: "20px",
-  padding: "22px",
-};
-
-const recentTop = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: "16px",
-  marginBottom: "16px",
-  flexWrap: "wrap" as const,
-};
-
-const recentIntro = {
-  margin: "6px 0 0",
-  color: "#64748b",
-  fontSize: "13px",
-};
-
-const filters = {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap" as const,
-};
-
-const filterInput = {
-  padding: "9px 10px",
-  border: "1px solid #cbd5e1",
-  borderRadius: "10px",
-  minWidth: "150px",
-};
-
-const emptyState = {
-  background: "#ecfeff",
-  border: "1px solid #a5f3fc",
-  color: "#155e75",
-  borderRadius: "16px",
-  padding: "18px",
-  fontWeight: 700,
-};
-
-const tableWrap = {
-  width: "100%",
-  overflowX: "auto" as const,
-};
-
-const table = {
-  width: "100%",
-  borderCollapse: "collapse" as const,
-  minWidth: "860px",
-};
-
-const th = {
-  textAlign: "left" as const,
-  padding: "12px",
-  background: "#f8fafc",
-  borderBottom: "1px solid #e2e8f0",
-  color: "#475569",
-  fontSize: "12px",
-  textTransform: "uppercase" as const,
-};
-
-const td = {
-  padding: "12px",
-  borderBottom: "1px solid #e2e8f0",
-};
-
-const openButton = {
-  background: "#0f766e",
-  color: "#ffffff",
-  padding: "8px 13px",
-  borderRadius: "10px",
-  textDecoration: "none",
-  fontWeight: 800,
-};
-
-const viewMoreButton = {
-  marginTop: "14px",
-  background: "#ffffff",
-  color: "#0f766e",
-  border: "1px solid #0f766e",
-  borderRadius: "10px",
-  padding: "9px 14px",
-  fontWeight: 800,
-  cursor: "pointer",
 };
