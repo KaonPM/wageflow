@@ -11,6 +11,12 @@ type Employee = {
   employee_number: string | null;
   department: string | null;
   position: string | null;
+  email: string | null;
+  phone: string | null;
+  physical_address: string | null;
+  next_of_kin_name: string | null;
+  next_of_kin_phone: string | null;
+  next_of_kin_relationship: string | null;
   salary_type: string | null;
   pay_frequency: string | null;
   payment_method: string | null;
@@ -36,6 +42,12 @@ const emptyForm = {
   employee_number: "",
   department: "",
   position: "",
+  email: "",
+  phone: "",
+  physical_address: "",
+  next_of_kin_name: "",
+  next_of_kin_phone: "",
+  next_of_kin_relationship: "",
   salary_type: "monthly",
   pay_frequency: "monthly",
   payment_method: "Bank Transfer",
@@ -127,6 +139,12 @@ export default function EmployerEmployeesPage() {
       employee_number: form.employee_number,
       department: form.department,
       position: form.position,
+      email: form.email,
+      phone: form.phone,
+      physical_address: form.physical_address,
+      next_of_kin_name: form.next_of_kin_name,
+      next_of_kin_phone: form.next_of_kin_phone,
+      next_of_kin_relationship: form.next_of_kin_relationship,
       salary_type: form.salary_type,
       pay_frequency: form.pay_frequency,
       payment_method: form.payment_method,
@@ -202,6 +220,12 @@ export default function EmployerEmployeesPage() {
       employee_number: employee.employee_number || "",
       department: employee.department || "",
       position: employee.position || "",
+      email: employee.email || "",
+      phone: employee.phone || "",
+      physical_address: employee.physical_address || "",
+      next_of_kin_name: employee.next_of_kin_name || "",
+      next_of_kin_phone: employee.next_of_kin_phone || "",
+      next_of_kin_relationship: employee.next_of_kin_relationship || "",
       salary_type: employee.salary_type || "monthly",
       pay_frequency: employee.pay_frequency || "monthly",
       payment_method: employee.payment_method || "Bank Transfer",
@@ -225,7 +249,9 @@ export default function EmployerEmployeesPage() {
     return employees.filter((employee) => {
       const text = `${employee.first_name || ""} ${employee.last_name || ""} ${
         employee.employee_number || ""
-      } ${employee.department || ""} ${employee.position || ""}`.toLowerCase();
+      } ${employee.department || ""} ${employee.position || ""} ${
+        employee.email || ""
+      } ${employee.phone || ""}`.toLowerCase();
 
       const matchesSearch = text.includes(search.toLowerCase());
 
@@ -437,6 +463,71 @@ export default function EmployerEmployeesPage() {
                 value={form.position}
                 onChange={(e) =>
                   setForm({ ...form, position: e.target.value })
+                }
+              />
+            </Field>
+
+            <Field label="Email Address">
+              <input
+                style={input}
+                type="email"
+                value={form.email}
+                onChange={(e) =>
+                  setForm({ ...form, email: e.target.value })
+                }
+              />
+            </Field>
+
+            <Field label="Contact Number">
+              <input
+                style={input}
+                value={form.phone}
+                onChange={(e) =>
+                  setForm({ ...form, phone: e.target.value })
+                }
+              />
+            </Field>
+
+            <Field label="Physical Address">
+              <textarea
+                style={compactTextarea}
+                value={form.physical_address}
+                onChange={(e) =>
+                  setForm({ ...form, physical_address: e.target.value })
+                }
+              />
+            </Field>
+
+            <Field label="Next of Kin Name">
+              <input
+                style={input}
+                value={form.next_of_kin_name}
+                onChange={(e) =>
+                  setForm({ ...form, next_of_kin_name: e.target.value })
+                }
+              />
+            </Field>
+
+            <Field label="Next of Kin Contact">
+              <input
+                style={input}
+                value={form.next_of_kin_phone}
+                onChange={(e) =>
+                  setForm({ ...form, next_of_kin_phone: e.target.value })
+                }
+              />
+            </Field>
+
+            <Field label="Next of Kin Relationship">
+              <input
+                style={input}
+                placeholder="Mother, spouse, brother..."
+                value={form.next_of_kin_relationship}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    next_of_kin_relationship: e.target.value,
+                  })
                 }
               />
             </Field>
@@ -783,6 +874,18 @@ const input = {
   border: "1px solid #cbd5e1",
   background: "#ffffff",
   color: "#0f172a",
+};
+
+const compactTextarea = {
+  width: "100%",
+  minHeight: "68px",
+  padding: "10px 11px",
+  borderRadius: "10px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
+  fontFamily: "Arial, sans-serif",
+  resize: "vertical" as const,
 };
 
 const checkboxRow = {
