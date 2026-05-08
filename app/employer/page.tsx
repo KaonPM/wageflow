@@ -175,14 +175,6 @@ export default function EmployerDashboard() {
         />
 
         <DashboardCard
-          icon="✅"
-          title="Approvals"
-          description="Review leave requests, overtime approvals, disciplinary confirmations and pending HR actions."
-          href="/employer/approvals"
-          tag="Action Centre"
-        />
-
-        <DashboardCard
           icon="⚙️"
           title="Settings"
           description="Configure company details, branding, PAYE, UIF and payment preferences."
