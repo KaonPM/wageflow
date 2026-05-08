@@ -68,7 +68,7 @@ export default function DisciplinaryRecordsPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<DisciplinaryRecord | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState("Warning letter");
-  const [mode, setMode] = useState<"view" | "new" | "edit" | "letter" | null>(null);
+  const [mode, setMode] = useState<"new" | "edit" | "letter" | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -86,10 +86,15 @@ export default function DisciplinaryRecordsPage() {
     loadData();
   }, []);
 
-  const selectedEmployeeRecords = useMemo(() => {
-    if (!selectedEmployee) return [];
-    return records.filter((record) => record.employee_id === selectedEmployee.id);
-  }, [records, selectedEmployee]);
+  const employeeRecordCount = useMemo(() => {
+    const countMap: Record<string, number> = {};
+
+    records.forEach((record) => {
+      countMap[record.employee_id] = (countMap[record.employee_id] || 0) + 1;
+    });
+
+    return countMap;
+  }, [records]);
 
   function employeeName(employee: Employee | null | undefined) {
     if (!employee) return "Unknown employee";
@@ -127,6 +132,7 @@ export default function DisciplinaryRecordsPage() {
 
     if (employeeError) {
       console.error("Employees error:", employeeError);
+      alert(`Could not load employees: ${employeeError.message}`);
       setEmployees([]);
       setRecords([]);
       setLoading(false);
@@ -147,37 +153,32 @@ export default function DisciplinaryRecordsPage() {
         .maybeSingle();
 
       setBusiness(businessData || { id: businessId });
-
-      const { data: recordData } = await supabase
-        .from("disciplinary_records")
-        .select("*")
-        .eq("business_id", businessId)
-        .order("created_at", { ascending: false });
-
-      setRecords(recordData || []);
     } else {
-      const { data: recordData } = await supabase
-        .from("disciplinary_records")
-        .select("*")
-        .order("created_at", { ascending: false });
-
       setBusiness(null);
-      setRecords(recordData || []);
     }
 
-    setLoading(false);
-  }
+    const { data: recordData, error: recordError } = await supabase
+      .from("disciplinary_records")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  function openView(employee: Employee) {
-    setSelectedEmployee(employee);
-    setSelectedRecord(null);
-    setMode("view");
+    if (recordError) {
+      console.error("Disciplinary records error:", recordError);
+      alert(`Could not load disciplinary records: ${recordError.message}`);
+      setRecords([]);
+      setLoading(false);
+      return;
+    }
+
+    setRecords(recordData || []);
+    setLoading(false);
   }
 
   function openNew(employee: Employee) {
     setSelectedEmployee(employee);
     setSelectedRecord(null);
     setMode("new");
+
     setForm({
       record_type: "Written warning",
       status: "Open",
@@ -189,12 +190,45 @@ export default function DisciplinaryRecordsPage() {
     });
   }
 
+  function openEditLatest(employee: Employee) {
+    const employeeRecords = records.filter((record) => record.employee_id === employee.id);
+
+    if (employeeRecords.length === 0) {
+      alert("No disciplinary record found for this employee yet. Create a new record first.");
+      return;
+    }
+
+    const latestRecord = employeeRecords[0];
+    openEdit(latestRecord);
+  }
+
+  function openViewRecords(employee: Employee) {
+    const employeeRecords = records.filter((record) => record.employee_id === employee.id);
+
+    if (employeeRecords.length === 0) {
+      alert("No disciplinary records found for this employee yet.");
+      return;
+    }
+
+    const summary = employeeRecords
+      .map(
+        (record, index) =>
+          `${index + 1}. ${record.record_type} | ${record.status} | ${
+            record.record_date || "No date"
+          }\nAction: ${record.action_taken}`
+      )
+      .join("\n\n");
+
+    alert(`${employeeName(employee)} disciplinary records:\n\n${summary}`);
+  }
+
   function openEdit(record: DisciplinaryRecord) {
     const employee = employees.find((item) => item.id === record.employee_id) || null;
 
     setSelectedEmployee(employee);
     setSelectedRecord(record);
     setMode("edit");
+
     setForm({
       record_type: record.record_type,
       status: record.status,
@@ -206,17 +240,27 @@ export default function DisciplinaryRecordsPage() {
     });
   }
 
-  function openLetter(record: DisciplinaryRecord) {
-    const employee = employees.find((item) => item.id === record.employee_id) || null;
+  function openLetterForLatest(employee: Employee) {
+    const employeeRecords = records.filter((record) => record.employee_id === employee.id);
+
+    if (employeeRecords.length === 0) {
+      alert("No disciplinary record found for this employee yet. Create a record before generating a letter.");
+      return;
+    }
+
+    const latestRecord = employeeRecords[0];
 
     setSelectedEmployee(employee);
-    setSelectedRecord(record);
+    setSelectedRecord(latestRecord);
     setSelectedTemplate("Warning letter");
     setMode("letter");
   }
 
   async function saveRecord() {
-    if (!selectedEmployee) return;
+    if (!selectedEmployee) {
+      alert("Please select an employee first.");
+      return;
+    }
 
     if (!form.incident_date || !form.incident_description || !form.action_taken) {
       alert("Please complete incident date, description of incident and action taken.");
@@ -240,14 +284,34 @@ export default function DisciplinaryRecordsPage() {
     };
 
     if (mode === "edit" && selectedRecord) {
-      await supabase.from("disciplinary_records").update(payload).eq("id", selectedRecord.id);
+      const { error } = await supabase
+        .from("disciplinary_records")
+        .update(payload)
+        .eq("id", selectedRecord.id);
+
+      if (error) {
+        console.error("Update disciplinary record error:", error);
+        alert(`Record was not updated: ${error.message}`);
+        setSaving(false);
+        return;
+      }
     } else {
-      await supabase.from("disciplinary_records").insert(payload);
+      const { error } = await supabase.from("disciplinary_records").insert(payload);
+
+      if (error) {
+        console.error("Insert disciplinary record error:", error);
+        alert(`Record was not saved: ${error.message}`);
+        setSaving(false);
+        return;
+      }
     }
 
     await loadData();
     setSaving(false);
-    setMode("view");
+    setSelectedEmployee(null);
+    setSelectedRecord(null);
+    setMode(null);
+    alert("Disciplinary record saved successfully.");
   }
 
   function buildLetter() {
@@ -389,7 +453,7 @@ Employer representative: ______________________ Date: _______________`;
           <div>
             <h2 style={styles.cardTitle}>Employees</h2>
             <p style={styles.muted}>
-              View disciplinary records, edit records, or create a new disciplinary record for each employee.
+              View disciplinary records, create new records, edit actions and generate letters.
             </p>
           </div>
 
@@ -418,13 +482,15 @@ Employer representative: ______________________ Date: _______________`;
             </div>
 
             {employees.map((employee) => {
-              const count = records.filter((record) => record.employee_id === employee.id).length;
+              const count = employeeRecordCount[employee.id] || 0;
 
               return (
                 <div key={employee.id} style={styles.tableRow}>
                   <div>
                     <strong>{employeeName(employee)}</strong>
-                    <p style={styles.smallText}>{employee.employee_number || "No employee number"}</p>
+                    <p style={styles.smallText}>
+                      {employee.employee_number || "No employee number"}
+                    </p>
                   </div>
 
                   <div>
@@ -440,11 +506,17 @@ Employer representative: ______________________ Date: _______________`;
                   </div>
 
                   <div style={styles.actions}>
-                    <button style={styles.viewButton} onClick={() => openView(employee)}>
-                      View Records
+                    <button style={styles.viewButton} onClick={() => openViewRecords(employee)}>
+                      View
                     </button>
                     <button style={styles.editButton} onClick={() => openNew(employee)}>
-                      New Record
+                      New
+                    </button>
+                    <button style={styles.editButton} onClick={() => openEditLatest(employee)}>
+                      Edit
+                    </button>
+                    <button style={styles.letterButton} onClick={() => openLetterForLatest(employee)}>
+                      Generate Letter
                     </button>
                   </div>
                 </div>
@@ -453,52 +525,6 @@ Employer representative: ______________________ Date: _______________`;
           </div>
         )}
       </section>
-
-      {selectedEmployee && mode === "view" && (
-        <section style={styles.card}>
-          <div style={styles.cardTop}>
-            <div>
-              <h2 style={styles.cardTitle}>Records for {employeeName(selectedEmployee)}</h2>
-              <p style={styles.muted}>View, edit and generate letters for this employee.</p>
-            </div>
-
-            <button style={styles.greenButton} onClick={() => openNew(selectedEmployee)}>
-              + New Record
-            </button>
-          </div>
-
-          {selectedEmployeeRecords.length === 0 ? (
-            <p style={styles.muted}>No disciplinary records found for this employee.</p>
-          ) : (
-            <div style={styles.table}>
-              <div style={styles.recordHeader}>
-                <span>Record Type</span>
-                <span>Status</span>
-                <span>Date</span>
-                <span>Action</span>
-                <span>Options</span>
-              </div>
-
-              {selectedEmployeeRecords.map((record) => (
-                <div key={record.id} style={styles.recordRow}>
-                  <span>{record.record_type}</span>
-                  <span>{record.status}</span>
-                  <span>{record.record_date}</span>
-                  <span>{record.action_taken}</span>
-                  <span style={styles.actions}>
-                    <button style={styles.editButton} onClick={() => openEdit(record)}>
-                      Edit
-                    </button>
-                    <button style={styles.letterButton} onClick={() => openLetter(record)}>
-                      Generate Letter
-                    </button>
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
 
       {(mode === "new" || mode === "edit") && selectedEmployee && (
         <section style={styles.card}>
@@ -585,7 +611,14 @@ Employer representative: ______________________ Date: _______________`;
           </label>
 
           <div style={styles.actions}>
-            <button style={styles.lightButton} onClick={() => setMode("view")}>
+            <button
+              style={styles.lightButton}
+              onClick={() => {
+                setSelectedEmployee(null);
+                setSelectedRecord(null);
+                setMode(null);
+              }}
+            >
               Cancel
             </button>
             <button style={styles.greenButton} onClick={saveRecord} disabled={saving}>
@@ -618,7 +651,14 @@ Employer representative: ______________________ Date: _______________`;
           <pre style={styles.letterPreview}>{buildLetter()}</pre>
 
           <div style={styles.actions}>
-            <button style={styles.lightButton} onClick={() => setMode("view")}>
+            <button
+              style={styles.lightButton}
+              onClick={() => {
+                setSelectedEmployee(null);
+                setSelectedRecord(null);
+                setMode(null);
+              }}
+            >
               Back
             </button>
             <button
@@ -727,9 +767,9 @@ const styles: Record<string, React.CSSProperties> = {
     overflowX: "auto",
   },
   tableHeader: {
-    minWidth: "820px",
+    minWidth: "900px",
     display: "grid",
-    gridTemplateColumns: "1.4fr 1.3fr 1fr 1.8fr",
+    gridTemplateColumns: "1.3fr 1.2fr 0.8fr 2.4fr",
     gap: "16px",
     padding: "14px 8px",
     borderBottom: "1px solid #e5e7eb",
@@ -737,33 +777,13 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#2c2333",
   },
   tableRow: {
-    minWidth: "820px",
+    minWidth: "900px",
     display: "grid",
-    gridTemplateColumns: "1.4fr 1.3fr 1fr 1.8fr",
+    gridTemplateColumns: "1.3fr 1.2fr 0.8fr 2.4fr",
     gap: "16px",
     alignItems: "center",
     padding: "16px 8px",
     borderBottom: "1px solid #eef2f1",
-  },
-  recordHeader: {
-    minWidth: "980px",
-    display: "grid",
-    gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.5fr 1.6fr",
-    gap: "14px",
-    padding: "14px 8px",
-    borderBottom: "1px solid #e5e7eb",
-    fontWeight: 800,
-    color: "#2c2333",
-  },
-  recordRow: {
-    minWidth: "980px",
-    display: "grid",
-    gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.5fr 1.6fr",
-    gap: "14px",
-    alignItems: "center",
-    padding: "16px 8px",
-    borderBottom: "1px solid #eef2f1",
-    fontSize: "14px",
   },
   actions: {
     display: "flex",
