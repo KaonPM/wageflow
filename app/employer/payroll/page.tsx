@@ -82,11 +82,11 @@ export default function PayrollPage() {
       return null;
     }
 
-   const { data: businessRecord, error: businessError } = await supabase
-  .from("businesses")
-  .select("*")
-  .eq("id", profile.business_id)
-  .single();
+    const { data: businessRecord, error: businessError } = await supabase
+      .from("businesses")
+      .select("*")
+      .eq("id", profile.business_id)
+      .single();
 
     if (businessError) {
       console.error("Business lookup failed", businessError);
@@ -294,12 +294,138 @@ export default function PayrollPage() {
     const [year, month] = payrollMonth.split("-");
     const employee = employees.find((item) => item.id === selectedEmployee);
 
+    const { data: existingPayslip, error: existingPayslipError } =
+      await supabase
+        .from("payslips")
+        .select("id")
+        .eq("business_id", activeBusinessId)
+        .eq("employee_id", selectedEmployee)
+        .eq("payroll_month", payrollMonth)
+        .maybeSingle();
+
+    if (existingPayslipError) {
+      setMessage(existingPayslipError.message);
+      setSaving(false);
+      return;
+    }
+
+    if (existingPayslip?.id) {
+      setMessage(
+        "A payslip has already been generated for this employee and payroll month."
+      );
+      setSaving(false);
+      return;
+    }
+
+    let payrollRunId: string | null = null;
+
+    const { data: existingRun, error: existingRunError } = await supabase
+      .from("payroll_runs")
+      .select(
+        `
+        id,
+        employee_count,
+        total_basic_pay,
+        total_gross_pay,
+        total_paye,
+        total_uif_employee,
+        total_uif_employer,
+        total_uif,
+        total_other_deductions,
+        total_net_pay,
+        sars_payable
+      `
+      )
+      .eq("business_id", activeBusinessId)
+      .eq("payroll_month", payrollMonth)
+      .maybeSingle();
+
+    if (existingRunError) {
+      setMessage(existingRunError.message);
+      setSaving(false);
+      return;
+    }
+
+    if (existingRun?.id) {
+      payrollRunId = existingRun.id;
+
+      const { error: updateRunError } = await supabase
+        .from("payroll_runs")
+        .update({
+          employee_count: Number(existingRun.employee_count || 0) + 1,
+          total_basic_pay:
+            Number(existingRun.total_basic_pay || 0) + Number(basicPay || 0),
+          total_gross_pay:
+            Number(existingRun.total_gross_pay || 0) +
+            Number(calculations.grossPay || 0),
+          total_paye:
+            Number(existingRun.total_paye || 0) + Number(calculations.paye || 0),
+          total_uif_employee:
+            Number(existingRun.total_uif_employee || 0) +
+            Number(calculations.employeeUif || 0),
+          total_uif_employer:
+            Number(existingRun.total_uif_employer || 0) +
+            Number(calculations.employerUif || 0),
+          total_uif:
+            Number(existingRun.total_uif || 0) +
+            Number(calculations.totalUif || 0),
+          total_other_deductions:
+            Number(existingRun.total_other_deductions || 0) +
+            Number(otherDeductions || 0),
+          total_net_pay:
+            Number(existingRun.total_net_pay || 0) +
+            Number(calculations.netPay || 0),
+          sars_payable:
+            Number(existingRun.sars_payable || 0) +
+            Number(calculations.sarsPayable || 0),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingRun.id);
+
+      if (updateRunError) {
+        setMessage(updateRunError.message);
+        setSaving(false);
+        return;
+      }
+    } else {
+      const { data: newRun, error: payrollRunError } = await supabase
+        .from("payroll_runs")
+        .insert([
+          {
+            business_id: activeBusinessId,
+            payroll_month: payrollMonth,
+            employee_count: 1,
+            total_basic_pay: basicPay,
+            total_gross_pay: calculations.grossPay,
+            total_paye: calculations.paye,
+            total_uif_employee: calculations.employeeUif,
+            total_uif_employer: calculations.employerUif,
+            total_uif: calculations.totalUif,
+            total_other_deductions: otherDeductions,
+            total_net_pay: calculations.netPay,
+            sars_payable: calculations.sarsPayable,
+            status: "generated",
+          },
+        ])
+        .select("id")
+        .single();
+
+      if (payrollRunError) {
+        setMessage(payrollRunError.message);
+        setSaving(false);
+        return;
+      }
+
+      payrollRunId = newRun.id;
+    }
+
     const { data: payslipData, error } = await supabase
       .from("payslips")
       .insert([
         {
           employee_id: selectedEmployee,
           business_id: activeBusinessId,
+          payroll_run_id: payrollRunId,
           basic_pay: basicPay,
           bonus,
           overtime_pay: overtimePay,
@@ -335,7 +461,7 @@ export default function PayrollPage() {
       activeBusinessId,
     });
 
-    setMessage("Payslip generated successfully.");
+    setMessage("Payslip generated successfully and linked to payroll run.");
     setSaving(false);
   }
 
@@ -486,7 +612,11 @@ export default function PayrollPage() {
           <CalculationRow label="Basic Pay" value={basicPay} />
           <CalculationRow label="Bonus" value={bonus} />
           <CalculationRow label="Overtime Pay" value={overtimePay} />
-          <CalculationRow label="Gross Pay" value={calculations.grossPay} strong />
+          <CalculationRow
+            label="Gross Pay"
+            value={calculations.grossPay}
+            strong
+          />
 
           <div style={divider} />
 
@@ -508,7 +638,10 @@ export default function PayrollPage() {
             label="Employer UIF Contribution"
             value={calculations.employerUif}
           />
-          <CalculationRow label="Total UIF Payable" value={calculations.totalUif} />
+          <CalculationRow
+            label="Total UIF Payable"
+            value={calculations.totalUif}
+          />
           <CalculationRow
             label="Total Payable to SARS/UIF"
             value={calculations.sarsPayable}
