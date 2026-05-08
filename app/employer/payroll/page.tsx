@@ -18,6 +18,7 @@ type Employee = {
   email: string | null;
   business_id?: string | null;
   employment_status?: string | null;
+  status?: string | null;
 };
 
 type Business = {
@@ -81,11 +82,11 @@ export default function PayrollPage() {
       return null;
     }
 
-    const { data: businessRecord, error: businessError } = await supabase
-      .from("businesses")
-      .select("id, business_name, trading_name, registered_name, name")
-      .eq("id", profile.business_id)
-      .single();
+   const { data: businessRecord, error: businessError } = await supabase
+  .from("businesses")
+  .select("*")
+  .eq("id", profile.business_id)
+  .single();
 
     if (businessError) {
       console.error("Business lookup failed", businessError);
@@ -93,6 +94,13 @@ export default function PayrollPage() {
     }
 
     return businessRecord;
+  }
+
+  function isActiveEmployee(employee: Employee) {
+    const employeeStatus =
+      employee.status || employee.employment_status || "active";
+
+    return employeeStatus.trim().toLowerCase() === "active";
   }
 
   async function fetchEmployees() {
@@ -131,7 +139,9 @@ export default function PayrollPage() {
       return;
     }
 
-    setEmployees(data || []);
+    const activeEmployees = (data || []).filter(isActiveEmployee);
+
+    setEmployees(activeEmployees);
     setLoadingEmployees(false);
   }
 
@@ -403,8 +413,7 @@ export default function PayrollPage() {
 
           {!loadingEmployees && employees.length === 0 && (
             <p style={helperText}>
-              No employees found for this business. Confirm the employee has the
-              same business_id as the employer profile.
+              No active employees found for this business.
             </p>
           )}
 
