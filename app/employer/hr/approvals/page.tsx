@@ -39,15 +39,11 @@ type ApprovalRequest = {
   updated_at: string | null;
 };
 
-const decisionStatuses: ApprovalStatus[] = ["Approved", "Declined"];
-
 export default function HRApprovalsPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
-  const [mode, setMode] = useState<"view" | "approve" | "decline" | "note" | null>(null);
-  const [decisionStatus, setDecisionStatus] = useState<ApprovalStatus>("Approved");
   const [employerNote, setEmployerNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -70,7 +66,6 @@ export default function HRApprovalsPage() {
       .order("created_at", { ascending: false });
 
     if (employeeError) {
-      console.error("Employees error:", employeeError);
       alert(`Could not load employees: ${employeeError.message}`);
       setLoading(false);
       return;
@@ -82,7 +77,6 @@ export default function HRApprovalsPage() {
       .order("created_at", { ascending: false });
 
     if (requestError) {
-      console.error("Approval requests error:", requestError);
       alert(`Could not load approval requests: ${requestError.message}`);
       setLoading(false);
       return;
@@ -95,7 +89,6 @@ export default function HRApprovalsPage() {
 
   function getEmployeeName(employee: Employee | null | undefined) {
     if (!employee) return "Unknown employee";
-
     if (employee.full_name) return employee.full_name;
     if (employee.name) return employee.name;
 
@@ -107,50 +100,26 @@ export default function HRApprovalsPage() {
     return requests.filter((request) => request.employee_id === employeeId);
   }
 
-  function countByStatus(employeeId: string, status: ApprovalStatus) {
-    return getEmployeeRequests(employeeId).filter((request) => request.status === status).length;
+  function getPendingCount(employeeId: string) {
+    return getEmployeeRequests(employeeId).filter((request) => request.status === "Pending").length;
   }
 
-  function latestRequest(employeeId: string) {
+  function getLatestRequest(employeeId: string) {
     return getEmployeeRequests(employeeId)[0] || null;
   }
 
-  function openEmployee(employee: Employee) {
+  function viewEmployeeRequests(employee: Employee) {
     setSelectedEmployee(employee);
     setSelectedRequest(null);
-    setMode(null);
     setEmployerNote("");
   }
 
-  function openRequest(request: ApprovalRequest, nextMode: "view" | "approve" | "decline" | "note") {
+  function viewRequest(request: ApprovalRequest) {
     setSelectedRequest(request);
     setEmployerNote(request.employer_note || "");
-
-    if (nextMode === "approve") {
-      setDecisionStatus("Approved");
-    } else if (nextMode === "decline") {
-      setDecisionStatus("Declined");
-    } else {
-      setDecisionStatus(request.status === "Declined" ? "Declined" : "Approved");
-    }
-
-    setMode(nextMode);
   }
 
-  function openLatest(employee: Employee, nextMode: "view" | "approve" | "decline" | "note") {
-    const latest = latestRequest(employee.id);
-
-    setSelectedEmployee(employee);
-
-    if (!latest) {
-      alert("This employee does not have any approval requests yet.");
-      return;
-    }
-
-    openRequest(latest, nextMode);
-  }
-
-  async function saveDecision() {
+  async function saveDecision(status: "Approved" | "Declined") {
     if (!selectedRequest) {
       alert("Please select a request first.");
       return;
@@ -161,7 +130,7 @@ export default function HRApprovalsPage() {
     const { error } = await supabase
       .from("approval_requests")
       .update({
-        status: decisionStatus,
+        status,
         employer_note: employerNote,
         approved_by: "Employer admin",
         approved_at: new Date().toISOString(),
@@ -170,7 +139,6 @@ export default function HRApprovalsPage() {
       .eq("id", selectedRequest.id);
 
     if (error) {
-      console.error("Approval decision error:", error);
       alert(`Decision was not saved: ${error.message}`);
       setSaving(false);
       return;
@@ -180,8 +148,7 @@ export default function HRApprovalsPage() {
 
     setSaving(false);
     setSelectedRequest(null);
-    setMode(null);
-    alert("Approval decision saved successfully.");
+    alert(`Request ${status.toLowerCase()} successfully.`);
   }
 
   function requestSummary(request: ApprovalRequest) {
@@ -228,9 +195,9 @@ export default function HRApprovalsPage() {
       <section style={styles.card}>
         <div style={styles.cardTop}>
           <div>
-            <h2 style={styles.cardTitle}>Employees</h2>
+            <h2 style={styles.cardTitle}>Employee Approval Overview</h2>
             <p style={styles.muted}>
-              Select an employee to view their approval request history.
+              Select an employee to view requests and make an approval decision.
             </p>
           </div>
 
@@ -242,25 +209,20 @@ export default function HRApprovalsPage() {
         {employees.length === 0 ? (
           <div style={styles.emptyState}>
             <p style={styles.emptyTitle}>No employees found</p>
-            <p style={styles.muted}>
-              Employees must be added before approval requests can be reviewed.
-            </p>
+            <p style={styles.muted}>Employees must be added before requests can be reviewed.</p>
           </div>
         ) : (
           <div style={styles.table}>
             <div style={styles.employeeTableHeader}>
               <span>Employee</span>
-              <span>Department</span>
               <span>Pending</span>
-              <span>Approved</span>
-              <span>Declined</span>
-              <span>History</span>
+              <span>Latest Status</span>
               <span>Action</span>
             </div>
 
             {employees.map((employee) => {
-              const employeeRequests = getEmployeeRequests(employee.id);
-              const latest = latestRequest(employee.id);
+              const latest = getLatestRequest(employee.id);
+              const pendingCount = getPendingCount(employee.id);
 
               return (
                 <div key={employee.id} style={styles.employeeTableRow}>
@@ -269,62 +231,32 @@ export default function HRApprovalsPage() {
                     <p style={styles.smallText}>
                       {employee.employee_number || "No employee number"}
                     </p>
-                  </div>
-
-                  <div>
-                    <strong>{employee.department || "No department"}</strong>
-                    <p style={styles.smallText}>{employee.job_title || "No job title"}</p>
-                  </div>
-
-                  <div>
-                    <span style={styles.pendingBadge}>
-                      {countByStatus(employee.id, "Pending")}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span style={styles.approvedBadge}>
-                      {countByStatus(employee.id, "Approved")}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span style={styles.declinedBadge}>
-                      {countByStatus(employee.id, "Declined")}
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>{employeeRequests.length}</strong>
                     <p style={styles.smallText}>
-                      {latest ? `Latest: ${latest.status}` : "No requests yet"}
+                      {employee.department || "No department"}
                     </p>
                   </div>
 
-                  <div style={styles.actions}>
-                    <button style={styles.viewButton} onClick={() => openEmployee(employee)}>
+                  <div>
+                    <span style={styles.pendingBadge}>{pendingCount}</span>
+                  </div>
+
+                  <div>
+                    {latest ? (
+                      <>
+                        <span style={statusStyle(latest.status)}>{latest.status}</span>
+                        <p style={styles.smallText}>{requestSummary(latest)}</p>
+                      </>
+                    ) : (
+                      <p style={styles.smallText}>No requests yet</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <button
+                      style={styles.primaryButton}
+                      onClick={() => viewEmployeeRequests(employee)}
+                    >
                       View Requests
-                    </button>
-
-                    <button
-                      style={styles.editButton}
-                      onClick={() => openLatest(employee, "approve")}
-                    >
-                      Approve Latest
-                    </button>
-
-                    <button
-                      style={styles.declineButton}
-                      onClick={() => openLatest(employee, "decline")}
-                    >
-                      Decline Latest
-                    </button>
-
-                    <button
-                      style={styles.lightButtonSmall}
-                      onClick={() => openLatest(employee, "note")}
-                    >
-                      Edit Note
                     </button>
                   </div>
                 </div>
@@ -339,12 +271,22 @@ export default function HRApprovalsPage() {
           <div style={styles.cardTop}>
             <div>
               <h2 style={styles.cardTitle}>
-                Approval History: {getEmployeeName(selectedEmployee)}
+                Requests for {getEmployeeName(selectedEmployee)}
               </h2>
               <p style={styles.muted}>
-                View all pending, approved, declined and cancelled requests for this employee.
+                Review request history, then open a request to approve or decline it.
               </p>
             </div>
+
+            <button
+              style={styles.lightButton}
+              onClick={() => {
+                setSelectedEmployee(null);
+                setSelectedRequest(null);
+              }}
+            >
+              Close
+            </button>
           </div>
 
           {selectedEmployeeRequests.length === 0 ? (
@@ -355,65 +297,33 @@ export default function HRApprovalsPage() {
               </p>
             </div>
           ) : (
-            <div style={styles.table}>
-              <div style={styles.requestTableHeader}>
-                <span>Request Type</span>
-                <span>Request Details</span>
-                <span>Requested Date</span>
-                <span>Status</span>
-                <span>Employer Note</span>
-                <span>Action</span>
-              </div>
-
+            <div style={styles.requestList}>
               {selectedEmployeeRequests.map((request) => (
-                <div key={request.id} style={styles.requestTableRow}>
+                <div key={request.id} style={styles.requestCard}>
                   <div>
-                    <strong>{request.request_type}</strong>
-                    <p style={styles.smallText}>{request.leave_type || "N/A"}</p>
-                  </div>
+                    <div style={styles.requestTopLine}>
+                      <strong>{request.request_type}</strong>
+                      <span style={statusStyle(request.status)}>{request.status}</span>
+                    </div>
 
-                  <div>
-                    <strong>{requestSummary(request)}</strong>
-                    <p style={styles.smallText}>{request.reason || "No reason captured"}</p>
-                  </div>
-
-                  <div>
-                    <strong>{formatDate(request.created_at)}</strong>
+                    <p style={styles.requestSummary}>{requestSummary(request)}</p>
                     <p style={styles.smallText}>
-                      {request.approved_at
-                        ? `Decided: ${formatDate(request.approved_at)}`
-                        : "No decision yet"}
+                      Requested: {formatDate(request.created_at)}
                     </p>
+                    <p style={styles.smallText}>
+                      Reason: {request.reason || request.employee_note || "No reason captured"}
+                    </p>
+
+                    {request.employer_note && (
+                      <p style={styles.notePreview}>
+                        Employer note: {request.employer_note}
+                      </p>
+                    )}
                   </div>
 
-                  <div>
-                    <span style={statusStyle(request.status)}>{request.status}</span>
-                  </div>
-
-                  <div>
-                    <strong>{request.employer_note || "No note yet"}</strong>
-                  </div>
-
-                  <div style={styles.actions}>
-                    <button style={styles.viewButton} onClick={() => openRequest(request, "view")}>
-                      View
-                    </button>
-                    <button style={styles.editButton} onClick={() => openRequest(request, "approve")}>
-                      Approve
-                    </button>
-                    <button
-                      style={styles.declineButton}
-                      onClick={() => openRequest(request, "decline")}
-                    >
-                      Decline
-                    </button>
-                    <button
-                      style={styles.lightButtonSmall}
-                      onClick={() => openRequest(request, "note")}
-                    >
-                      Edit Note
-                    </button>
-                  </div>
+                  <button style={styles.primaryButton} onClick={() => viewRequest(request)}>
+                    View
+                  </button>
                 </div>
               ))}
             </div>
@@ -421,16 +331,26 @@ export default function HRApprovalsPage() {
         </section>
       )}
 
-      {selectedEmployee && selectedRequest && mode && (
+      {selectedEmployee && selectedRequest && (
         <section style={styles.card}>
-          <h2 style={styles.cardTitle}>
-            {mode === "view" && "View Request"}
-            {mode === "approve" && "Approve Request"}
-            {mode === "decline" && "Decline Request"}
-            {mode === "note" && "Edit Employer Note"}
-          </h2>
+          <div style={styles.cardTop}>
+            <div>
+              <h2 style={styles.cardTitle}>Approval Decision</h2>
+              <p style={styles.muted}>
+                Employee: {getEmployeeName(selectedEmployee)}
+              </p>
+            </div>
 
-          <p style={styles.muted}>Employee: {getEmployeeName(selectedEmployee)}</p>
+            <button
+              style={styles.lightButton}
+              onClick={() => {
+                setSelectedRequest(null);
+                setEmployerNote("");
+              }}
+            >
+              Close Decision
+            </button>
+          </div>
 
           <div style={styles.formGrid}>
             <Detail label="Employee Number" value={selectedEmployee.employee_number || "N/A"} />
@@ -451,7 +371,7 @@ export default function HRApprovalsPage() {
                   : "N/A"
               }
             />
-            <Detail label="Status" value={selectedRequest.status} />
+            <Detail label="Current Status" value={selectedRequest.status} />
             <Detail label="Decision Date" value={formatDate(selectedRequest.approved_at)} />
           </div>
 
@@ -465,46 +385,31 @@ export default function HRApprovalsPage() {
           </label>
 
           <label style={styles.label}>
-            Decision Status
-            <select
-              style={styles.input}
-              value={decisionStatus}
-              onChange={(event) => setDecisionStatus(event.target.value as ApprovalStatus)}
-              disabled={mode === "view"}
-            >
-              {decisionStatuses.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
-          </label>
-
-          <label style={styles.label}>
             Employer Note
             <textarea
               style={styles.textarea}
               value={employerNote}
               onChange={(event) => setEmployerNote(event.target.value)}
-              placeholder="Add employer note or reason..."
-              readOnly={mode === "view"}
+              placeholder="Add a clear approval note or decline reason..."
             />
           </label>
 
-          <div style={styles.actions}>
+          <div style={styles.decisionActions}>
             <button
-              style={styles.lightButton}
-              onClick={() => {
-                setSelectedRequest(null);
-                setMode(null);
-              }}
+              style={styles.approveButton}
+              onClick={() => saveDecision("Approved")}
+              disabled={saving}
             >
-              Cancel
+              {saving ? "Saving..." : "Approve Request"}
             </button>
 
-            {mode !== "view" && (
-              <button style={styles.greenButton} onClick={saveDecision} disabled={saving}>
-                {saving ? "Saving..." : "Save Decision"}
-              </button>
-            )}
+            <button
+              style={styles.declineButton}
+              onClick={() => saveDecision("Declined")}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Decline Request"}
+            </button>
           </div>
         </section>
       )}
@@ -638,9 +543,9 @@ const styles: Record<string, React.CSSProperties> = {
     overflowX: "auto",
   },
   employeeTableHeader: {
-    minWidth: "1180px",
+    minWidth: "860px",
     display: "grid",
-    gridTemplateColumns: "1.4fr 1.2fr 0.7fr 0.7fr 0.7fr 0.9fr 2.2fr",
+    gridTemplateColumns: "2fr 0.8fr 1.6fr 1fr",
     gap: "16px",
     padding: "14px 8px",
     borderBottom: "1px solid #e5e7eb",
@@ -648,65 +553,33 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#2c2333",
   },
   employeeTableRow: {
-    minWidth: "1180px",
+    minWidth: "860px",
     display: "grid",
-    gridTemplateColumns: "1.4fr 1.2fr 0.7fr 0.7fr 0.7fr 0.9fr 2.2fr",
+    gridTemplateColumns: "2fr 0.8fr 1.6fr 1fr",
     gap: "16px",
     alignItems: "center",
-    padding: "16px 8px",
+    padding: "18px 8px",
     borderBottom: "1px solid #eef2f1",
   },
-  requestTableHeader: {
-    minWidth: "1120px",
-    display: "grid",
-    gridTemplateColumns: "1.1fr 1.8fr 1.1fr 0.8fr 1.3fr 2fr",
-    gap: "16px",
-    padding: "14px 8px",
-    borderBottom: "1px solid #e5e7eb",
+  pendingBadge: {
+    display: "inline-block",
+    minWidth: "34px",
+    textAlign: "center",
+    background: "#fff7e6",
+    color: "#92400e",
+    padding: "8px 12px",
+    borderRadius: "999px",
     fontWeight: 800,
-    color: "#2c2333",
   },
-  requestTableRow: {
-    minWidth: "1120px",
-    display: "grid",
-    gridTemplateColumns: "1.1fr 1.8fr 1.1fr 0.8fr 1.3fr 2fr",
-    gap: "16px",
-    alignItems: "center",
-    padding: "16px 8px",
-    borderBottom: "1px solid #eef2f1",
-  },
-  actions: {
-    display: "flex",
-    gap: "9px",
-    flexWrap: "wrap",
-    alignItems: "center",
-  },
-  viewButton: {
-    border: "1px solid #c7e3de",
-    background: "#e8f5f2",
-    color: "#225f54",
-    padding: "10px 15px",
-    borderRadius: "10px",
+  primaryButton: {
+    border: "none",
+    background: "#2f7d6d",
+    color: "#ffffff",
+    padding: "12px 17px",
+    borderRadius: "12px",
     fontWeight: 800,
     cursor: "pointer",
-  },
-  editButton: {
-    border: "1px solid #cfd8d5",
-    background: "#ffffff",
-    color: "#2f7d6d",
-    padding: "10px 15px",
-    borderRadius: "10px",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  declineButton: {
-    border: "1px solid #f2c4c4",
-    background: "#fff5f5",
-    color: "#9f1d1d",
-    padding: "10px 15px",
-    borderRadius: "10px",
-    fontWeight: 800,
-    cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(47, 125, 109, 0.18)",
   },
   lightButton: {
     border: "1px solid #cfd8d5",
@@ -717,54 +590,42 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     cursor: "pointer",
   },
-  lightButtonSmall: {
-    border: "1px solid #cfd8d5",
-    background: "#ffffff",
+  requestList: {
+    display: "grid",
+    gap: "14px",
+  },
+  requestCard: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "16px",
+    alignItems: "center",
+    background: "#f8fbfa",
+    border: "1px solid #e6ecea",
+    borderRadius: "16px",
+    padding: "18px",
+  },
+  requestTopLine: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    flexWrap: "wrap",
+    color: "#2c2333",
+  },
+  requestSummary: {
+    margin: "8px 0 0",
+    color: "#1f2937",
+    fontSize: "14px",
+    fontWeight: 700,
+  },
+  notePreview: {
+    margin: "10px 0 0",
     color: "#35514c",
-    padding: "10px 15px",
-    borderRadius: "10px",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  greenButton: {
-    border: "none",
-    background: "#2f7d6d",
-    color: "#ffffff",
-    padding: "12px 17px",
-    borderRadius: "11px",
-    fontWeight: 800,
-    cursor: "pointer",
-    boxShadow: "0 8px 18px rgba(47, 125, 109, 0.18)",
-  },
-  pendingBadge: {
-    display: "inline-block",
-    minWidth: "34px",
-    textAlign: "center",
-    background: "#fff7e6",
-    color: "#92400e",
-    padding: "7px 11px",
-    borderRadius: "999px",
-    fontWeight: 800,
-  },
-  approvedBadge: {
-    display: "inline-block",
-    minWidth: "34px",
-    textAlign: "center",
-    background: "#e8f5f2",
-    color: "#225f54",
-    padding: "7px 11px",
-    borderRadius: "999px",
-    fontWeight: 800,
-  },
-  declinedBadge: {
-    display: "inline-block",
-    minWidth: "34px",
-    textAlign: "center",
-    background: "#fdecec",
-    color: "#9f1d1d",
-    padding: "7px 11px",
-    borderRadius: "999px",
-    fontWeight: 800,
+    background: "#ffffff",
+    border: "1px solid #e6ecea",
+    borderRadius: "12px",
+    padding: "10px",
+    fontSize: "13px",
+    fontWeight: 700,
   },
   formGrid: {
     display: "grid",
@@ -780,14 +641,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#2c2333",
     fontSize: "14px",
     marginBottom: "16px",
-  },
-  input: {
-    border: "1px solid #d0d5dd",
-    borderRadius: "12px",
-    padding: "12px",
-    fontSize: "14px",
-    background: "#ffffff",
-    color: "#101828",
   },
   textarea: {
     border: "1px solid #d0d5dd",
@@ -817,5 +670,30 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#1f2937",
     fontSize: "14px",
     fontWeight: 700,
+  },
+  decisionActions: {
+    display: "flex",
+    gap: "12px",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  approveButton: {
+    border: "none",
+    background: "#2f7d6d",
+    color: "#ffffff",
+    padding: "13px 18px",
+    borderRadius: "12px",
+    fontWeight: 800,
+    cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(47, 125, 109, 0.18)",
+  },
+  declineButton: {
+    border: "1px solid #f2c4c4",
+    background: "#fff5f5",
+    color: "#9f1d1d",
+    padding: "13px 18px",
+    borderRadius: "12px",
+    fontWeight: 800,
+    cursor: "pointer",
   },
 };
