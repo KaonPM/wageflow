@@ -1,39 +1,49 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 
 type Employee = {
   id: string;
-  first_name: string | null;
-  last_name: string | null;
-  employee_number: string | null;
-  job_title: string | null;
-  department: string | null;
-  status: string | null;
+  business_id: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
+  name?: string | null;
+  employee_name?: string | null;
+  employee_number?: string | null;
+  job_title?: string | null;
+  position?: string | null;
+  department?: string | null;
+  status?: string | null;
+  created_at?: string | null;
 };
 
 type Business = {
   id: string;
-  business_name: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
+  name?: string | null;
+  business_name?: string | null;
+  company_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
 };
 
 type DisciplinaryRecord = {
   id: string;
-  business_id: string;
+  business_id: string | null;
   employee_id: string;
   record_type: string;
   status: string;
-  incident_date: string;
-  record_date: string;
+  incident_date: string | null;
+  record_date: string | null;
   incident_description: string;
   action_taken: string;
   notes: string | null;
   created_by: string | null;
   created_at: string;
+  updated_at: string | null;
 };
 
 const recordTypes = [
@@ -49,12 +59,15 @@ const recordTypes = [
 
 const statuses = ["Open", "Pending", "Resolved", "Dismissed", "Closed"];
 
+const templates = ["Warning letter", "Disciplinary notice", "Hearing notice"];
+
 export default function DisciplinaryRecordsPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [records, setRecords] = useState<DisciplinaryRecord[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<DisciplinaryRecord | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState("Warning letter");
   const [mode, setMode] = useState<"view" | "new" | "edit" | "letter" | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,42 +82,96 @@ export default function DisciplinaryRecordsPage() {
     notes: "",
   });
 
-  const employeeName = (employee: Employee | null) =>
-    employee ? `${employee.first_name || ""} ${employee.last_name || ""}`.trim() : "";
-
   useEffect(() => {
-    loadPageData();
+    loadData();
   }, []);
 
-  async function loadPageData() {
+  const selectedEmployeeRecords = useMemo(() => {
+    if (!selectedEmployee) return [];
+    return records.filter((record) => record.employee_id === selectedEmployee.id);
+  }, [records, selectedEmployee]);
+
+  function employeeName(employee: Employee | null | undefined) {
+    if (!employee) return "Unknown employee";
+
+    const fullName =
+      employee.full_name ||
+      employee.employee_name ||
+      employee.name ||
+      `${employee.first_name || ""} ${employee.last_name || ""}`.trim();
+
+    return fullName || "Unnamed employee";
+  }
+
+  function employeeRole(employee: Employee | null | undefined) {
+    if (!employee) return "No job title";
+    return employee.job_title || employee.position || "No job title";
+  }
+
+  function businessName() {
+    return (
+      business?.business_name ||
+      business?.company_name ||
+      business?.name ||
+      "Business name"
+    );
+  }
+
+  async function loadData() {
     setLoading(true);
 
-    const { data: businessData } = await supabase
-      .from("businesses")
-      .select("id, business_name, email, phone, address")
-      .limit(1)
-      .single();
+    const { data: employeeData, error: employeeError } = await supabase
+      .from("employees")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    if (businessData) {
-      setBusiness(businessData);
+    if (employeeError) {
+      console.error("Employees error:", employeeError);
+      setEmployees([]);
+      setRecords([]);
+      setLoading(false);
+      return;
+    }
 
-      const { data: employeeData } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name, employee_number, job_title, department, status")
-        .eq("business_id", businessData.id)
-        .order("first_name", { ascending: true });
+    const loadedEmployees = employeeData || [];
+    setEmployees(loadedEmployees);
+
+    const businessId =
+      loadedEmployees.find((employee) => employee.business_id)?.business_id || null;
+
+    if (businessId) {
+      const { data: businessData } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("id", businessId)
+        .maybeSingle();
+
+      setBusiness(businessData || { id: businessId });
 
       const { data: recordData } = await supabase
         .from("disciplinary_records")
         .select("*")
-        .eq("business_id", businessData.id)
+        .eq("business_id", businessId)
         .order("created_at", { ascending: false });
 
-      setEmployees(employeeData || []);
+      setRecords(recordData || []);
+    } else {
+      const { data: recordData } = await supabase
+        .from("disciplinary_records")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      setBusiness(null);
       setRecords(recordData || []);
     }
 
     setLoading(false);
+  }
+
+  function openView(employee: Employee) {
+    setSelectedEmployee(employee);
+    setSelectedRecord(null);
+    setMode("view");
   }
 
   function openNew(employee: Employee) {
@@ -124,33 +191,42 @@ export default function DisciplinaryRecordsPage() {
 
   function openEdit(record: DisciplinaryRecord) {
     const employee = employees.find((item) => item.id === record.employee_id) || null;
+
     setSelectedEmployee(employee);
     setSelectedRecord(record);
     setMode("edit");
     setForm({
       record_type: record.record_type,
       status: record.status,
-      incident_date: record.incident_date,
-      record_date: record.record_date,
+      incident_date: record.incident_date || "",
+      record_date: record.record_date || new Date().toISOString().slice(0, 10),
       incident_description: record.incident_description,
       action_taken: record.action_taken,
       notes: record.notes || "",
     });
   }
 
-  function openView(employee: Employee) {
+  function openLetter(record: DisciplinaryRecord) {
+    const employee = employees.find((item) => item.id === record.employee_id) || null;
+
     setSelectedEmployee(employee);
-    setSelectedRecord(null);
-    setMode("view");
+    setSelectedRecord(record);
+    setSelectedTemplate("Warning letter");
+    setMode("letter");
   }
 
   async function saveRecord() {
-    if (!business || !selectedEmployee) return;
+    if (!selectedEmployee) return;
+
+    if (!form.incident_date || !form.incident_description || !form.action_taken) {
+      alert("Please complete incident date, description of incident and action taken.");
+      return;
+    }
 
     setSaving(true);
 
     const payload = {
-      business_id: business.id,
+      business_id: selectedEmployee.business_id,
       employee_id: selectedEmployee.id,
       record_type: form.record_type,
       status: form.status,
@@ -159,45 +235,35 @@ export default function DisciplinaryRecordsPage() {
       incident_description: form.incident_description,
       action_taken: form.action_taken,
       notes: form.notes,
-      created_by: "Business admin",
+      created_by: "Employer admin",
+      updated_at: new Date().toISOString(),
     };
 
     if (mode === "edit" && selectedRecord) {
-      await supabase
-        .from("disciplinary_records")
-        .update(payload)
-        .eq("id", selectedRecord.id);
+      await supabase.from("disciplinary_records").update(payload).eq("id", selectedRecord.id);
     } else {
       await supabase.from("disciplinary_records").insert(payload);
     }
 
-    await loadPageData();
+    await loadData();
     setSaving(false);
     setMode("view");
   }
 
-  const employeeRecords = useMemo(() => {
-    if (!selectedEmployee) return [];
-    return records.filter((record) => record.employee_id === selectedEmployee.id);
-  }, [records, selectedEmployee]);
-
-  function buildLetter(templateType: string) {
-    if (!business || !selectedEmployee || !selectedRecord) return "";
+  function buildLetter() {
+    if (!selectedEmployee || !selectedRecord) return "";
 
     const name = employeeName(selectedEmployee);
 
-    if (templateType === "Warning letter") {
-      return `
-${business.business_name || "Business Name"}
-${business.address || ""}
-${business.email || ""}
-${business.phone || ""}
+    if (selectedTemplate === "Warning letter") {
+      return `${businessName()}
 
-Date: ${selectedRecord.record_date}
+Date: ${selectedRecord.record_date || ""}
 
 To: ${name}
 Employee Number: ${selectedEmployee.employee_number || "N/A"}
-Position: ${selectedEmployee.job_title || "N/A"}
+Position: ${employeeRole(selectedEmployee)}
+Department: ${selectedEmployee.department || "N/A"}
 
 Subject: ${selectedRecord.record_type}
 
@@ -205,40 +271,37 @@ Dear ${name},
 
 This letter serves as a formal record regarding the matter described below.
 
-Incident Date: ${selectedRecord.incident_date}
+Incident date:
+${selectedRecord.incident_date || "N/A"}
 
-Details of Incident:
+Details of incident:
 ${selectedRecord.incident_description}
 
-Action Taken:
+Action taken:
 ${selectedRecord.action_taken}
 
-Current Status:
+Current status:
 ${selectedRecord.status}
 
-You are required to take note of this matter and ensure that the conduct or issue recorded above is addressed. This record is kept for traceability, workplace fairness, and internal HR compliance purposes.
+This record is issued for internal HR traceability, fair workplace administration and compliance-focused recordkeeping.
 
-Employee Acknowledgement:
+Employee acknowledgement:
 I acknowledge receipt of this letter. My signature does not necessarily mean that I agree with the contents.
 
-Employee Signature: ______________________ Date: _______________
+Employee signature: ___________________________ Date: _______________
 
-Employer Representative: __________________ Date: _______________
-`;
+Employer representative: ______________________ Date: _______________`;
     }
 
-    if (templateType === "Disciplinary notice") {
-      return `
-${business.business_name || "Business Name"}
-${business.address || ""}
-${business.email || ""}
-${business.phone || ""}
+    if (selectedTemplate === "Disciplinary notice") {
+      return `${businessName()}
 
-Date: ${selectedRecord.record_date}
+Date: ${selectedRecord.record_date || ""}
 
 To: ${name}
 Employee Number: ${selectedEmployee.employee_number || "N/A"}
-Position: ${selectedEmployee.job_title || "N/A"}
+Position: ${employeeRole(selectedEmployee)}
+Department: ${selectedEmployee.department || "N/A"}
 
 Subject: Notice of Disciplinary Record
 
@@ -246,36 +309,33 @@ Dear ${name},
 
 This notice confirms that a disciplinary matter has been recorded for review and internal follow-up.
 
-Incident Date: ${selectedRecord.incident_date}
+Incident date:
+${selectedRecord.incident_date || "N/A"}
 
-Nature of Matter:
+Nature of matter:
 ${selectedRecord.incident_description}
 
-Action or Next Step:
+Action or next step:
 ${selectedRecord.action_taken}
 
-Status:
+Current status:
 ${selectedRecord.status}
 
-This notice is issued to ensure that the matter is properly recorded, traceable, and handled in line with fair workplace procedure.
+This notice is issued to ensure that the matter is properly recorded, traceable and handled through a fair workplace process.
 
-Employee Signature: ______________________ Date: _______________
+Employee signature: ___________________________ Date: _______________
 
-Employer Representative: __________________ Date: _______________
-`;
+Employer representative: ______________________ Date: _______________`;
     }
 
-    return `
-${business.business_name || "Business Name"}
-${business.address || ""}
-${business.email || ""}
-${business.phone || ""}
+    return `${businessName()}
 
-Date: ${selectedRecord.record_date}
+Date: ${selectedRecord.record_date || ""}
 
 To: ${name}
 Employee Number: ${selectedEmployee.employee_number || "N/A"}
-Position: ${selectedEmployee.job_title || "N/A"}
+Position: ${employeeRole(selectedEmployee)}
+Department: ${selectedEmployee.department || "N/A"}
 
 Subject: Notice to Attend Disciplinary Hearing
 
@@ -283,104 +343,154 @@ Dear ${name},
 
 You are hereby notified that a disciplinary hearing may be required regarding the matter recorded below.
 
-Incident Date: ${selectedRecord.incident_date}
+Incident date:
+${selectedRecord.incident_date || "N/A"}
 
-Allegation or Matter to Be Discussed:
+Allegation or matter to be discussed:
 ${selectedRecord.incident_description}
 
-Proposed Action or Hearing Purpose:
+Purpose of hearing or proposed action:
 ${selectedRecord.action_taken}
 
-You may be given a fair opportunity to respond to the matter. You may also be allowed to prepare and bring a representative where applicable according to workplace policy.
+You should be given a fair opportunity to respond to the matter and prepare where applicable according to workplace policy.
 
-This notice is generated for internal HR recordkeeping and procedural traceability.
+This notice is generated for internal HR recordkeeping, procedural fairness and traceability.
 
-Employee Signature: ______________________ Date: _______________
+Employee signature: ___________________________ Date: _______________
 
-Employer Representative: __________________ Date: _______________
-`;
+Employer representative: ______________________ Date: _______________`;
   }
 
   if (loading) {
-    return <main style={styles.page}>Loading disciplinary records...</main>;
+    return (
+      <main style={styles.page}>
+        <p style={styles.muted}>Loading disciplinary records...</p>
+      </main>
+    );
   }
 
   return (
     <main style={styles.page}>
       <section style={styles.header}>
         <div>
-          <p style={styles.eyebrow}>HR Records</p>
           <h1 style={styles.title}>Disciplinary Records</h1>
           <p style={styles.subtitle}>
-            Manage employee disciplinary records, statuses, actions and letters in one traceable place.
+            Record disciplinary incidents, warnings, hearings, outcomes and traceable HR actions.
           </p>
         </div>
+
+        <Link href="/employer/hr" style={styles.backButton}>
+          ← Back to HR Records
+        </Link>
       </section>
 
       <section style={styles.card}>
-        <h2 style={styles.sectionTitle}>Employees</h2>
+        <div style={styles.cardTop}>
+          <div>
+            <h2 style={styles.cardTitle}>Employees</h2>
+            <p style={styles.muted}>
+              View disciplinary records, edit records, or create a new disciplinary record for each employee.
+            </p>
+          </div>
 
-        <div style={styles.employeeList}>
-          {employees.map((employee) => (
-            <div key={employee.id} style={styles.employeeRow}>
-              <div>
-                <strong>{employeeName(employee)}</strong>
-                <p style={styles.muted}>
-                  {employee.employee_number || "No employee number"} ·{" "}
-                  {employee.job_title || "No job title"} ·{" "}
-                  {employee.department || "No department"}
-                </p>
-              </div>
-
-              <div style={styles.actions}>
-                <button style={styles.secondaryButton} onClick={() => openView(employee)}>
-                  View
-                </button>
-                <button style={styles.primaryButton} onClick={() => openNew(employee)}>
-                  New
-                </button>
-              </div>
-            </div>
-          ))}
+          <button style={styles.lightButton} onClick={loadData}>
+            Refresh
+          </button>
         </div>
+
+        {employees.length === 0 ? (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyTitle}>No employees found</p>
+            <p style={styles.muted}>
+              No employees are currently available. Please check that employees have been added.
+            </p>
+            <Link href="/employer/employees" style={styles.primaryLink}>
+              Go to Employees
+            </Link>
+          </div>
+        ) : (
+          <div style={styles.table}>
+            <div style={styles.tableHeader}>
+              <span>Employee</span>
+              <span>Role</span>
+              <span>Records</span>
+              <span>Action</span>
+            </div>
+
+            {employees.map((employee) => {
+              const count = records.filter((record) => record.employee_id === employee.id).length;
+
+              return (
+                <div key={employee.id} style={styles.tableRow}>
+                  <div>
+                    <strong>{employeeName(employee)}</strong>
+                    <p style={styles.smallText}>{employee.employee_number || "No employee number"}</p>
+                  </div>
+
+                  <div>
+                    <strong>{employeeRole(employee)}</strong>
+                    <p style={styles.smallText}>{employee.department || "No department"}</p>
+                  </div>
+
+                  <div>
+                    <strong>{count}</strong>
+                    <p style={styles.smallText}>
+                      {count === 1 ? "record created" : "records created"}
+                    </p>
+                  </div>
+
+                  <div style={styles.actions}>
+                    <button style={styles.viewButton} onClick={() => openView(employee)}>
+                      View Records
+                    </button>
+                    <button style={styles.editButton} onClick={() => openNew(employee)}>
+                      New Record
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {selectedEmployee && mode === "view" && (
         <section style={styles.card}>
-          <h2 style={styles.sectionTitle}>
-            Records for {employeeName(selectedEmployee)}
-          </h2>
+          <div style={styles.cardTop}>
+            <div>
+              <h2 style={styles.cardTitle}>Records for {employeeName(selectedEmployee)}</h2>
+              <p style={styles.muted}>View, edit and generate letters for this employee.</p>
+            </div>
 
-          {employeeRecords.length === 0 ? (
+            <button style={styles.greenButton} onClick={() => openNew(selectedEmployee)}>
+              + New Record
+            </button>
+          </div>
+
+          {selectedEmployeeRecords.length === 0 ? (
             <p style={styles.muted}>No disciplinary records found for this employee.</p>
           ) : (
             <div style={styles.table}>
-              <div style={styles.tableHeader}>
-                <span>Record type</span>
+              <div style={styles.recordHeader}>
+                <span>Record Type</span>
                 <span>Status</span>
                 <span>Date</span>
                 <span>Action</span>
                 <span>Options</span>
               </div>
 
-              {employeeRecords.map((record) => (
-                <div key={record.id} style={styles.tableRow}>
+              {selectedEmployeeRecords.map((record) => (
+                <div key={record.id} style={styles.recordRow}>
                   <span>{record.record_type}</span>
                   <span>{record.status}</span>
                   <span>{record.record_date}</span>
                   <span>{record.action_taken}</span>
-                  <span style={styles.inlineActions}>
-                    <button style={styles.smallButton} onClick={() => openEdit(record)}>
+                  <span style={styles.actions}>
+                    <button style={styles.editButton} onClick={() => openEdit(record)}>
                       Edit
                     </button>
-                    <button
-                      style={styles.smallButton}
-                      onClick={() => {
-                        setSelectedRecord(record);
-                        setMode("letter");
-                      }}
-                    >
-                      Generate letter
+                    <button style={styles.letterButton} onClick={() => openLetter(record)}>
+                      Generate Letter
                     </button>
                   </span>
                 </div>
@@ -392,21 +502,18 @@ Employer Representative: __________________ Date: _______________
 
       {(mode === "new" || mode === "edit") && selectedEmployee && (
         <section style={styles.card}>
-          <h2 style={styles.sectionTitle}>
-            {mode === "new" ? "New Disciplinary Record" : "Edit Disciplinary Record"}
+          <h2 style={styles.cardTitle}>
+            {mode === "new" ? "Create Disciplinary Record" : "Edit Disciplinary Record"}
           </h2>
-
-          <p style={styles.muted}>
-            Employee: <strong>{employeeName(selectedEmployee)}</strong>
-          </p>
+          <p style={styles.muted}>Employee: {employeeName(selectedEmployee)}</p>
 
           <div style={styles.formGrid}>
             <label style={styles.label}>
-              Record type
+              Record Type
               <select
                 style={styles.input}
                 value={form.record_type}
-                onChange={(e) => setForm({ ...form, record_type: e.target.value })}
+                onChange={(event) => setForm({ ...form, record_type: event.target.value })}
               >
                 {recordTypes.map((type) => (
                   <option key={type}>{type}</option>
@@ -419,7 +526,7 @@ Employer Representative: __________________ Date: _______________
               <select
                 style={styles.input}
                 value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
+                onChange={(event) => setForm({ ...form, status: event.target.value })}
               >
                 {statuses.map((status) => (
                   <option key={status}>{status}</option>
@@ -428,43 +535,43 @@ Employer Representative: __________________ Date: _______________
             </label>
 
             <label style={styles.label}>
-              Incident date
+              Incident Date
               <input
                 type="date"
                 style={styles.input}
                 value={form.incident_date}
-                onChange={(e) => setForm({ ...form, incident_date: e.target.value })}
+                onChange={(event) => setForm({ ...form, incident_date: event.target.value })}
               />
             </label>
 
             <label style={styles.label}>
-              Record date
+              Record Date
               <input
                 type="date"
                 style={styles.input}
                 value={form.record_date}
-                onChange={(e) => setForm({ ...form, record_date: e.target.value })}
+                onChange={(event) => setForm({ ...form, record_date: event.target.value })}
               />
             </label>
           </div>
 
           <label style={styles.label}>
-            Description of incident
+            Description of Incident
             <textarea
               style={styles.textarea}
               value={form.incident_description}
-              onChange={(e) =>
-                setForm({ ...form, incident_description: e.target.value })
+              onChange={(event) =>
+                setForm({ ...form, incident_description: event.target.value })
               }
             />
           </label>
 
           <label style={styles.label}>
-            Action taken
+            Action Taken
             <textarea
               style={styles.textarea}
               value={form.action_taken}
-              onChange={(e) => setForm({ ...form, action_taken: e.target.value })}
+              onChange={(event) => setForm({ ...form, action_taken: event.target.value })}
             />
           </label>
 
@@ -473,37 +580,54 @@ Employer Representative: __________________ Date: _______________
             <textarea
               style={styles.textarea}
               value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              onChange={(event) => setForm({ ...form, notes: event.target.value })}
             />
           </label>
 
           <div style={styles.actions}>
-            <button style={styles.secondaryButton} onClick={() => setMode("view")}>
+            <button style={styles.lightButton} onClick={() => setMode("view")}>
               Cancel
             </button>
-            <button style={styles.primaryButton} onClick={saveRecord} disabled={saving}>
-              {saving ? "Saving..." : "Save record"}
+            <button style={styles.greenButton} onClick={saveRecord} disabled={saving}>
+              {saving ? "Saving..." : "Save Record"}
             </button>
           </div>
         </section>
       )}
 
-      {mode === "letter" && selectedRecord && selectedEmployee && (
+      {mode === "letter" && selectedEmployee && selectedRecord && (
         <section style={styles.card}>
-          <h2 style={styles.sectionTitle}>Generate Letter</h2>
+          <h2 style={styles.cardTitle}>Generate Letter</h2>
+          <p style={styles.muted}>
+            Employee and business details are automatically inserted into the selected template.
+          </p>
 
-          <div style={styles.letterGrid}>
-            {["Warning letter", "Disciplinary notice", "Hearing notice"].map((template) => (
-              <div key={template} style={styles.letterCard}>
-                <h3>{template}</h3>
-                <pre style={styles.letterPreview}>{buildLetter(template)}</pre>
-              </div>
-            ))}
+          <label style={styles.label}>
+            Letter Template
+            <select
+              style={styles.input}
+              value={selectedTemplate}
+              onChange={(event) => setSelectedTemplate(event.target.value)}
+            >
+              {templates.map((template) => (
+                <option key={template}>{template}</option>
+              ))}
+            </select>
+          </label>
+
+          <pre style={styles.letterPreview}>{buildLetter()}</pre>
+
+          <div style={styles.actions}>
+            <button style={styles.lightButton} onClick={() => setMode("view")}>
+              Back
+            </button>
+            <button
+              style={styles.greenButton}
+              onClick={() => navigator.clipboard.writeText(buildLetter())}
+            >
+              Copy Letter
+            </button>
           </div>
-
-          <button style={styles.secondaryButton} onClick={() => setMode("view")}>
-            Back to records
-          </button>
         </section>
       )}
     </main>
@@ -512,162 +636,227 @@ Employer Representative: __________________ Date: _______________
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    padding: "32px",
-    background: "#f7f7f5",
     minHeight: "100vh",
-    color: "#1f2933",
+    padding: "38px 42px",
+    background: "#f4f7f6",
+    color: "#1f2937",
   },
   header: {
-    marginBottom: "24px",
-  },
-  eyebrow: {
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    fontSize: "12px",
-    color: "#6b7280",
-    marginBottom: "6px",
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "18px",
+    alignItems: "flex-start",
+    marginBottom: "26px",
   },
   title: {
-    fontSize: "30px",
     margin: 0,
+    fontSize: "34px",
+    color: "#2f7d6d",
+    fontWeight: 800,
   },
   subtitle: {
-    color: "#6b7280",
-    marginTop: "8px",
+    marginTop: "10px",
+    color: "#667085",
+    fontSize: "15px",
+  },
+  backButton: {
+    background: "#2f7d6d",
+    color: "#ffffff",
+    padding: "13px 18px",
+    borderRadius: "12px",
+    textDecoration: "none",
+    fontWeight: 800,
+    whiteSpace: "nowrap",
+    boxShadow: "0 8px 18px rgba(47, 125, 109, 0.22)",
   },
   card: {
     background: "#ffffff",
-    borderRadius: "18px",
-    padding: "22px",
-    marginBottom: "22px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
-    border: "1px solid #e5e7eb",
+    borderRadius: "20px",
+    padding: "24px",
+    marginBottom: "24px",
+    boxShadow: "0 12px 28px rgba(16, 24, 40, 0.06)",
+    border: "1px solid #e6ecea",
   },
-  sectionTitle: {
-    marginTop: 0,
-    marginBottom: "16px",
-    fontSize: "20px",
-  },
-  employeeList: {
-    display: "grid",
-    gap: "12px",
-  },
-  employeeRow: {
+  cardTop: {
     display: "flex",
     justifyContent: "space-between",
+    alignItems: "flex-start",
     gap: "16px",
-    alignItems: "center",
-    padding: "14px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "14px",
+    marginBottom: "20px",
+  },
+  cardTitle: {
+    margin: 0,
+    fontSize: "22px",
+    color: "#2c2333",
+    fontWeight: 700,
   },
   muted: {
-    color: "#6b7280",
-    margin: "4px 0 0",
+    margin: "6px 0 0",
+    color: "#667085",
+    fontSize: "14px",
+    lineHeight: 1.5,
+  },
+  smallText: {
+    margin: "5px 0 0",
+    color: "#667085",
+    fontSize: "13px",
+  },
+  emptyState: {
+    background: "#f8fbfa",
+    border: "1px dashed #bad8d1",
+    borderRadius: "16px",
+    padding: "20px",
+  },
+  emptyTitle: {
+    margin: 0,
+    fontWeight: 800,
+    color: "#2c2333",
+  },
+  primaryLink: {
+    display: "inline-block",
+    marginTop: "14px",
+    background: "#2f7d6d",
+    color: "#ffffff",
+    padding: "11px 16px",
+    borderRadius: "11px",
+    textDecoration: "none",
+    fontWeight: 800,
+  },
+  table: {
+    width: "100%",
+    overflowX: "auto",
+  },
+  tableHeader: {
+    minWidth: "820px",
+    display: "grid",
+    gridTemplateColumns: "1.4fr 1.3fr 1fr 1.8fr",
+    gap: "16px",
+    padding: "14px 8px",
+    borderBottom: "1px solid #e5e7eb",
+    fontWeight: 800,
+    color: "#2c2333",
+  },
+  tableRow: {
+    minWidth: "820px",
+    display: "grid",
+    gridTemplateColumns: "1.4fr 1.3fr 1fr 1.8fr",
+    gap: "16px",
+    alignItems: "center",
+    padding: "16px 8px",
+    borderBottom: "1px solid #eef2f1",
+  },
+  recordHeader: {
+    minWidth: "980px",
+    display: "grid",
+    gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.5fr 1.6fr",
+    gap: "14px",
+    padding: "14px 8px",
+    borderBottom: "1px solid #e5e7eb",
+    fontWeight: 800,
+    color: "#2c2333",
+  },
+  recordRow: {
+    minWidth: "980px",
+    display: "grid",
+    gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.5fr 1.6fr",
+    gap: "14px",
+    alignItems: "center",
+    padding: "16px 8px",
+    borderBottom: "1px solid #eef2f1",
     fontSize: "14px",
   },
   actions: {
     display: "flex",
-    gap: "10px",
+    gap: "9px",
     flexWrap: "wrap",
+    alignItems: "center",
   },
-  primaryButton: {
+  viewButton: {
+    border: "1px solid #c7e3de",
+    background: "#e8f5f2",
+    color: "#225f54",
+    padding: "10px 15px",
+    borderRadius: "10px",
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+  editButton: {
+    border: "1px solid #cfd8d5",
+    background: "#ffffff",
+    color: "#2f7d6d",
+    padding: "10px 15px",
+    borderRadius: "10px",
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+  letterButton: {
+    border: "1px solid #cfd8d5",
+    background: "#ffffff",
+    color: "#2f7d6d",
+    padding: "10px 15px",
+    borderRadius: "10px",
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+  lightButton: {
+    border: "1px solid #cfd8d5",
+    background: "#ffffff",
+    color: "#35514c",
+    padding: "11px 16px",
+    borderRadius: "11px",
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+  greenButton: {
     border: "none",
-    borderRadius: "999px",
-    padding: "10px 16px",
-    background: "#111827",
+    background: "#2f7d6d",
     color: "#ffffff",
+    padding: "12px 17px",
+    borderRadius: "11px",
+    fontWeight: 800,
     cursor: "pointer",
-  },
-  secondaryButton: {
-    border: "1px solid #d1d5db",
-    borderRadius: "999px",
-    padding: "10px 16px",
-    background: "#ffffff",
-    color: "#111827",
-    cursor: "pointer",
-  },
-  smallButton: {
-    border: "1px solid #d1d5db",
-    borderRadius: "999px",
-    padding: "7px 10px",
-    background: "#ffffff",
-    cursor: "pointer",
-    fontSize: "12px",
+    boxShadow: "0 8px 18px rgba(47, 125, 109, 0.18)",
   },
   formGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "14px",
-    marginBottom: "14px",
+    gap: "16px",
+    marginBottom: "16px",
   },
   label: {
     display: "grid",
-    gap: "7px",
+    gap: "8px",
+    fontWeight: 800,
+    color: "#2c2333",
     fontSize: "14px",
-    fontWeight: 600,
-    marginBottom: "14px",
+    marginBottom: "16px",
   },
   input: {
-    border: "1px solid #d1d5db",
+    border: "1px solid #d0d5dd",
     borderRadius: "12px",
-    padding: "11px",
+    padding: "12px",
     fontSize: "14px",
+    background: "#ffffff",
+    color: "#101828",
   },
   textarea: {
-    border: "1px solid #d1d5db",
+    border: "1px solid #d0d5dd",
     borderRadius: "12px",
-    padding: "11px",
+    padding: "12px",
     fontSize: "14px",
-    minHeight: "100px",
+    background: "#ffffff",
+    color: "#101828",
+    minHeight: "110px",
     resize: "vertical",
-  },
-  table: {
-    display: "grid",
-    gap: "8px",
-  },
-  tableHeader: {
-    display: "grid",
-    gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.4fr 1.2fr",
-    gap: "10px",
-    fontWeight: 700,
-    fontSize: "13px",
-    color: "#4b5563",
-    padding: "10px",
-  },
-  tableRow: {
-    display: "grid",
-    gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.4fr 1.2fr",
-    gap: "10px",
-    alignItems: "center",
-    padding: "12px 10px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    fontSize: "14px",
-  },
-  inlineActions: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-  },
-  letterGrid: {
-    display: "grid",
-    gap: "18px",
-  },
-  letterCard: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "14px",
-    padding: "16px",
-    background: "#fafafa",
   },
   letterPreview: {
     whiteSpace: "pre-wrap",
-    fontFamily: "inherit",
+    background: "#f8fbfa",
+    border: "1px solid #d9e7e3",
+    borderRadius: "16px",
+    padding: "20px",
+    color: "#1f2937",
     fontSize: "14px",
-    lineHeight: 1.6,
-    background: "#ffffff",
-    padding: "16px",
-    borderRadius: "12px",
-    border: "1px solid #e5e7eb",
+    lineHeight: 1.7,
   },
 };
