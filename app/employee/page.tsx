@@ -12,9 +12,13 @@ type DashboardData = {
   primaryColor: string;
   secondaryColor: string;
   latestPayslip: {
-    pay_period: string;
-    net_pay: number;
-    status: string;
+    id: string;
+    payroll_month: string | null;
+    pay_period_month: string | number | null;
+    pay_period_year: string | number | null;
+    net_pay: number | null;
+    status: string | null;
+    created_at: string | null;
   } | null;
   unreadNotifications: number;
 };
@@ -37,6 +41,20 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  function payslipPeriod(
+    payslip: DashboardData["latestPayslip"]
+  ) {
+    if (!payslip) return "Not issued yet";
+
+    if (payslip.payroll_month) return payslip.payroll_month;
+
+    if (payslip.pay_period_month && payslip.pay_period_year) {
+      return `${payslip.pay_period_month}/${payslip.pay_period_year}`;
+    }
+
+    return "Payroll period not set";
+  }
 
   async function loadDashboard() {
     setLoading(true);
@@ -161,10 +179,20 @@ export default function EmployeeDashboard() {
     console.log("Business lookup error:", businessError);
 
     const { data: latestPayslip, error: payslipError } = await supabase
-      .from("employee_payslips")
-      .select("pay_period, net_pay, status")
+      .from("payslips")
+      .select(
+        `
+        id,
+        payroll_month,
+        pay_period_month,
+        pay_period_year,
+        net_pay,
+        status,
+        created_at
+      `
+      )
       .eq("employee_id", employee.id)
-      .order("issued_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -302,13 +330,13 @@ export default function EmployeeDashboard() {
 
           <h2 style={summaryValue}>
             {data.latestPayslip
-              ? data.latestPayslip.pay_period
+              ? payslipPeriod(data.latestPayslip)
               : "Not issued yet"}
           </h2>
 
           <p style={summaryText}>
             {data.latestPayslip
-              ? `Net pay: R${Number(data.latestPayslip.net_pay).toFixed(2)}`
+              ? `Net pay: R${Number(data.latestPayslip.net_pay || 0).toFixed(2)}`
               : "Your most recent payslip will appear here once your employer issues it."}
           </p>
 
