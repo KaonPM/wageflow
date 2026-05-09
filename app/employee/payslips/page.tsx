@@ -308,19 +308,6 @@ export default function EmployeePayslipsPage() {
                             View
                           </a>
 
-                          {payslip.pdf_url ? (
-                            <a
-                              href={payslip.pdf_url}
-                              target="_blank"
-                              style={downloadButton}
-                            >
-                              Download
-                            </a>
-                          ) : (
-                            <span style={disabledButton}>
-                              No PDF
-                            </span>
-                          )}
                         </div>
                       </td>
                     </tr>
