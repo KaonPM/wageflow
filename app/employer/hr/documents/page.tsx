@@ -299,6 +299,57 @@ export default function EmployeeDocumentsPage() {
     printWindow.close();
   }
 
+  async function saveGeneratedLetterToEmployeeRecords() {
+  setMessage("");
+
+  if (!letterEmployeeId || !letterPrintRef.current) {
+    setMessage("Please select an employee and generate the letter first.");
+    return;
+  }
+
+  setSaving(true);
+
+  const businessId = await getBusinessId();
+
+  if (!businessId) {
+    setMessage("Business profile not found.");
+    setSaving(false);
+    return;
+  }
+
+  const generatedLetterText =
+    letterPrintRef.current.innerText || "";
+
+  const { error } = await supabase
+    .from("employee_documents")
+    .insert([
+      {
+        business_id: businessId,
+        employee_id: letterEmployeeId,
+        document_name: letterType,
+        document_category: "HR Letter",
+        file_url: "",
+        notes: generatedLetterText,
+      },
+    ]);
+
+  if (error) {
+    setMessage(error.message);
+    setSaving(false);
+    return;
+  }
+
+  setSelectedEmployeeId(letterEmployeeId);
+
+  setMessage(
+    `${letterType} saved to employee records successfully.`
+  );
+
+  await fetchDocuments();
+
+  setSaving(false);
+}
+
   const employeeRows = useMemo(() => {
     return employees.map((employee) => {
       const employeeDocuments = documents.filter(
@@ -337,6 +388,51 @@ export default function EmployeeDocumentsPage() {
       );
       return;
     }
+
+    async function saveGeneratedLetterToEmployeeRecords() {
+  setMessage("");
+
+  if (!letterEmployeeId || !letterPrintRef.current) {
+    setMessage("Please select an employee and generate the letter first.");
+    return;
+  }
+
+  setSaving(true);
+
+  const businessId = await getBusinessId();
+
+  if (!businessId) {
+    setMessage("Business profile not found.");
+    setSaving(false);
+    return;
+  }
+
+  const generatedLetterText = letterPrintRef.current.innerText || "";
+
+  const { error } = await supabase.from("employee_documents").insert([
+    {
+      business_id: businessId,
+      employee_id: letterEmployeeId,
+      document_name: letterType,
+      document_category: "HR Letter",
+      file_url: "",
+      notes: generatedLetterText,
+    },
+  ]);
+
+  if (error) {
+    setMessage(error.message);
+    setSaving(false);
+    return;
+  }
+
+  setSelectedEmployeeId(letterEmployeeId);
+  setMessage(`${letterType} saved to employee records successfully.`);
+
+  await fetchDocuments();
+
+  setSaving(false);
+}
 
     setSaving(true);
 
@@ -1333,12 +1429,23 @@ export default function EmployeeDocumentsPage() {
               </div>
             </div>
 
-            <button
-              style={button}
-              onClick={printLetter}
-            >
-              Print / Save as PDF
-            </button>
+            <div style={formActions}>
+  <button
+    style={button}
+    onClick={printLetter}
+    disabled={saving}
+  >
+    Print / Save as PDF
+  </button>
+
+  <button
+    style={outlineButton}
+    onClick={saveGeneratedLetterToEmployeeRecords}
+    disabled={saving}
+  >
+    {saving ? "Saving..." : "Save to Employee Records"}
+  </button>
+</div>
           </div>
         )}
 
