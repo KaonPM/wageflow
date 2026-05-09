@@ -5,7 +5,7 @@ type PayslipItem = {
   amount: number;
 };
 
-type PayslipData = {
+export type PayslipData = {
   company: {
     name: string;
     logoUrl: string;
