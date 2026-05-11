@@ -15,21 +15,49 @@ export default function WageFlowLandingPage() {
     null
   );
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const [isSending, setIsSending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const subject = encodeURIComponent("WageFlow Enquiry");
-    const body = encodeURIComponent(
-      `Name: ${form.name}
-Business: ${form.business}
-Email: ${form.email}
-Phone: ${form.phone}
+    setIsSending(true);
 
-Message:
-${form.message}`
-    );
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: form.name,
+          business: form.business,
+          email: form.email,
+          phone: form.phone,
+          message: form.message,
+        }),
+      });
 
-    window.location.href = `mailto:wageflow@lesedismartsolutions.co.za?subject=${subject}&body=${body}`;
+      if (!response.ok) {
+        alert("Failed to send enquiry. Please try again.");
+        return;
+      }
+
+      alert("Enquiry sent successfully.");
+
+      setForm({
+        name: "",
+        business: "",
+        email: "",
+        phone: "",
+        message: "",
+      });
+
+      setOpenContact(null);
+    } catch {
+      alert("Failed to send enquiry. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
   }
 
   return (
@@ -40,21 +68,11 @@ ${form.message}`
         </div>
 
         <div style={navLinks}>
-          <a href="#home" style={navLink}>
-            Home
-          </a>
-          <a href="#how-it-works" style={navLink}>
-            How It Works
-          </a>
-          <a href="#pricing" style={navLink}>
-            Pricing
-          </a>
-          <a href="#contact" style={navLink}>
-            Contact
-          </a>
-          <a href="/login" style={loginButton}>
-            Login
-          </a>
+          <a href="#home" style={navLink}>Home</a>
+          <a href="#how-it-works" style={navLink}>How It Works</a>
+          <a href="#pricing" style={navLink}>Pricing</a>
+          <a href="#contact" style={navLink}>Contact</a>
+          <a href="/login" style={loginButton}>Login</a>
         </div>
       </nav>
 
@@ -73,9 +91,7 @@ ${form.message}`
         </p>
 
         <div style={heroActions}>
-          <a href="/get-started" style={primaryButton}>
-            Get Started
-          </a>
+          <a href="/get-started" style={primaryButton}>Get Started</a>
           <a href="/example-payslip" style={secondaryButton}>
             View Example Payslip
           </a>
@@ -166,152 +182,157 @@ ${form.message}`
       </section>
 
       <section id="contact" style={section}>
-  <h2 style={sectionTitle}>Contact WageFlow</h2>
+        <h2 style={sectionTitle}>Contact WageFlow</h2>
 
-  <p style={sectionIntro}>
-    Ready to organise your staff records and payslips? Choose an option below.
-  </p>
-
-  <div style={contactToggleWrap}>
-    <button
-      type="button"
-      style={openContact === "form" ? contactToggleActive : contactToggle}
-      onClick={() => setOpenContact(openContact === "form" ? null : "form")}
-    >
-      Send Enquiry
-    </button>
-
-    <button
-      type="button"
-      style={openContact === "details" ? contactToggleActive : contactToggle}
-      onClick={() =>
-        setOpenContact(openContact === "details" ? null : "details")
-      }
-    >
-      Contact Details
-    </button>
-  </div>
-
-  {openContact === "form" && (
-    <form onSubmit={handleSubmit} style={formStyle}>
-      <input
-        style={input}
-        placeholder="Your name"
-        value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
-        required
-      />
-
-      <input
-        style={input}
-        placeholder="Business name"
-        value={form.business}
-        onChange={(e) => setForm({ ...form, business: e.target.value })}
-        required
-      />
-
-      <input
-        style={input}
-        type="email"
-        placeholder="Email address"
-        value={form.email}
-        onChange={(e) => setForm({ ...form, email: e.target.value })}
-        required
-      />
-
-      <input
-        style={input}
-        placeholder="Phone number"
-        value={form.phone}
-        onChange={(e) => setForm({ ...form, phone: e.target.value })}
-        required
-      />
-
-      <textarea
-        style={textarea}
-        placeholder="Tell us what you need help with"
-        value={form.message}
-        onChange={(e) => setForm({ ...form, message: e.target.value })}
-        required
-      />
-
-      <button type="submit" style={primaryButton}>
-        Send Enquiry
-      </button>
-    </form>
-  )}
-
-  {openContact === "details" && (
-    <div style={contactCard}>
-      <h3 style={cardTitle}>WageFlow Contact Details</h3>
-
-      <div style={contactDetails}>
-        <p style={contactText}>
-          Email:{" "}
-          <a href="mailto:wageflow@lesedismartsolutions.co.za" style={textLink}>
-            wageflow@lesedismartsolutions.co.za
-          </a>
+        <p style={sectionIntro}>
+          Ready to organise your staff records and payslips? Choose an option below.
         </p>
 
-        <p style={contactText}>
-          Website:{" "}
-          <a
-            href="https://www.wageflow.co.za"
-            target="_blank"
-            rel="noreferrer"
-            style={textLink}
+        <div style={contactToggleWrap}>
+          <button
+            type="button"
+            style={openContact === "form" ? contactToggleActive : contactToggle}
+            onClick={() => setOpenContact(openContact === "form" ? null : "form")}
           >
-            www.wageflow.co.za
-          </a>
-        </p>
+            Send Enquiry
+          </button>
 
-        <p style={contactText}>
-          Call:{" "}
-          <a href="tel:+27763616044" style={textLink}>
-            076 361 6044
-          </a>
-        </p>
-
-        <p style={contactText}>
-          WhatsApp:{" "}
-          <a
-            href="https://wa.me/27763616044"
-            target="_blank"
-            rel="noreferrer"
-            style={textLink}
+          <button
+            type="button"
+            style={
+              openContact === "details" ? contactToggleActive : contactToggle
+            }
+            onClick={() =>
+              setOpenContact(openContact === "details" ? null : "details")
+            }
           >
-            076 361 6044
-          </a>
-        </p>
-      </div>
-    </div>
-  )}
-</section>
+            Contact Details
+          </button>
+        </div>
+
+        {openContact === "form" && (
+          <form onSubmit={handleSubmit} style={formStyle}>
+            <input
+              style={input}
+              placeholder="Your name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+
+            <input
+              style={input}
+              placeholder="Business name"
+              value={form.business}
+              onChange={(e) => setForm({ ...form, business: e.target.value })}
+              required
+            />
+
+            <input
+              style={input}
+              type="email"
+              placeholder="Email address"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+
+            <input
+              style={input}
+              placeholder="Phone number"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              required
+            />
+
+            <textarea
+              style={textarea}
+              placeholder="Tell us what you need help with"
+              value={form.message}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
+              required
+            />
+
+            <button type="submit" style={primaryButton} disabled={isSending}>
+              {isSending ? "Sending..." : "Send Enquiry"}
+            </button>
+          </form>
+        )}
+
+        {openContact === "details" && (
+          <div style={contactCard}>
+            <h3 style={cardTitle}>WageFlow Contact Details</h3>
+
+            <div style={contactDetails}>
+              <p style={contactText}>
+                Email:{" "}
+                <a
+                  href="mailto:wageflow@lesedismartsolutions.co.za"
+                  style={textLink}
+                >
+                  wageflow@lesedismartsolutions.co.za
+                </a>
+              </p>
+
+              <p style={contactText}>
+                Website:{" "}
+                <a
+                  href="https://www.wageflow.co.za"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={textLink}
+                >
+                  www.wageflow.co.za
+                </a>
+              </p>
+
+              <p style={contactText}>
+                Call:{" "}
+                <a href="tel:+27763616044" style={textLink}>
+                  076 361 6044
+                </a>
+              </p>
+
+              <p style={contactText}>
+                WhatsApp:{" "}
+                <a
+                  href="https://wa.me/27763616044"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={textLink}
+                >
+                  076 361 6044
+                </a>
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
 
       <footer style={footer}>
-  <div style={footerTop}>
-    <div style={footerInfo}>
-      <p>© {new Date().getFullYear()} WageFlow. All rights reserved.</p>
-      <p>Powered by Lesedi Smart Solutions</p>
-      <p>Lesedi Smart Solutions Registration Number: 2026/315790/07</p>
-      <p>Information Regulator Registration Number: 2026-010141</p>
-    </div>
+        <div style={footerTop}>
+          <div style={footerInfo}>
+            <p>© {new Date().getFullYear()} WageFlow. All rights reserved.</p>
+            <p>Powered by Lesedi Smart Solutions</p>
+            <p>Lesedi Smart Solutions Registration Number: 2026/315790/07</p>
+            <p>Information Regulator Registration Number: 2026-010141</p>
+          </div>
 
-    <div style={footerLinksBox}>
-      <a href="/terms" style={footerLink}>Terms & Conditions</a>
-      <a href="/privacy" style={footerLink}>Privacy Policy</a>
-    </div>
-  </div>
+          <div style={footerLinksBox}>
+            <a href="/terms" style={footerLink}>Terms & Conditions</a>
+            <a href="/privacy" style={footerLink}>Privacy Policy</a>
+          </div>
+        </div>
 
-  <p style={footerDisclaimer}>
-    WageFlow is a staff record and payslip management tool. WageFlow does not
-    act as a payroll bureau, tax practitioner, accountant, labour consultant or
-    SARS submission agent. Employers remain responsible for verifying payroll
-    information, statutory deductions, UIF, PAYE, SDL, employment records and
-    any required submissions to SARS, the Department of Employment and Labour or
-    other authorities.
-  </p>
-</footer>
+        <p style={footerDisclaimer}>
+          WageFlow is a staff record and payslip management tool. WageFlow does not
+          act as a payroll bureau, tax practitioner, accountant, labour consultant
+          or SARS submission agent. Employers remain responsible for verifying
+          payroll information, statutory deductions, UIF, PAYE, SDL, employment
+          records and any required submissions to SARS, the Department of Employment
+          and Labour or other authorities.
+        </p>
+      </footer>
     </main>
   );
 }
