@@ -198,6 +198,26 @@ export default function WageFlowRequestsPage() {
       return;
     }
 
+    const loginResponse = await fetch("/api/create-employer-login", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    email: request.email,
+    name: request.contact_person,
+  }),
+});
+
+if (!loginResponse.ok) {
+  const loginError = await loginResponse.json();
+  alert(
+    loginError.error ||
+      "The request was approved, but the employer login email could not be sent."
+  );
+  return;
+}
+
     fetchRequests();
   }
 
