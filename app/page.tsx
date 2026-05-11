@@ -30,7 +30,7 @@ export default function WageFlowLandingPage() {
         },
         body: JSON.stringify({
           name: form.name,
-          business: form.business,
+          company: form.business,
           email: form.email,
           phone: form.phone,
           message: form.message,
