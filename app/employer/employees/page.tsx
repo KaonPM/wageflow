@@ -180,6 +180,29 @@ export default function EmployerEmployeesPage() {
         return;
       }
 
+      const employeeLoginResponse = await fetch("/api/create-employee-login", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    email: form.email,
+    name: `${form.first_name} ${form.last_name}`.trim(),
+  }),
+});
+
+if (!employeeLoginResponse.ok) {
+  const loginError = await employeeLoginResponse.json();
+
+  setMessage(
+    loginError.error ||
+      "Employee was added, but login details could not be emailed."
+  );
+
+  setSaving(false);
+  return;
+}
+
       setMessage("Employee updated successfully.");
     } else {
       const businessId = await getEmployerBusinessId();
