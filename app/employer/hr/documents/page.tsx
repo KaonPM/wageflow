@@ -461,16 +461,6 @@ export default function EmployeeDocumentsPage() {
                 <h2>${escapeHtml(businessName())}</h2>
                 <div class="contact">
                   ${
-                    businessProfile?.email
-                      ? `Email: ${escapeHtml(businessProfile.email)}<br />`
-                      : ""
-                  }
-                  ${
-                    businessProfile?.phone
-                      ? `Phone: ${escapeHtml(businessProfile.phone)}<br />`
-                      : ""
-                  }
-                  ${
                     businessProfile?.address
                       ? `Address: ${escapeHtml(businessProfile.address)}`
                       : ""
