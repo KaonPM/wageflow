@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import jsPDF from "jspdf";
 import { supabase } from "../../lib/supabaseClient";
 
 type Employee = {
@@ -141,6 +140,10 @@ export default function EmployeeHRRecordsPage() {
   const employerName =
     business?.trading_name || business?.business_name || "Your Employer";
 
+  const confirmationRecords = documents.filter((record) =>
+    isConfirmationOfEmployment(record)
+  );
+
   return (
     <main style={page}>
       <div style={shell}>
@@ -151,8 +154,8 @@ export default function EmployeeHRRecordsPage() {
             <h2 style={pageTitle}>HR Records</h2>
 
             <p style={pageSubtitle}>
-              View employee documents, disciplinary records, and employer HR
-              notes linked to your profile.
+              View HR records shared by your employer. Confirmation letters can
+              be opened for printing or saving from the record view.
             </p>
           </div>
 
@@ -175,33 +178,27 @@ export default function EmployeeHRRecordsPage() {
 
         <section style={recordsGrid}>
           <RecordSection
-            title="Employee Documents"
-            description="Contracts, ID copies, onboarding documents, confirmations, and uploaded employee files."
-            emptyText="No employee documents have been shared yet."
-            records={documents}
-            type="document"
-            employerName={employerName}
-            employee={employee}
+            title="Confirmation of Employment"
+            description="Employment confirmation letters saved to your employee records."
+            emptyText="No confirmation of employment letters have been shared yet."
+            records={confirmationRecords}
+            type="confirmation"
           />
 
           <RecordSection
             title="Disciplinary Records"
-            description="Warnings, disciplinary notes, incident outcomes, and employer comments."
+            description="Disciplinary records linked to your employee profile."
             emptyText="No disciplinary records have been shared yet."
             records={disciplinaryRecords}
             type="disciplinary"
-            employerName={employerName}
-            employee={employee}
           />
 
           <RecordSection
             title="General HR Records"
-            description="Employer HR notes, confirmations, and additional HR-related records."
-            emptyText="No HR notes or records have been shared yet."
+            description="General HR notes and records linked to your profile."
+            emptyText="No general HR records have been shared yet."
             records={notes}
             type="hr"
-            employerName={employerName}
-            employee={employee}
           />
         </section>
       </div>
@@ -233,16 +230,12 @@ function RecordSection({
   emptyText,
   records,
   type,
-  employerName,
-  employee,
 }: {
   title: string;
   description: string;
   emptyText: string;
   records: GenericRecord[];
-  type: "document" | "disciplinary" | "hr";
-  employerName: string;
-  employee: Employee;
+  type: "confirmation" | "disciplinary" | "hr";
 }) {
   return (
     <section style={sectionCard}>
@@ -259,13 +252,12 @@ function RecordSection({
         <div style={emptyState}>{emptyText}</div>
       ) : (
         <div style={recordList}>
-          {records.map((record) => (
+          {records.map((record, index) => (
             <RecordCard
               key={record.id || JSON.stringify(record)}
               record={record}
               type={type}
-              employerName={employerName}
-              employee={employee}
+              index={index}
             />
           ))}
         </div>
@@ -277,28 +269,13 @@ function RecordSection({
 function RecordCard({
   record,
   type,
-  employerName,
-  employee,
+  index,
 }: {
   record: GenericRecord;
-  type: "document" | "disciplinary" | "hr";
-  employerName: string;
-  employee: Employee;
+  type: "confirmation" | "disciplinary" | "hr";
+  index: number;
 }) {
-  const title =
-    record.title ||
-    record.document_name ||
-    record.document_title ||
-    record.document_type ||
-    record.document_category ||
-    record.category ||
-    record.note_type ||
-    record.incident_type ||
-    record.record_type ||
-    fallbackTitle(type);
-
-  const status =
-    record.status || record.outcome || record.result || "Recorded";
+  const title = getRecordTitle(record, type, index);
 
   const date =
     record.created_at ||
@@ -308,171 +285,6 @@ function RecordCard({
     record.record_date ||
     null;
 
-  const note =
-    record.notes ||
-    record.note ||
-    record.description ||
-    record.reason ||
-    record.incident_description ||
-    record.action_taken ||
-    "No additional notes provided.";
-
-  const fileUrl =
-    record.file_url ||
-    record.document_url ||
-    record.attachment_url ||
-    null;
-
-  const recordContent = buildRecordContent({
-    record,
-    type,
-    title,
-    status,
-    date,
-    note,
-    employerName,
-    employee,
-  });
-
-  function printRecord() {
-    const printWindow = window.open("", "_blank", "width=900,height=700");
-
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${escapeHtml(title)}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 48px;
-              color: #334155;
-            }
-
-            .sheet {
-              max-width: 780px;
-              margin: 0 auto;
-            }
-
-            h1 {
-              text-align: center;
-              color: #0f172a;
-              margin-bottom: 28px;
-              font-size: 24px;
-            }
-
-            .meta {
-              margin-bottom: 28px;
-              font-size: 14px;
-              line-height: 1.7;
-            }
-
-            .content {
-              white-space: pre-wrap;
-              font-size: 14px;
-              line-height: 1.8;
-            }
-
-            .footer {
-              margin-top: 42px;
-              padding-top: 18px;
-              border-top: 1px solid #cbd5e1;
-              font-size: 12px;
-              color: #64748b;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="sheet">
-            <h1>${escapeHtml(title)}</h1>
-            <div class="meta">
-              <strong>${escapeHtml(employerName)}</strong><br />
-              Employee: ${escapeHtml(employee.full_name || "Employee")}<br />
-              Employee Number: ${escapeHtml(
-                employee.employee_number || "N/A"
-              )}<br />
-              Department: ${escapeHtml(employee.department || "N/A")}<br />
-              Date: ${escapeHtml(formatDate(date))}<br />
-              Status: ${escapeHtml(status)}
-            </div>
-            <div class="content">${escapeHtml(recordContent)}</div>
-            <div class="footer">
-              Generated from WageFlow employee HR records.
-            </div>
-          </div>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  }
-
-  function downloadPdf() {
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
-
-    const left = 18;
-    const top = 20;
-    const width = 174;
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(16);
-    pdf.text(String(title), 105, top, { align: "center" });
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-
-    const metaLines = [
-      employerName,
-      `Employee: ${employee.full_name || "Employee"}`,
-      `Employee Number: ${employee.employee_number || "N/A"}`,
-      `Department: ${employee.department || "N/A"}`,
-      `Date: ${formatDate(date)}`,
-      `Status: ${status}`,
-    ];
-
-    let y = 34;
-
-    metaLines.forEach((line) => {
-      pdf.text(line, left, y);
-      y += 6;
-    });
-
-    y += 6;
-
-    const contentLines = pdf.splitTextToSize(recordContent, width);
-
-    pdf.setFontSize(11);
-
-    contentLines.forEach((line: string) => {
-      if (y > 280) {
-        pdf.addPage();
-        y = 20;
-      }
-
-      pdf.text(line, left, y);
-      y += 6;
-    });
-
-    if (y > 260) {
-      pdf.addPage();
-      y = 20;
-    }
-
-    pdf.setFontSize(9);
-    pdf.setTextColor(100);
-    pdf.text("Generated from WageFlow employee HR records.", left, y + 14);
-
-    pdf.save(`${String(title).replace(/\s+/g, "-")}.pdf`);
-  }
-
   return (
     <article style={recordCard}>
       <div style={recordTop}>
@@ -481,110 +293,40 @@ function RecordCard({
           <p style={recordDate}>{formatDate(date)}</p>
         </div>
 
-        <span style={statusBadge}>{status}</span>
+        <span style={statusBadge}>Recorded</span>
       </div>
 
-      <p style={recordNote}>{note}</p>
-
       <div style={recordActions}>
-  <a
-    href={`/employee/hr-records/${record.id}`}
-    style={viewButton}
-  >
-    View Record
-  </a>
-
-  {fileUrl ? (
-    <a
-      href={fileUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={secondaryButton}
-    >
-      Open File
-    </a>
-  ) : null}
-
-  <button
-    type="button"
-    style={secondaryButton}
-    onClick={printRecord}
-  >
-    Print
-  </button>
-
-  <button
-    type="button"
-    style={secondaryButton}
-    onClick={downloadPdf}
-  >
-    Download PDF
-  </button>
-</div>
+        <a href={`/employee/hr-records/${record.id}`} style={viewButton}>
+          View Record
+        </a>
+      </div>
     </article>
   );
 }
 
-function buildRecordContent({
-  record,
-  type,
-  title,
-  status,
-  date,
-  note,
-  employerName,
-  employee,
-}: {
-  record: GenericRecord;
-  type: "document" | "disciplinary" | "hr";
-  title: string;
-  status: string;
-  date: string | null;
-  note: string;
-  employerName: string;
-  employee: Employee;
-}) {
-  if (type === "disciplinary") {
-    return `${title}
-
-Employer: ${employerName}
-Employee: ${employee.full_name || "Employee"}
-Employee Number: ${employee.employee_number || "N/A"}
-Department: ${employee.department || "N/A"}
-Position: ${employee.position || "N/A"}
-
-Record Date: ${formatDate(date)}
-Incident Date: ${formatDate(record.incident_date || null)}
-Status: ${status}
-
-Incident Details:
-${record.incident_description || "No incident details provided."}
-
-Action Taken:
-${record.action_taken || "No action recorded."}
-
-Additional Notes:
-${record.notes || "No additional notes provided."}`;
+function getRecordTitle(
+  record: GenericRecord,
+  type: "confirmation" | "disciplinary" | "hr",
+  index: number
+) {
+  if (type === "confirmation") {
+    return record.document_name || `Confirmation of Employment ${index + 1}`;
   }
 
-  return `${title}
+  if (type === "disciplinary") {
+    return record.title || record.incident_type || `Disciplinary Record ${index + 1}`;
+  }
 
-Employer: ${employerName}
-Employee: ${employee.full_name || "Employee"}
-Employee Number: ${employee.employee_number || "N/A"}
-Department: ${employee.department || "N/A"}
-Position: ${employee.position || "N/A"}
-
-Date: ${formatDate(date)}
-Status: ${status}
-
-${note}`;
+  return record.title || record.note_type || record.record_type || `HR Record ${index + 1}`;
 }
 
-function fallbackTitle(type: "document" | "disciplinary" | "hr") {
-  if (type === "document") return "Employee Document";
-  if (type === "disciplinary") return "Disciplinary Record";
-  return "HR Record";
+function isConfirmationOfEmployment(record: GenericRecord) {
+  const text = `${record.document_name || ""} ${
+    record.document_category || ""
+  } ${record.document_type || ""}`.toLowerCase();
+
+  return text.includes("confirmation of employment");
 }
 
 function formatDate(value: string | null) {
@@ -599,15 +341,6 @@ function formatDate(value: string | null) {
     month: "short",
     day: "2-digit",
   });
-}
-
-function escapeHtml(value: string) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 const page: CSSProperties = {
@@ -816,13 +549,6 @@ const statusBadge: CSSProperties = {
   fontWeight: 800,
 };
 
-const recordNote: CSSProperties = {
-  margin: "0 0 12px",
-  fontSize: "14px",
-  lineHeight: 1.5,
-  color: "#334e68",
-};
-
 const recordActions: CSSProperties = {
   display: "flex",
   gap: "10px",
@@ -839,15 +565,4 @@ const viewButton: CSSProperties = {
   textDecoration: "none",
   fontSize: "13px",
   fontWeight: 800,
-};
-
-const secondaryButton: CSSProperties = {
-  border: "1px solid #d7e5e4",
-  background: "#ffffff",
-  color: "#176f7a",
-  borderRadius: "10px",
-  padding: "9px 13px",
-  fontSize: "13px",
-  fontWeight: 800,
-  cursor: "pointer",
 };
