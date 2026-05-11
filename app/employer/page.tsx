@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 
 type Business = {
@@ -25,6 +26,8 @@ type Employee = {
 };
 
 export default function EmployerDashboard() {
+  const router = useRouter();
+
   const [business, setBusiness] = useState<Business | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +104,11 @@ export default function EmployerDashboard() {
     setLoading(false);
   }
 
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
   const businessName =
     business?.trading_name ||
     business?.business_name ||
@@ -138,6 +146,16 @@ export default function EmployerDashboard() {
               Employer dashboard for managing employees, payroll, HR records,
               approvals and business settings from one organised workspace.
             </p>
+
+            <div style={topActions}>
+              <Link href="/" style={homeButton}>
+                Home
+              </Link>
+
+              <button onClick={handleLogout} style={logoutButton}>
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 
@@ -351,6 +369,34 @@ const subtitle = {
   fontSize: "16px",
   lineHeight: 1.7,
   margin: 0,
+};
+
+const topActions = {
+  display: "flex",
+  gap: "10px",
+  alignItems: "center",
+  marginTop: "18px",
+  flexWrap: "wrap" as const,
+};
+
+const homeButton = {
+  background: "#ffffff",
+  color: "#0f766e",
+  padding: "10px 16px",
+  borderRadius: "12px",
+  textDecoration: "none",
+  fontWeight: 800,
+  border: "1px solid #dbeafe",
+};
+
+const logoutButton = {
+  background: "#dc2626",
+  color: "#ffffff",
+  padding: "10px 16px",
+  borderRadius: "12px",
+  border: "none",
+  fontWeight: 800,
+  cursor: "pointer",
 };
 
 const statusCard = {
