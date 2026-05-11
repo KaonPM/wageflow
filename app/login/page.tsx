@@ -35,12 +35,17 @@ export default function LoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, must_change_password")
       .eq("id", userId)
       .single();
 
     if (profileError || !profile) {
       setMessage("Your account profile is not set up yet.");
+      return;
+    }
+
+    if (profile.must_change_password) {
+      router.push("/change-password");
       return;
     }
 
