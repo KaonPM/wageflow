@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -111,6 +110,7 @@ export default function EmployeeHRRecordsPage() {
 
     setEmployee(employeeData as Employee);
     setBusiness((businessData || null) as Business | null);
+
     setDocuments(documentData || []);
     setDisciplinaryRecords(disciplinaryData || []);
     setNotes(notesData || []);
@@ -180,6 +180,8 @@ export default function EmployeeHRRecordsPage() {
             emptyText="No employee documents have been shared yet."
             records={documents}
             type="document"
+            employerName={employerName}
+            employee={employee}
           />
 
           <RecordSection
@@ -188,6 +190,8 @@ export default function EmployeeHRRecordsPage() {
             emptyText="No disciplinary records have been shared yet."
             records={disciplinaryRecords}
             type="disciplinary"
+            employerName={employerName}
+            employee={employee}
           />
 
           <RecordSection
@@ -196,6 +200,8 @@ export default function EmployeeHRRecordsPage() {
             emptyText="No HR notes or records have been shared yet."
             records={notes}
             type="hr"
+            employerName={employerName}
+            employee={employee}
           />
         </section>
       </div>
@@ -227,12 +233,16 @@ function RecordSection({
   emptyText,
   records,
   type,
+  employerName,
+  employee,
 }: {
   title: string;
   description: string;
   emptyText: string;
   records: GenericRecord[];
   type: "document" | "disciplinary" | "hr";
+  employerName: string;
+  employee: Employee;
 }) {
   return (
     <section style={sectionCard}>
@@ -254,6 +264,8 @@ function RecordSection({
               key={record.id || JSON.stringify(record)}
               record={record}
               type={type}
+              employerName={employerName}
+              employee={employee}
             />
           ))}
         </div>
@@ -265,16 +277,14 @@ function RecordSection({
 function RecordCard({
   record,
   type,
+  employerName,
+  employee,
 }: {
   record: GenericRecord;
   type: "document" | "disciplinary" | "hr";
+  employerName: string;
+  employee: Employee;
 }) {
-  const safeId =
-    record.id ||
-    `${type}-${Math.random().toString(36).slice(2, 10)}`;
-
-  const cardId = `record-${safeId}`;
-
   const title =
     record.title ||
     record.document_name ||
@@ -313,38 +323,18 @@ function RecordCard({
     record.attachment_url ||
     null;
 
-  async function downloadPdf() {
-    const element = document.getElementById(cardId);
-
-    if (!element) return;
-
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-    });
-
-    const imageData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    pdf.addImage(imageData, "PNG", 0, 0, pdfWidth, pdfHeight);
-
-    pdf.save(`${String(title).replace(/\s+/g, "-")}.pdf`);
-  }
+  const recordContent = buildRecordContent({
+    record,
+    type,
+    title,
+    status,
+    date,
+    note,
+    employerName,
+    employee,
+  });
 
   function printRecord() {
-    const element = document.getElementById(cardId);
-
-    if (!element) return;
-
     const printWindow = window.open("", "_blank", "width=900,height=700");
 
     if (!printWindow) return;
@@ -352,32 +342,65 @@ function RecordCard({
     printWindow.document.write(`
       <html>
         <head>
-          <title>${title}</title>
-
+          <title>${escapeHtml(title)}</title>
           <style>
             body {
               font-family: Arial, sans-serif;
-              padding: 40px;
+              padding: 48px;
               color: #334155;
             }
 
-            h1, h2, h3 {
+            .sheet {
+              max-width: 780px;
+              margin: 0 auto;
+            }
+
+            h1 {
+              text-align: center;
               color: #0f172a;
+              margin-bottom: 28px;
+              font-size: 24px;
             }
 
-            p {
-              line-height: 1.7;
+            .meta {
+              margin-bottom: 28px;
               font-size: 14px;
+              line-height: 1.7;
             }
 
-            button, a {
-              display: none !important;
+            .content {
+              white-space: pre-wrap;
+              font-size: 14px;
+              line-height: 1.8;
+            }
+
+            .footer {
+              margin-top: 42px;
+              padding-top: 18px;
+              border-top: 1px solid #cbd5e1;
+              font-size: 12px;
+              color: #64748b;
             }
           </style>
         </head>
-
         <body>
-          ${element.innerHTML}
+          <div class="sheet">
+            <h1>${escapeHtml(title)}</h1>
+            <div class="meta">
+              <strong>${escapeHtml(employerName)}</strong><br />
+              Employee: ${escapeHtml(employee.full_name || "Employee")}<br />
+              Employee Number: ${escapeHtml(
+                employee.employee_number || "N/A"
+              )}<br />
+              Department: ${escapeHtml(employee.department || "N/A")}<br />
+              Date: ${escapeHtml(formatDate(date))}<br />
+              Status: ${escapeHtml(status)}
+            </div>
+            <div class="content">${escapeHtml(recordContent)}</div>
+            <div class="footer">
+              Generated from WageFlow employee HR records.
+            </div>
+          </div>
         </body>
       </html>
     `);
@@ -388,8 +411,70 @@ function RecordCard({
     printWindow.close();
   }
 
+  function downloadPdf() {
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const left = 18;
+    const top = 20;
+    const width = 174;
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(16);
+    pdf.text(String(title), 105, top, { align: "center" });
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+
+    const metaLines = [
+      employerName,
+      `Employee: ${employee.full_name || "Employee"}`,
+      `Employee Number: ${employee.employee_number || "N/A"}`,
+      `Department: ${employee.department || "N/A"}`,
+      `Date: ${formatDate(date)}`,
+      `Status: ${status}`,
+    ];
+
+    let y = 34;
+
+    metaLines.forEach((line) => {
+      pdf.text(line, left, y);
+      y += 6;
+    });
+
+    y += 6;
+
+    const contentLines = pdf.splitTextToSize(recordContent, width);
+
+    pdf.setFontSize(11);
+
+    contentLines.forEach((line: string) => {
+      if (y > 280) {
+        pdf.addPage();
+        y = 20;
+      }
+
+      pdf.text(line, left, y);
+      y += 6;
+    });
+
+    if (y > 260) {
+      pdf.addPage();
+      y = 20;
+    }
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(100);
+    pdf.text("Generated from WageFlow employee HR records.", left, y + 14);
+
+    pdf.save(`${String(title).replace(/\s+/g, "-")}.pdf`);
+  }
+
   return (
-    <article style={recordCard} id={cardId}>
+    <article style={recordCard}>
       <div style={recordTop}>
         <div>
           <h3 style={recordTitle}>{title}</h3>
@@ -420,6 +505,62 @@ function RecordCard({
   );
 }
 
+function buildRecordContent({
+  record,
+  type,
+  title,
+  status,
+  date,
+  note,
+  employerName,
+  employee,
+}: {
+  record: GenericRecord;
+  type: "document" | "disciplinary" | "hr";
+  title: string;
+  status: string;
+  date: string | null;
+  note: string;
+  employerName: string;
+  employee: Employee;
+}) {
+  if (type === "disciplinary") {
+    return `${title}
+
+Employer: ${employerName}
+Employee: ${employee.full_name || "Employee"}
+Employee Number: ${employee.employee_number || "N/A"}
+Department: ${employee.department || "N/A"}
+Position: ${employee.position || "N/A"}
+
+Record Date: ${formatDate(date)}
+Incident Date: ${formatDate(record.incident_date || null)}
+Status: ${status}
+
+Incident Details:
+${record.incident_description || "No incident details provided."}
+
+Action Taken:
+${record.action_taken || "No action recorded."}
+
+Additional Notes:
+${record.notes || "No additional notes provided."}`;
+  }
+
+  return `${title}
+
+Employer: ${employerName}
+Employee: ${employee.full_name || "Employee"}
+Employee Number: ${employee.employee_number || "N/A"}
+Department: ${employee.department || "N/A"}
+Position: ${employee.position || "N/A"}
+
+Date: ${formatDate(date)}
+Status: ${status}
+
+${note}`;
+}
+
 function fallbackTitle(type: "document" | "disciplinary" | "hr") {
   if (type === "document") return "Employee Document";
   if (type === "disciplinary") return "Disciplinary Record";
@@ -438,6 +579,15 @@ function formatDate(value: string | null) {
     month: "short",
     day: "2-digit",
   });
+}
+
+function escapeHtml(value: string) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 const page: CSSProperties = {
