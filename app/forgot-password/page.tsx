@@ -3,22 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
-import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
-  const router = useRouter();
-
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleReset(e: React.FormEvent) {
     e.preventDefault();
-    setMessage("Signing in...");
+    setMessage("Sending reset email...");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const redirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/reset-password`
+        : undefined;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
     });
 
     if (error) {
@@ -26,42 +26,22 @@ export default function LoginPage() {
       return;
     }
 
-    const userId = data.user?.id;
-
-    if (!userId) {
-      setMessage("Login failed. Please try again.");
-      return;
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .single();
-
-    if (profileError || !profile) {
-      setMessage("Your account profile is not set up yet.");
-      return;
-    }
-
-    if (profile.role === "master_admin") {
-      router.push("/master");
-    } else if (profile.role === "employer") {
-      router.push("/employer");
-    } else if (profile.role === "employee") {
-      router.push("/employee");
-    } else {
-      setMessage("Unknown user role.");
-    }
+    setMessage("Password reset email sent. Please check your inbox.");
   }
 
   return (
     <main style={page}>
       <section style={card}>
-        <h1 style={title}>Log in to WageFlow</h1>
-        <p style={subtitle}>Access your payroll and staff records.</p>
+        <Link href="/login" style={backLink}>
+          ← Back to login
+        </Link>
 
-        <form onSubmit={handleLogin} style={form}>
+        <h1 style={title}>Reset your password</h1>
+        <p style={subtitle}>
+          Enter your email address and we will send you a password reset link.
+        </p>
+
+        <form onSubmit={handleReset} style={form}>
           <input
             style={input}
             type="email"
@@ -71,23 +51,10 @@ export default function LoginPage() {
             required
           />
 
-          <input
-            style={input}
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
           <button type="submit" style={button}>
-            Log In
+            Send Reset Link
           </button>
         </form>
-
-        <Link href="/forgot-password" style={forgotLink}>
-          Forgot password?
-        </Link>
 
         {message && <p style={messageStyle}>{message}</p>}
       </section>
@@ -115,6 +82,14 @@ const card = {
   boxShadow: "0 12px 30px rgba(0,0,0,0.06)",
 };
 
+const backLink = {
+  display: "inline-block",
+  marginBottom: "20px",
+  fontSize: "13px",
+  color: "#0f766e",
+  textDecoration: "none",
+};
+
 const title = {
   fontSize: "24px",
   color: "#0f766e",
@@ -125,6 +100,7 @@ const subtitle = {
   fontSize: "14px",
   color: "#666",
   marginBottom: "24px",
+  lineHeight: 1.5,
 };
 
 const form = {
@@ -148,14 +124,6 @@ const button = {
   padding: "12px",
   fontSize: "14px",
   cursor: "pointer",
-};
-
-const forgotLink = {
-  display: "inline-block",
-  marginTop: "14px",
-  fontSize: "13px",
-  color: "#0f766e",
-  textDecoration: "none",
 };
 
 const messageStyle = {

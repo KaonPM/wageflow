@@ -1,23 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage("Signing in...");
+  function isStrongPassword(value: string) {
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(
+      value
+    );
+  }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+  async function handleUpdatePassword(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!isStrongPassword(password)) {
+      setMessage(
+        "Password must be at least 8 characters and include uppercase, lowercase, a number and a special character."
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
+
+    setMessage("Updating password...");
+
+    const { error } = await supabase.auth.updateUser({
       password,
     });
 
@@ -26,68 +43,45 @@ export default function LoginPage() {
       return;
     }
 
-    const userId = data.user?.id;
+    setMessage("Password updated successfully. Redirecting to login...");
 
-    if (!userId) {
-      setMessage("Login failed. Please try again.");
-      return;
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .single();
-
-    if (profileError || !profile) {
-      setMessage("Your account profile is not set up yet.");
-      return;
-    }
-
-    if (profile.role === "master_admin") {
-      router.push("/master");
-    } else if (profile.role === "employer") {
-      router.push("/employer");
-    } else if (profile.role === "employee") {
-      router.push("/employee");
-    } else {
-      setMessage("Unknown user role.");
-    }
+    setTimeout(() => {
+      router.push("/login");
+    }, 1500);
   }
 
   return (
     <main style={page}>
       <section style={card}>
-        <h1 style={title}>Log in to WageFlow</h1>
-        <p style={subtitle}>Access your payroll and staff records.</p>
+        <h1 style={title}>Create a new password</h1>
+        <p style={subtitle}>
+          Your new password must include uppercase, lowercase, a number, and a
+          special character.
+        </p>
 
-        <form onSubmit={handleLogin} style={form}>
+        <form onSubmit={handleUpdatePassword} style={form}>
           <input
             style={input}
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="password"
+            placeholder="New password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
           />
 
           <input
             style={input}
             type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             required
           />
 
           <button type="submit" style={button}>
-            Log In
+            Update Password
           </button>
         </form>
-
-        <Link href="/forgot-password" style={forgotLink}>
-          Forgot password?
-        </Link>
 
         {message && <p style={messageStyle}>{message}</p>}
       </section>
@@ -125,6 +119,7 @@ const subtitle = {
   fontSize: "14px",
   color: "#666",
   marginBottom: "24px",
+  lineHeight: 1.5,
 };
 
 const form = {
@@ -148,14 +143,6 @@ const button = {
   padding: "12px",
   fontSize: "14px",
   cursor: "pointer",
-};
-
-const forgotLink = {
-  display: "inline-block",
-  marginTop: "14px",
-  fontSize: "13px",
-  color: "#0f766e",
-  textDecoration: "none",
 };
 
 const messageStyle = {
