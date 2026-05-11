@@ -29,7 +29,7 @@ Message:
 ${form.message}`
     );
 
-    window.location.href = `mailto:info@wageflow.co.za?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:wageflow@lesedismartsolutions.co.za?subject=${subject}&body=${body}`;
   }
 
   return (
@@ -248,8 +248,8 @@ ${form.message}`
       <div style={contactDetails}>
         <p style={contactText}>
           Email:{" "}
-          <a href="mailto:info@wageflow.co.za" style={textLink}>
-            info@wageflow.co.za
+          <a href="mailto:wageflow@lesedismartsolutions.co.za" style={textLink}>
+            wageflow@lesedismartsolutions.co.za
           </a>
         </p>
 
