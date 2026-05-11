@@ -150,12 +150,10 @@ export default function EmployeeHRRecordsPage() {
         <section style={pageHeader}>
           <div>
             <h1 style={companyTitle}>{employerName}</h1>
-
             <h2 style={pageTitle}>HR Records</h2>
-
             <p style={pageSubtitle}>
               View HR records shared by your employer. Confirmation letters can
-              be opened for printing or saving from the record view.
+              be printed or saved from the record view.
             </p>
           </div>
 
@@ -297,9 +295,12 @@ function RecordCard({
       </div>
 
       <div style={recordActions}>
-        <a href={`/employee/hr-records/${record.id}`} style={viewButton}>
+        <Link
+          href={`/employee/hr-records/${record.id}?type=${type}`}
+          style={viewButton}
+        >
           View Record
-        </a>
+        </Link>
       </div>
     </article>
   );
@@ -315,10 +316,20 @@ function getRecordTitle(
   }
 
   if (type === "disciplinary") {
-    return record.title || record.incident_type || `Disciplinary Record ${index + 1}`;
+    return (
+      record.title ||
+      record.incident_type ||
+      record.record_type ||
+      `Disciplinary Record ${index + 1}`
+    );
   }
 
-  return record.title || record.note_type || record.record_type || `HR Record ${index + 1}`;
+  return (
+    record.title ||
+    record.note_type ||
+    record.record_type ||
+    `HR Record ${index + 1}`
+  );
 }
 
 function isConfirmationOfEmployment(record: GenericRecord) {

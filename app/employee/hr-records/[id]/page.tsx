@@ -2,68 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/app/lib/supabaseClient";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "../../../lib/supabaseClient";
 
-type Employee = {
-  id: string;
-  business_id: string;
-  full_name?: string | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  employee_number?: string | null;
-  id_number?: string | null;
-  position?: string | null;
-  job_title?: string | null;
-  role?: string | null;
-  department?: string | null;
-  employment_type?: string | null;
-  start_date?: string | null;
-  employment_start_date?: string | null;
-  date_started?: string | null;
-  salary_payment_date?: string | null;
-  status?: string | null;
-  employment_status?: string | null;
-};
+type RecordType = "confirmation" | "disciplinary" | "hr";
 
-type BusinessProfile = {
-  id: string;
-  business_name?: string | null;
-  trading_name?: string | null;
-  name?: string | null;
-  company_name?: string | null;
-  logo_url?: string | null;
-  company_logo_url?: string | null;
-  business_logo_url?: string | null;
-  logo?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  contact_person?: string | null;
-};
+type Employee = Record<string, any>;
+type Business = Record<string, any>;
+type GenericRecord = Record<string, any>;
 
-type DocumentRecord = {
-  id: string;
-  business_id: string;
-  employee_id: string;
-  document_name?: string | null;
-  document_category?: string | null;
-  file_url?: string | null;
-  notes?: string | null;
-  uploaded_at?: string | null;
-  created_at?: string | null;
-};
-
-export default function EmployeeHrRecordViewPage() {
+export default function EmployeeHrRecordDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const letterRef = useRef<HTMLDivElement | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [employee, setEmployee] = useState<Employee | null>(null);
-  const [business, setBusiness] = useState<BusinessProfile | null>(null);
-  const [record, setRecord] = useState<DocumentRecord | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [record, setRecord] = useState<GenericRecord | null>(null);
+  const [recordType, setRecordType] = useState<RecordType>("confirmation");
 
   useEffect(() => {
     if (params?.id) {
@@ -74,6 +33,9 @@ export default function EmployeeHrRecordViewPage() {
   async function loadRecord(recordId: string) {
     setLoading(true);
     setMessage("");
+
+    const typeFromUrl = normaliseRecordType(searchParams.get("type"));
+    setRecordType(typeFromUrl);
 
     const {
       data: { user },
@@ -109,14 +71,21 @@ export default function EmployeeHrRecordViewPage() {
       return;
     }
 
-    const { data: documentData, error: documentError } = await supabase
-      .from("employee_documents")
+    const tableName =
+      typeFromUrl === "disciplinary"
+        ? "disciplinary_records"
+        : typeFromUrl === "hr"
+        ? "hr_notes"
+        : "employee_documents";
+
+    const { data: recordData, error: recordError } = await supabase
+      .from(tableName)
       .select("*")
       .eq("id", recordId)
       .eq("employee_id", employeeData.id)
       .maybeSingle();
 
-    if (documentError || !documentData) {
+    if (recordError || !recordData) {
       setMessage("This HR record could not be loaded.");
       setLoading(false);
       return;
@@ -129,9 +98,64 @@ export default function EmployeeHrRecordViewPage() {
       .maybeSingle();
 
     setEmployee(employeeData);
-    setRecord(documentData);
     setBusiness(businessData || null);
+    setRecord(recordData);
     setLoading(false);
+  }
+
+  function handlePrint() {
+    if (!letterRef.current) return;
+
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${documentTitle()}</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 40px;
+              font-family: Arial, sans-serif;
+              color: #111827;
+              background: #ffffff;
+            }
+
+            .print-shell {
+              max-width: 760px;
+              margin: 0 auto;
+            }
+
+            img {
+              max-width: 90px;
+              max-height: 90px;
+              object-fit: contain;
+            }
+
+            @page {
+              size: A4;
+              margin: 18mm;
+            }
+          </style>
+        </head>
+
+        <body>
+          <div class="print-shell">
+            ${letterRef.current.innerHTML}
+          </div>
+
+          <script>
+            window.onload = function () {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
   }
 
   function businessName() {
@@ -180,68 +204,40 @@ export default function EmployeeHrRecordViewPage() {
   }
 
   function documentTitle() {
+    if (!record) return "HR Record";
+
+    if (recordType === "confirmation") {
+      return record.document_name || "Confirmation of Employment";
+    }
+
+    if (recordType === "disciplinary") {
+      return (
+        record.title ||
+        record.incident_type ||
+        record.record_type ||
+        "Disciplinary Record"
+      );
+    }
+
+    return record.title || record.note_type || record.record_type || "HR Record";
+  }
+
+  function recordDate() {
+    if (!record) return null;
+
     return (
-      record?.document_category ||
-      record?.document_name ||
-      "HR Record"
+      record.created_at ||
+      record.uploaded_at ||
+      record.issue_date ||
+      record.incident_date ||
+      record.record_date ||
+      null
     );
   }
 
-  function isConfirmationLetter() {
-    const text = `${record?.document_category || ""} ${
-      record?.document_name || ""
-    }`.toLowerCase();
-
-    return text.includes("confirmation of employment");
-  }
-
-  function handlePrint() {
-    if (!letterRef.current) return;
-
-    const printWindow = window.open("", "_blank", "width=900,height=700");
-
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${documentTitle()}</title>
-          <style>
-            body {
-              margin: 0;
-              padding: 40px;
-              font-family: Arial, sans-serif;
-              color: #111827;
-              background: #ffffff;
-            }
-
-            .print-shell {
-              max-width: 760px;
-              margin: 0 auto;
-            }
-
-            @page {
-              size: A4;
-              margin: 18mm;
-            }
-          </style>
-        </head>
-
-        <body>
-          <div class="print-shell">
-            ${letterRef.current.innerHTML}
-          </div>
-
-          <script>
-            window.onload = function () {
-              window.print();
-            };
-          </script>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
+  function recordStatus() {
+    if (!record) return "Recorded";
+    return record.status || record.outcome || record.result || "Recorded";
   }
 
   if (loading) {
@@ -264,6 +260,8 @@ export default function EmployeeHrRecordViewPage() {
     );
   }
 
+  const isConfirmation = recordType === "confirmation";
+
   return (
     <main style={page}>
       <div style={shell}>
@@ -272,22 +270,11 @@ export default function EmployeeHrRecordViewPage() {
             ← Back to HR Records
           </a>
 
-          <div style={buttonGroup}>
-            {record.file_url && !isConfirmationLetter() && (
-              <a
-                href={record.file_url}
-                target="_blank"
-                rel="noreferrer"
-                style={secondaryButton}
-              >
-                Open File
-              </a>
-            )}
-
+          {isConfirmation && (
             <button onClick={handlePrint} style={secondaryButton}>
-              Download / Print
+              Print / Download
             </button>
-          </div>
+          )}
         </section>
 
         <section style={pageHeader}>
@@ -300,131 +287,232 @@ export default function EmployeeHrRecordViewPage() {
           </p>
         </section>
 
-        <section style={letterCard}>
-          {isConfirmationLetter() ? (
-            <div ref={letterRef} style={letterPaper}>
-              <div style={letterHeader}>
-                {businessLogo() && (
-                  <img
-                    src={businessLogo()}
-                    alt="Company logo"
-                    style={letterLogo}
-                  />
-                )}
-
-                <div>
-                  <h2 style={letterBusinessName}>{businessName()}</h2>
-
-                  <p style={letterContactDetails}>
-                    {business?.email && (
-                      <>
-                        Email: {business.email}
-                        <br />
-                      </>
-                    )}
-
-                    {business?.phone && (
-                      <>
-                        Phone: {business.phone}
-                        <br />
-                      </>
-                    )}
-
-                    {business?.address && <>Address: {business.address}</>}
-                  </p>
-
-                  <p style={letterDate}>
-                    Date:{" "}
-                    {new Date().toLocaleDateString("en-ZA", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                    })}
-                  </p>
-                </div>
-              </div>
-
-              <h1 style={letterTitle}>Confirmation of Employment</h1>
-
-              <div style={letterBody}>
-                <p>To Whom It May Concern</p>
-
-                <p>
-                  This letter serves to confirm that{" "}
-                  <strong>{employeeName()}</strong> is currently employed by{" "}
-                  <strong>{businessName()}</strong>.
-                </p>
-
-                <p>Employee details are as follows:</p>
-
-                <p>
-                  Employee Name: {employeeName()}
-                  <br />
-                  ID Number: {employee?.id_number || "-"}
-                  <br />
-                  Position: {employeePosition()}
-                  <br />
-                  Employment Type: {employee?.employment_type || "-"}
-                  <br />
-                  Employment Start Date: {employeeStartDate()}
-                  <br />
-                  Salary Payment Date: {employeeSalaryPaymentDate()}
-                </p>
-
-                <p>The employee is currently active on our records.</p>
-
-                <p>
-                  This letter is issued upon request for confirmation purposes.
-                </p>
-
-                <p style={kindRegards}>Kind regards,</p>
-
-                <div style={signatureLine} />
-
-                <p style={signatureText}>
-                  {business?.contact_person || "Signatory Name"}
-                  <br />
-                  Signatory Position
-                  <br />
-                  {businessName()}
-                </p>
-              </div>
-            </div>
+        <section style={recordCard}>
+          {isConfirmation ? (
+            <ConfirmationLetter
+              refEl={letterRef}
+              business={business}
+              record={record}
+              businessName={businessName()}
+              businessLogo={businessLogo()}
+              employeeName={employeeName()}
+              employee={employee}
+              employeePosition={employeePosition()}
+              employeeStartDate={employeeStartDate()}
+              employeeSalaryPaymentDate={employeeSalaryPaymentDate()}
+            />
+          ) : recordType === "disciplinary" ? (
+            <DisciplinaryRecordView
+              record={record}
+              employee={employee}
+              employeeName={employeeName()}
+              businessName={businessName()}
+            />
           ) : (
-            <div style={genericRecord}>
-              <h2 style={genericTitle}>{record.document_name || "HR Record"}</h2>
-
-              <div style={genericGrid}>
-                <Info label="Document Type" value={record.document_category} />
-                <Info label="Employee" value={employeeName()} />
-                <Info label="Employee Number" value={employee.employee_number} />
-                <Info label="Date" value={formatDate(record.uploaded_at || record.created_at)} />
-              </div>
-
-              {record.notes && (
-                <div style={notesBox}>
-                  <p style={notesLabel}>Notes</p>
-                  <p style={notesText}>{record.notes}</p>
-                </div>
-              )}
-
-              {record.file_url ? (
-                <a
-                  href={record.file_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={primaryButton}
-                >
-                  Open attached file
-                </a>
-              ) : (
-                <p style={pageText}>No file is attached to this record.</p>
-              )}
-            </div>
+            <GeneralHrRecordView
+              record={record}
+              employee={employee}
+              employeeName={employeeName()}
+              businessName={businessName()}
+            />
           )}
         </section>
       </div>
     </main>
+  );
+}
+
+function ConfirmationLetter({
+  refEl,
+  business,
+  businessName,
+  businessLogo,
+  employeeName,
+  employee,
+  employeePosition,
+  employeeStartDate,
+  employeeSalaryPaymentDate,
+}: {
+  refEl: React.RefObject<HTMLDivElement | null>;
+  business: Business | null;
+  record: GenericRecord;
+  businessName: string;
+  businessLogo: string;
+  employeeName: string;
+  employee: Employee;
+  employeePosition: string;
+  employeeStartDate: string;
+  employeeSalaryPaymentDate: string;
+}) {
+  return (
+    <div ref={refEl} style={letterPaper}>
+      <div style={letterHeader}>
+        {businessLogo && (
+          <img src={businessLogo} alt="Company logo" style={letterLogo} />
+        )}
+
+        <div>
+          <h2 style={letterBusinessName}>{businessName}</h2>
+
+          <p style={letterContactDetails}>
+            {business?.email && (
+              <>
+                Email: {business.email}
+                <br />
+              </>
+            )}
+
+            {business?.phone && (
+              <>
+                Phone: {business.phone}
+                <br />
+              </>
+            )}
+
+            {business?.address && <>Address: {business.address}</>}
+          </p>
+
+          <p style={letterDate}>
+            Date:{" "}
+            {new Date().toLocaleDateString("en-ZA", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            })}
+          </p>
+        </div>
+      </div>
+
+      <h1 style={letterTitle}>Confirmation of Employment</h1>
+
+      <div style={letterBody}>
+        <p>To Whom It May Concern</p>
+
+        <p>
+          This letter serves to confirm that <strong>{employeeName}</strong> is
+          currently employed by <strong>{businessName}</strong>.
+        </p>
+
+        <p>Employee details are as follows:</p>
+
+        <p>
+          Employee Name: {employeeName}
+          <br />
+          ID Number: {employee?.id_number || "-"}
+          <br />
+          Position: {employeePosition}
+          <br />
+          Employment Type: {employee?.employment_type || "-"}
+          <br />
+          Employment Start Date: {formatDateValue(employeeStartDate)}
+          <br />
+          Salary Payment Date: {employeeSalaryPaymentDate}
+        </p>
+
+        <p>The employee is currently active on our records.</p>
+
+        <p>This letter is issued upon request for confirmation purposes.</p>
+
+        <p style={kindRegards}>Kind regards,</p>
+
+        <div style={signatureLine} />
+
+        <p style={signatureText}>
+          {business?.contact_person || "Signatory Name"}
+          <br />
+          Signatory Position
+          <br />
+          {businessName}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function DisciplinaryRecordView({
+  record,
+  employee,
+  employeeName,
+  businessName,
+}: {
+  record: GenericRecord;
+  employee: Employee;
+  employeeName: string;
+  businessName: string;
+}) {
+  return (
+    <div>
+      <h2 style={detailTitle}>
+        {record.title || record.incident_type || "Disciplinary Record"}
+      </h2>
+
+      <div style={detailsGrid}>
+        <Info label="Employer" value={businessName} />
+        <Info label="Employee" value={employeeName} />
+        <Info label="Employee Number" value={employee.employee_number} />
+        <Info label="Department" value={employee.department} />
+        <Info label="Position" value={employee.position} />
+        <Info label="Record Date" value={formatDate(record.created_at)} />
+        <Info label="Incident Date" value={formatDate(record.incident_date)} />
+        <Info
+          label="Status"
+          value={record.status || record.outcome || record.result || "Recorded"}
+        />
+      </div>
+
+      <TextBlock
+        title="Incident Details"
+        value={record.incident_description || record.description}
+      />
+
+      <TextBlock title="Action Taken" value={record.action_taken} />
+
+      <TextBlock title="Additional Notes" value={record.notes || record.note} />
+    </div>
+  );
+}
+
+function GeneralHrRecordView({
+  record,
+  employee,
+  employeeName,
+  businessName,
+}: {
+  record: GenericRecord;
+  employee: Employee;
+  employeeName: string;
+  businessName: string;
+}) {
+  return (
+    <div>
+      <h2 style={detailTitle}>
+        {record.title || record.note_type || record.record_type || "HR Record"}
+      </h2>
+
+      <div style={detailsGrid}>
+        <Info label="Employer" value={businessName} />
+        <Info label="Employee" value={employeeName} />
+        <Info label="Employee Number" value={employee.employee_number} />
+        <Info label="Department" value={employee.department} />
+        <Info label="Position" value={employee.position} />
+        <Info label="Date" value={formatDate(record.created_at)} />
+        <Info
+          label="Status"
+          value={record.status || record.outcome || record.result || "Recorded"}
+        />
+      </div>
+
+      <TextBlock
+        title="Record Details"
+        value={
+          record.notes ||
+          record.note ||
+          record.description ||
+          record.reason ||
+          "No additional notes provided."
+        }
+      />
+    </div>
   );
 }
 
@@ -433,7 +521,7 @@ function Info({
   value,
 }: {
   label: string;
-  value?: string | null;
+  value?: string | number | null;
 }) {
   return (
     <div style={infoItem}>
@@ -443,13 +531,46 @@ function Info({
   );
 }
 
+function TextBlock({ title, value }: { title: string; value?: string | null }) {
+  return (
+    <div style={textBlock}>
+      <h3 style={textBlockTitle}>{title}</h3>
+      <p style={textBlockText}>{value || "Not provided"}</p>
+    </div>
+  );
+}
+
+function normaliseRecordType(value: string | null): RecordType {
+  if (value === "disciplinary") return "disciplinary";
+  if (value === "hr") return "hr";
+  return "confirmation";
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "Not provided";
 
-  return new Date(value).toLocaleDateString("en-ZA", {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-ZA", {
     year: "numeric",
     month: "short",
-    day: "numeric",
+    day: "2-digit",
+  });
+}
+
+function formatDateValue(value?: string | null) {
+  if (!value || value === "-") return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-ZA", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
   });
 }
 
@@ -474,12 +595,6 @@ const topBar: CSSProperties = {
   gap: "12px",
   flexWrap: "wrap",
   marginBottom: "18px",
-};
-
-const buttonGroup: CSSProperties = {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap",
 };
 
 const primaryButton: CSSProperties = {
@@ -536,7 +651,7 @@ const pageText: CSSProperties = {
   color: "#64748b",
 };
 
-const letterCard: CSSProperties = {
+const recordCard: CSSProperties = {
   background: "#ffffff",
   borderRadius: "28px",
   border: "1px solid #e5e7eb",
@@ -617,18 +732,14 @@ const signatureText: CSSProperties = {
   color: "#1f2937",
 };
 
-const genericRecord: CSSProperties = {
-  padding: "8px",
-};
-
-const genericTitle: CSSProperties = {
-  margin: "0 0 18px",
+const detailTitle: CSSProperties = {
+  margin: "0 0 20px",
   fontSize: "24px",
   fontWeight: 800,
   color: "#111827",
 };
 
-const genericGrid: CSSProperties = {
+const detailsGrid: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
   gap: "12px",
@@ -656,22 +767,22 @@ const infoValue: CSSProperties = {
   lineHeight: 1.45,
 };
 
-const notesBox: CSSProperties = {
+const textBlock: CSSProperties = {
   padding: "16px",
   borderRadius: "18px",
   background: "#f8fafc",
   border: "1px solid #e5e7eb",
-  marginBottom: "18px",
+  marginTop: "14px",
 };
 
-const notesLabel: CSSProperties = {
+const textBlockTitle: CSSProperties = {
   margin: "0 0 8px",
-  fontSize: "13px",
+  fontSize: "14px",
   fontWeight: 800,
-  color: "#64748b",
+  color: "#334155",
 };
 
-const notesText: CSSProperties = {
+const textBlockText: CSSProperties = {
   margin: 0,
   fontSize: "14px",
   lineHeight: 1.6,
