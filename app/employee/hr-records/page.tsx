@@ -487,20 +487,40 @@ function RecordCard({
       <p style={recordNote}>{note}</p>
 
       <div style={recordActions}>
-        {fileUrl ? (
-          <a href={fileUrl} target="_blank" style={viewButton}>
-            View
-          </a>
-        ) : null}
+  <a
+    href={`/employee/hr-records/${record.id}`}
+    style={viewButton}
+  >
+    View Record
+  </a>
 
-        <button type="button" style={secondaryButton} onClick={printRecord}>
-          Print
-        </button>
+  {fileUrl ? (
+    <a
+      href={fileUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={secondaryButton}
+    >
+      Open File
+    </a>
+  ) : null}
 
-        <button type="button" style={secondaryButton} onClick={downloadPdf}>
-          Download PDF
-        </button>
-      </div>
+  <button
+    type="button"
+    style={secondaryButton}
+    onClick={printRecord}
+  >
+    Print
+  </button>
+
+  <button
+    type="button"
+    style={secondaryButton}
+    onClick={downloadPdf}
+  >
+    Download PDF
+  </button>
+</div>
     </article>
   );
 }
