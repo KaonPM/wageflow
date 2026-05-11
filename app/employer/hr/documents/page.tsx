@@ -244,12 +244,6 @@ export default function EmployeeDocumentsPage() {
               object-fit: contain;
             }
 
-            h1 {
-              text-align: center;
-              color: #0f172a;
-              margin-bottom: 24px;
-            }
-
             h2 {
               margin: 0;
               color: #0f172a;
@@ -353,16 +347,18 @@ export default function EmployeeDocumentsPage() {
       .from("employee-documents")
       .getPublicUrl(filePath);
 
-    const { error: insertError } = await supabase.from("employee_documents").insert([
-      {
-        business_id: businessId,
-        employee_id: employeeId,
-        document_name: documentName,
-        document_category: documentCategory,
-        file_url: urlData.publicUrl,
-        notes,
-      },
-    ]);
+    const { error: insertError } = await supabase
+      .from("employee_documents")
+      .insert([
+        {
+          business_id: businessId,
+          employee_id: employeeId,
+          document_name: documentName,
+          document_category: documentCategory,
+          file_url: urlData.publicUrl,
+          notes,
+        },
+      ]);
 
     if (insertError) {
       setMessage(insertError.message);
@@ -415,13 +411,6 @@ export default function EmployeeDocumentsPage() {
               object-fit: contain;
             }
 
-            h1 {
-              text-align: center;
-              color: #0f172a;
-              margin: 28px 0;
-              font-size: 24px;
-            }
-
             h2 {
               margin: 0;
               color: #0f172a;
@@ -453,13 +442,25 @@ export default function EmployeeDocumentsPage() {
             <div class="header">
               ${
                 businessLogo()
-                  ? `<img src="${escapeHtml(businessLogo())}" alt="Company logo" />`
+                  ? `<img src="${escapeHtml(
+                      businessLogo()
+                    )}" alt="Company logo" />`
                   : ""
               }
 
               <div>
                 <h2>${escapeHtml(businessName())}</h2>
                 <div class="contact">
+                  ${
+                    businessProfile?.email
+                      ? `Email: ${escapeHtml(businessProfile.email)}<br />`
+                      : ""
+                  }
+                  ${
+                    businessProfile?.phone
+                      ? `Phone: ${escapeHtml(businessProfile.phone)}<br />`
+                      : ""
+                  }
                   ${
                     businessProfile?.address
                       ? `Address: ${escapeHtml(businessProfile.address)}`
@@ -468,8 +469,6 @@ export default function EmployeeDocumentsPage() {
                 </div>
               </div>
             </div>
-
-            <h1>${escapeHtml(document.document_name)}</h1>
 
             <div class="content">${escapeHtml(document.notes || "")}</div>
           </div>
@@ -525,7 +524,9 @@ export default function EmployeeDocumentsPage() {
   const selectedEmployeeDocuments = useMemo(() => {
     if (!selectedEmployeeId) return [];
 
-    return documents.filter((document) => document.employee_id === selectedEmployeeId);
+    return documents.filter(
+      (document) => document.employee_id === selectedEmployeeId
+    );
   }, [documents, selectedEmployeeId]);
 
   const letterEmployee = selectedLetterEmployee();
@@ -692,73 +693,77 @@ export default function EmployeeDocumentsPage() {
               </thead>
 
               <tbody>
-                {employeeRows.map(({ employee, latestDocument, documentCount }) => (
-                  <tr key={employee.id}>
-                    <td style={td}>
-                      {employee.first_name} {employee.last_name}
+                {employeeRows.map(
+                  ({ employee, latestDocument, documentCount }) => (
+                    <tr key={employee.id}>
+                      <td style={td}>
+                        {employee.first_name} {employee.last_name}
 
-                      <div style={mutedText}>
-                        {documentCount === 0
-                          ? "No documents uploaded"
-                          : `${documentCount} document${
-                              documentCount === 1 ? "" : "s"
-                            } uploaded`}
-                      </div>
-                    </td>
+                        <div style={mutedText}>
+                          {documentCount === 0
+                            ? "No documents uploaded"
+                            : `${documentCount} document${
+                                documentCount === 1 ? "" : "s"
+                              } uploaded`}
+                        </div>
+                      </td>
 
-                    <td style={td}>
-                      {latestDocument?.uploaded_at
-                        ? new Date(latestDocument.uploaded_at).toLocaleDateString(
-                            "en-ZA"
-                          )
-                        : "-"}
-                    </td>
+                      <td style={td}>
+                        {latestDocument?.uploaded_at
+                          ? new Date(
+                              latestDocument.uploaded_at
+                            ).toLocaleDateString("en-ZA")
+                          : "-"}
+                      </td>
 
-                    <td style={td}>
-                      <div style={rowActions}>
-                        <button
-                          style={viewButton}
-                          onClick={() =>
-                            setSelectedEmployeeId((current) =>
-                              current === employee.id ? "" : employee.id
-                            )
-                          }
-                        >
-                          {selectedEmployeeId === employee.id ? "Hide" : "View"}
-                        </button>
+                      <td style={td}>
+                        <div style={rowActions}>
+                          <button
+                            style={viewButton}
+                            onClick={() =>
+                              setSelectedEmployeeId((current) =>
+                                current === employee.id ? "" : employee.id
+                              )
+                            }
+                          >
+                            {selectedEmployeeId === employee.id
+                              ? "Hide"
+                              : "View"}
+                          </button>
 
-                        <button
-                          style={outlineButton}
-                          onClick={() => {
-                            setEmployeeId(employee.id);
-                            setShowUploadForm(true);
+                          <button
+                            style={outlineButton}
+                            onClick={() => {
+                              setEmployeeId(employee.id);
+                              setShowUploadForm(true);
 
-                            setMessage(
-                              `You can now upload or update documents for ${
-                                employee.first_name || ""
-                              } ${employee.last_name || ""}.`.trim()
-                            );
-                          }}
-                        >
-                          Edit
-                        </button>
+                              setMessage(
+                                `You can now upload or update documents for ${
+                                  employee.first_name || ""
+                                } ${employee.last_name || ""}.`.trim()
+                              );
+                            }}
+                          >
+                            Edit
+                          </button>
 
-                        <button
-                          style={outlineButton}
-                          onClick={() =>
-                            setLetterEmployeeId((current) =>
-                              current === employee.id ? "" : employee.id
-                            )
-                          }
-                        >
-                          {letterEmployeeId === employee.id
-                            ? "Close Letter"
-                            : "Generate Letter"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            style={outlineButton}
+                            onClick={() =>
+                              setLetterEmployeeId((current) =>
+                                current === employee.id ? "" : employee.id
+                              )
+                            }
+                          >
+                            {letterEmployeeId === employee.id
+                              ? "Close Letter"
+                              : "Generate Letter"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           </div>
@@ -778,7 +783,10 @@ export default function EmployeeDocumentsPage() {
                 </p>
               </div>
 
-              <button style={outlineButton} onClick={() => setLetterEmployeeId("")}>
+              <button
+                style={outlineButton}
+                onClick={() => setLetterEmployeeId("")}
+              >
                 Close
               </button>
             </div>
@@ -896,26 +904,20 @@ export default function EmployeeDocumentsPage() {
             <div style={letterPreview} ref={letterPrintRef}>
               <div style={letterHeader}>
                 {businessLogo() && (
-                  <img src={businessLogo()} alt="Company logo" style={letterLogo} />
+                  <img
+                    src={businessLogo()}
+                    alt="Company logo"
+                    style={letterLogo}
+                  />
                 )}
 
                 <div>
-                  <h2 style={letterBusinessName}>{businessName()}</h2>
-
-                  <p style={letterContactDetails}>
-
-                    {businessProfile?.address && (
-                      <>Address: {businessProfile.address}</>
-                    )}
-                  </p>
-
+                    
                   <p style={letterDate}>
                     Date: {new Date().toLocaleDateString("en-ZA")}
                   </p>
                 </div>
               </div>
-
-              <h1 style={letterTitle}>{letterType}</h1>
 
               {letterType === "Confirmation of Employment" ? (
                 <div style={letterBody}>
@@ -923,8 +925,8 @@ export default function EmployeeDocumentsPage() {
 
                   <p>
                     This letter serves to confirm that{" "}
-                    <strong>{employeeName(letterEmployeeId)}</strong> is currently
-                    employed by <strong>{businessName()}</strong>.
+                    <strong>{employeeName(letterEmployeeId)}</strong> is
+                    currently employed by <strong>{businessName()}</strong>.
                   </p>
 
                   <p>Employee details are as follows:</p>
@@ -1452,13 +1454,6 @@ const letterDate: CSSProperties = {
   margin: "6px 0 0",
   color: "#64748b",
   fontSize: "13px",
-};
-
-const letterTitle: CSSProperties = {
-  textAlign: "center",
-  color: "#0f172a",
-  fontSize: "24px",
-  margin: "24px 0",
 };
 
 const letterBody: CSSProperties = {
