@@ -33,7 +33,6 @@ type Payslip = {
     email: string | null;
     phone: string | null;
   } | null;
-  notification_count?: number;
 };
 
 export default function EmployerPayslipsPage() {
@@ -115,32 +114,7 @@ export default function EmployerPayslipsPage() {
       return;
     }
 
-    const payslipRows = payslipData || [];
-    const payslipIds = payslipRows.map((item) => item.id);
-
-    let notificationCounts: Record<string, number> = {};
-
-    if (payslipIds.length > 0) {
-      const { data: notifications, error: notificationError } = await supabase
-        .from("payslip_notifications")
-        .select("id, payslip_id")
-        .eq("business_id", businessId)
-        .in("payslip_id", payslipIds);
-
-      if (!notificationError && notifications) {
-        notificationCounts = notifications.reduce((acc, item) => {
-          acc[item.payslip_id] = (acc[item.payslip_id] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-      }
-    }
-
-    const enrichedPayslips = payslipRows.map((item) => ({
-      ...item,
-      notification_count: notificationCounts[item.id] || 0,
-    }));
-
-    setPayslips(enrichedPayslips);
+    setPayslips(payslipData || []);
     setLoading(false);
   }
 
@@ -152,44 +126,6 @@ export default function EmployerPayslipsPage() {
       }`.trim() ||
       "Unnamed Employee"
     );
-  }
-
-  async function resendNotification(payslip: Payslip) {
-    setMessage("");
-
-    const businessId = await getBusinessId();
-
-    if (!businessId) {
-      setMessage("Business profile not found for this employer.");
-      return;
-    }
-
-    const name = employeeName(payslip);
-    const recipient = payslip.employees?.phone || payslip.employees?.email || "";
-
-    const notificationMessage = `Hi ${name}, your WageFlow payslip for ${
-      payslip.payroll_month || "the selected payroll month"
-    } is available. Please log in to your employee portal or check your email.`;
-
-    const { error } = await supabase.from("payslip_notifications").insert([
-      {
-        payslip_id: payslip.id,
-        employee_id: payslip.employee_id,
-        business_id: businessId,
-        notification_type: payslip.employees?.phone ? "sms" : "email",
-        recipient,
-        message: notificationMessage,
-        status: recipient ? "pending" : "missing_contact",
-      },
-    ]);
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
-    setMessage("Payslip notification has been queued.");
-    fetchPayslips();
   }
 
   const filteredPayslips = useMemo(() => {
@@ -234,9 +170,10 @@ export default function EmployerPayslipsPage() {
       <section style={header}>
         <div>
           <h1 style={title}>Payslips</h1>
+
           <p style={subtitle}>
-            View generated payslips, track payroll history, monitor employee
-            activity and resend employee notifications.
+            View generated payslips, payroll history, and downloadable employee
+            payroll records.
           </p>
         </div>
 
@@ -247,11 +184,14 @@ export default function EmployerPayslipsPage() {
 
       <section style={summaryGrid}>
         <SummaryCard label="Payslips Generated" value={String(summary.total)} />
+
         <SummaryCard
           label="Gross Payroll"
           value={`R ${summary.gross.toFixed(2)}`}
         />
+
         <SummaryCard label="Net Payroll" value={`R ${summary.net.toFixed(2)}`} />
+
         <SummaryCard
           label="PAYE/UIF Payable"
           value={`R ${summary.sars.toFixed(2)}`}
@@ -307,7 +247,6 @@ export default function EmployerPayslipsPage() {
                     <th style={th}>Net Pay</th>
                     <th style={th}>Payment</th>
                     <th style={th}>Status</th>
-                    <th style={th}>Employee Activity</th>
                     <th style={th}>Actions</th>
                   </tr>
                 </thead>
@@ -353,58 +292,6 @@ export default function EmployerPayslipsPage() {
                       </td>
 
                       <td style={td}>
-                        <div style={activityColumn}>
-                          <span
-                            style={{
-                              ...activityBadge,
-                              background: payslip.viewed_at
-                                ? "#dcfce7"
-                                : "#f1f5f9",
-                              color: payslip.viewed_at
-                                ? "#166534"
-                                : "#475569",
-                            }}
-                          >
-                            {payslip.viewed_at ? "Viewed" : "Not viewed"}
-                          </span>
-
-                          <span
-                            style={{
-                              ...activityBadge,
-                              background: payslip.downloaded_at
-                                ? "#dbeafe"
-                                : "#f1f5f9",
-                              color: payslip.downloaded_at
-                                ? "#1d4ed8"
-                                : "#475569",
-                            }}
-                          >
-                            {payslip.downloaded_at
-                              ? "Downloaded"
-                              : "Not downloaded"}
-                          </span>
-
-                          <span
-                            style={{
-                              ...activityBadge,
-                              background:
-                                Number(payslip.notification_count || 0) > 0
-                                  ? "#fef3c7"
-                                  : "#f1f5f9",
-                              color:
-                                Number(payslip.notification_count || 0) > 0
-                                  ? "#92400e"
-                                  : "#475569",
-                            }}
-                          >
-                            {Number(payslip.notification_count || 0) > 0
-                              ? "Notification queued"
-                              : "No notification"}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td style={td}>
                         <div style={actionGroup}>
                           <Link
                             href={`/employer/payslips/${payslip.id}`}
@@ -412,13 +299,6 @@ export default function EmployerPayslipsPage() {
                           >
                             View
                           </Link>
-
-                          <button
-                            style={actionButton}
-                            onClick={() => resendNotification(payslip)}
-                          >
-                            Resend
-                          </button>
 
                           <Link
                             href={`/employer/payslips/${payslip.id}`}
@@ -631,7 +511,7 @@ const tableWrap = {
 const table = {
   width: "100%",
   borderCollapse: "collapse" as const,
-  minWidth: "1260px",
+  minWidth: "1120px",
 };
 
 const th = {
@@ -666,37 +546,10 @@ const statusBadge = {
   fontWeight: 700,
 };
 
-const activityColumn = {
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: "6px",
-  minWidth: "150px",
-};
-
-const activityBadge = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "5px 8px",
-  borderRadius: "999px",
-  fontSize: "11px",
-  fontWeight: 700,
-};
-
 const actionGroup = {
   display: "flex",
   gap: "8px",
   flexWrap: "wrap" as const,
-};
-
-const actionButton = {
-  background: "#ecfeff",
-  color: "#155e75",
-  border: "1px solid #a5f3fc",
-  borderRadius: "10px",
-  padding: "8px 11px",
-  fontWeight: 800,
-  cursor: "pointer",
 };
 
 const pdfButton = {
