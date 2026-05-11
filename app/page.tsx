@@ -17,6 +17,8 @@ export default function WageFlowLandingPage() {
 
   const [isSending, setIsSending] = useState(false);
 
+  const [openPricing, setOpenPricing] = useState(false);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -129,57 +131,80 @@ export default function WageFlowLandingPage() {
       </section>
 
       <section id="pricing" style={sectionAlt}>
-        <h2 style={sectionTitle}>Simple Pricing</h2>
+  <h2 style={pricingTitle}>Simple Pricing</h2>
 
-        <p style={sectionIntro}>
-          Built for small teams that need structure, records and professional
-          payslips.
+  <p style={pricingIntro}>
+    Built for small teams that need structure, records and professional
+    payslips.
+  </p>
+
+  <button
+    type="button"
+    style={pricingButton}
+    onClick={() => setOpenPricing(openPricing ? false : true)}
+  >
+    {openPricing ? "Hide Pricing" : "View Pricing"}
+  </button>
+
+  {openPricing && (
+    <div style={compactPricingWrap}>
+      <div style={compactPriceCard}>
+        <h3 style={compactPlanName}>WageFlow Starter</h3>
+
+        <p style={compactPrice}>
+          R149 <span style={compactSmall}>per month</span>
         </p>
 
-        <div style={pricingGrid}>
-          <div style={priceCard}>
-            <h3 style={planName}>WageFlow Starter</h3>
-            <p style={price}>
-              R149 <span style={small}>per month</span>
-            </p>
-            <p style={planRange}>For 1 to 10 employees</p>
+        <p style={compactRange}>1 to 10 employees</p>
 
-            <ul style={list}>
-              <li>Staff records management</li>
-              <li>Monthly payslip generation</li>
-              <li>Downloadable payslips</li>
-              <li>Basic employee record keeping</li>
-              <li>Employer dashboard access</li>
-            </ul>
-          </div>
+        <ul style={compactList}>
+          <li>Staff records management</li>
+          <li>Monthly payslip generation</li>
+          <li>Downloadable payslips</li>
+          <li>Basic employee record keeping</li>
+          <li>Employer dashboard access</li>
+        </ul>
+      </div>
 
-          <div style={priceCard}>
-            <h3 style={planName}>WageFlow Growth</h3>
-            <p style={price}>
-              R249 <span style={small}>per month</span>
-            </p>
-            <p style={planRange}>For 11 to 20 employees</p>
+      <div style={compactPriceCard}>
+        <h3 style={compactPlanName}>WageFlow Pro</h3>
 
-            <ul style={list}>
-              <li>Everything in Starter</li>
-              <li>Expanded employee capacity</li>
-              <li>Payslip history tracking</li>
-              <li>Reports and summaries</li>
-              <li>Staff record organisation</li>
-            </ul>
-          </div>
-        </div>
+        <p style={compactPrice}>
+          R249 <span style={compactSmall}>per month</span>
+        </p>
 
-        <div style={setupBox}>
-          <h3 style={setupTitle}>Once-off Setup Fee: R499</h3>
-          <p style={cardText}>
-            Setup includes business profile setup, company logo upload for the
-            payslip watermark, employer account configuration, employee
-            structure setup, payslip template setup, and guided onboarding
-            support.
-          </p>
-        </div>
-      </section>
+        <p style={compactRange}>11 to 20 employees</p>
+
+        <ul style={compactList}>
+          <li>Everything in Starter</li>
+          <li>Expanded employee capacity</li>
+          <li>Payslip history tracking</li>
+          <li>Reports and summaries</li>
+          <li>Staff record organisation</li>
+        </ul>
+      </div>
+
+      <div style={setupFeeCard}>
+        <h3 style={compactPlanName}>Once-off Setup Fee</h3>
+
+        <p style={compactPrice}>
+          R499 <span style={compactSmall}>once-off</span>
+        </p>
+
+        <p style={setupIncludesTitle}>Setup includes:</p>
+
+        <ul style={compactList}>
+          <li>Business profile setup</li>
+          <li>Company logo upload for the payslip watermark</li>
+          <li>Employer account configuration</li>
+          <li>Employee structure setup</li>
+          <li>Payslip template setup</li>
+          <li>Guided onboarding support</li>
+        </ul>
+      </div>
+    </div>
+  )}
+</section>
 
       <section id="contact" style={section}>
         <h2 style={sectionTitle}>Contact WageFlow</h2>
@@ -628,6 +653,105 @@ const contactDetails = {
 const contactText = {
   color: "#334e68",
   lineHeight: 1.7,
+};
+
+const pricingTitle = {
+  fontSize: 42,
+  textAlign: "center" as const,
+  color: "#102a43",
+  marginBottom: 14,
+};
+
+const pricingIntro = {
+  maxWidth: 620,
+  margin: "0 auto 28px",
+  textAlign: "center" as const,
+  fontSize: 18,
+  lineHeight: 1.6,
+  color: "#486581",
+};
+
+const pricingButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  border: "none",
+  padding: "16px 38px",
+  borderRadius: 14,
+  fontSize: 18,
+  fontWeight: 800,
+  cursor: "pointer",
+  display: "block",
+  margin: "0 auto 34px",
+  boxShadow: "0 10px 20px rgba(15, 118, 110, 0.18)",
+};
+
+const compactPricingWrap = {
+  display: "flex",
+  justifyContent: "center",
+  gap: 24,
+  flexWrap: "wrap" as const,
+  alignItems: "stretch",
+};
+
+const compactPriceCard = {
+  background: "#ffffff",
+  border: "1px solid #d9e2ec",
+  borderRadius: 22,
+  padding: "28px",
+  width: 320,
+  boxShadow: "0 10px 25px rgba(15, 118, 110, 0.08)",
+};
+
+const setupFeeCard = {
+  background: "#f0fdfa",
+  border: "1px solid #99f6e4",
+  borderRadius: 22,
+  padding: "28px",
+  width: 320,
+  boxShadow: "0 10px 25px rgba(15, 118, 110, 0.08)",
+};
+
+const compactPlanName = {
+  fontSize: 26,
+  fontWeight: 800,
+  marginBottom: 16,
+  color: "#102a43",
+  textAlign: "center" as const,
+};
+
+const compactPrice = {
+  fontSize: 46,
+  fontWeight: 800,
+  color: "#0f766e",
+  textAlign: "center" as const,
+  marginBottom: 10,
+};
+
+const compactSmall = {
+  fontSize: 16,
+  color: "#486581",
+};
+
+const compactRange = {
+  textAlign: "center" as const,
+  fontSize: 16,
+  color: "#486581",
+  marginBottom: 22,
+};
+
+const compactList = {
+  display: "flex",
+  flexDirection: "column" as const,
+  gap: 10,
+  paddingLeft: 20,
+  color: "#243b53",
+  lineHeight: 1.6,
+};
+
+const setupIncludesTitle = {
+  fontWeight: 800,
+  margin: "20px 0 12px",
+  color: "#102a43",
 };
 
 const textLink = {
