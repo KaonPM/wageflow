@@ -448,26 +448,6 @@ export default function EmployeeDocumentsPage() {
                   : ""
               }
 
-              <div>
-                <h2>${escapeHtml(businessName())}</h2>
-                <div class="contact">
-                  ${
-                    businessProfile?.email
-                      ? `Email: ${escapeHtml(businessProfile.email)}<br />`
-                      : ""
-                  }
-                  ${
-                    businessProfile?.phone
-                      ? `Phone: ${escapeHtml(businessProfile.phone)}<br />`
-                      : ""
-                  }
-                  ${
-                    businessProfile?.address
-                      ? `Address: ${escapeHtml(businessProfile.address)}`
-                      : ""
-                  }
-                </div>
-              </div>
             </div>
 
             <div class="content">${escapeHtml(document.notes || "")}</div>
@@ -912,7 +892,7 @@ export default function EmployeeDocumentsPage() {
                 )}
 
                 <div>
-                    
+
                   <p style={letterDate}>
                     Date: {new Date().toLocaleDateString("en-ZA")}
                   </p>
