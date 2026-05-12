@@ -302,7 +302,7 @@ export default function WageFlowLandingPage() {
               <p style={contactText}>
                 Website:{" "}
                 <a
-                  href="https://www.wageflow.co.za"
+                  href="https://wageflow.lesedismartsolutions.co.za/"
                   target="_blank"
                   rel="noreferrer"
                   style={textLink}
