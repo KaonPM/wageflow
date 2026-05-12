@@ -307,7 +307,7 @@ export default function WageFlowLandingPage() {
                   rel="noreferrer"
                   style={textLink}
                 >
-                  www.wageflow.co.za
+                  www.wageflow.lesedismartsolutions.co.za
                 </a>
               </p>
 
