@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -78,12 +79,19 @@ export default function LoginPage() {
 
           <input
             style={input}
-            type="password"
+            type={showPassword ? "text" : "password"}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          
+          <button
+           type="button"
+           onClick={() => setShowPassword(!showPassword)}
+          >
+          {showPassword ? "Hide" : "Show"}
+          </button>
 
           <button type="submit" style={button}>
             Log In

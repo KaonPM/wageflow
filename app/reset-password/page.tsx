@@ -10,6 +10,8 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   function isStrongPassword(value: string) {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(
@@ -61,22 +63,25 @@ export default function ResetPasswordPage() {
 
         <form onSubmit={handleUpdatePassword} style={form}>
           <input
-            style={input}
-            type="password"
-            placeholder="New password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
+           type={showPassword ? "text" : "password"}
+           placeholder="New password"
           />
 
+        <button type="button" onClick={() => setShowPassword(!showPassword)}>
+        {showPassword ? "Hide" : "Show"}
+        </button>
+
           <input
-            style={input}
-            type="password"
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
+         type={showConfirmPassword ? "text" : "password"}
+         placeholder="Confirm password"
+        />
+
+        <button
+         type="button"
+         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+         >
+         {showConfirmPassword ? "Hide" : "Show"}
+        </button>
 
           <button type="submit" style={button}>
             Update Password
