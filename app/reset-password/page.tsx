@@ -56,6 +56,7 @@ export default function ResetPasswordPage() {
     <main style={page}>
       <section style={card}>
         <h1 style={title}>Create a new password</h1>
+
         <p style={subtitle}>
           Your new password must include uppercase, lowercase, a number, and a
           special character.
@@ -63,25 +64,38 @@ export default function ResetPasswordPage() {
 
         <form onSubmit={handleUpdatePassword} style={form}>
           <input
-           type={showPassword ? "text" : "password"}
-           placeholder="New password"
+            type={showPassword ? "text" : "password"}
+            placeholder="New password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={input}
           />
 
-        <button type="button" onClick={() => setShowPassword(!showPassword)}>
-        {showPassword ? "Hide" : "Show"}
-        </button>
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={toggleButton}
+          >
+            {showPassword ? "Hide" : "Show"}
+          </button>
 
           <input
-         type={showConfirmPassword ? "text" : "password"}
-         placeholder="Confirm password"
-        />
+            type={showConfirmPassword ? "text" : "password"}
+            placeholder="Confirm password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            style={input}
+          />
 
-        <button
-         type="button"
-         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-         >
-         {showConfirmPassword ? "Hide" : "Show"}
-        </button>
+          <button
+            type="button"
+            onClick={() =>
+              setShowConfirmPassword(!showConfirmPassword)
+            }
+            style={toggleButton}
+          >
+            {showConfirmPassword ? "Hide" : "Show"}
+          </button>
 
           <button type="submit" style={button}>
             Update Password
@@ -138,6 +152,16 @@ const input = {
   borderRadius: "8px",
   border: "1px solid #ddd",
   fontSize: "14px",
+};
+
+const toggleButton = {
+  background: "transparent",
+  border: "none",
+  color: "#444",
+  cursor: "pointer",
+  fontSize: "14px",
+  textAlign: "left" as const,
+  marginTop: "-8px",
 };
 
 const button = {
