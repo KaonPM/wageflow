@@ -7,12 +7,10 @@ import { supabase } from "../lib/supabaseClient";
 
 type DashboardData = {
   employeeName: string;
-  employeeStatus: string;
   employerName: string;
   logoUrl: string | null;
   primaryColor: string;
   secondaryColor: string;
-  unreadNotifications: number;
 };
 
 type DebugInfo = {
@@ -100,9 +98,7 @@ export default function EmployeeDashboard() {
         `
         id,
         business_id,
-        full_name,
-        status,
-        employment_status
+        full_name
       `
       )
       .eq("id", account.employee_id)
@@ -138,21 +134,13 @@ export default function EmployeeDashboard() {
       .eq("id", employee.business_id)
       .maybeSingle();
 
-    const { count: unreadCount } = await supabase
-      .from("payslip_notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("employee_id", employee.id)
-      .eq("is_read", false);
-
     setData({
       employeeName: employee.full_name,
-      employeeStatus: employee.employment_status || employee.status || "active",
       employerName:
         business?.trading_name || business?.business_name || "Your Employer",
       logoUrl: business?.logo_url || null,
       primaryColor: business?.primary_color || "#0f766e",
       secondaryColor: business?.secondary_color || "#123c69",
-      unreadNotifications: unreadCount || 0,
     });
 
     await supabase
@@ -231,6 +219,16 @@ export default function EmployeeDashboard() {
 
   return (
     <main style={page}>
+      <div style={topActions}>
+        <a href="/" style={topLink}>
+          Home
+        </a>
+        <span style={divider}>|</span>
+        <button onClick={handleLogout} style={logoutLink}>
+          Logout
+        </button>
+      </div>
+
       <div style={shell}>
         <section style={heroCard}>
           <div style={heroLayout}>
@@ -243,50 +241,16 @@ export default function EmployeeDashboard() {
             </div>
 
             <div style={heroContent}>
-              <div style={heroTopRow}>
-                <div>
-                  <h1 style={businessName}>{data.employerName}</h1>
-                  <h2 style={dashboardTitle}>Employee Dashboard</h2>
-                </div>
-
-                <div style={topActions}>
-                  <a href="/" style={homeButton}>
-                    Home
-                  </a>
-
-                  <button onClick={handleLogout} style={logoutButton}>
-                    Logout
-                  </button>
-                </div>
-              </div>
+              <h1 style={businessName}>{data.employerName}</h1>
+              <h2 style={dashboardTitle}>Employee Dashboard</h2>
 
               <p style={subtitle}>
                 Welcome back, {data.employeeName}. Access your employee profile,
                 payslips, leave requests, overtime records, HR records and
                 disciplinary records from one organised workspace.
               </p>
-
-              <div style={statusRow}>
-                <div style={statusBadge}>
-                  Employee Status: {capitalise(data.employeeStatus)}
-                </div>
-
-                <div style={statusBadge}>
-                  {data.unreadNotifications} unread notification
-                  {data.unreadNotifications === 1 ? "" : "s"}
-                </div>
-              </div>
             </div>
           </div>
-        </section>
-
-        <section style={sectionHeader}>
-          <h2 style={sectionTitle}>Employee Dashboard</h2>
-
-          <p style={sectionText}>
-            Use the cards below to manage your employee records, payroll
-            information and HR requests.
-          </p>
         </section>
 
         <section style={grid}>
@@ -329,7 +293,6 @@ export default function EmployeeDashboard() {
             description="View shared HR records, leave records, employment notes and records linked to your profile."
             href="/employee/hr-records"
           />
-
         </section>
       </div>
     </main>
@@ -369,17 +332,47 @@ function DashboardCard({
   );
 }
 
-function capitalise(value: string) {
-  if (!value) return "";
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 const page: CSSProperties = {
   minHeight: "100vh",
-  padding: "32px",
+  padding: "72px 32px 32px",
   fontFamily: "Arial, sans-serif",
   background: "#f4f7fb",
   color: "#111827",
+  position: "relative",
+};
+
+const topActions: CSSProperties = {
+  position: "absolute",
+  top: "22px",
+  right: "34px",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  zIndex: 10,
+};
+
+const topLink: CSSProperties = {
+  background: "transparent",
+  border: "none",
+  color: "#0f172a",
+  fontSize: "12px",
+  fontWeight: 700,
+  textDecoration: "none",
+};
+
+const logoutLink: CSSProperties = {
+  background: "transparent",
+  border: "none",
+  color: "#0f172a",
+  fontSize: "12px",
+  fontWeight: 700,
+  cursor: "pointer",
+  padding: 0,
+};
+
+const divider: CSSProperties = {
+  color: "#94a3b8",
+  fontSize: "12px",
 };
 
 const shell: CSSProperties = {
@@ -427,11 +420,11 @@ const retryButton: CSSProperties = {
 };
 
 const heroCard: CSSProperties = {
-  padding: "32px",
+  padding: "52px 32px",
   borderRadius: "28px",
   background: "#ffffff",
   border: "1px solid #e5e7eb",
-  marginBottom: "28px",
+  marginBottom: "34px",
   boxShadow: "0 18px 45px rgba(15, 23, 42, 0.07)",
 };
 
@@ -472,17 +465,9 @@ const heroContent: CSSProperties = {
   minWidth: 0,
 };
 
-const heroTopRow: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: "16px",
-  flexWrap: "wrap",
-};
-
 const businessName: CSSProperties = {
   margin: 0,
-  fontSize: "38px",
+  fontSize: "42px",
   lineHeight: 1.1,
   fontWeight: 800,
   color: "#0f766e",
@@ -490,84 +475,19 @@ const businessName: CSSProperties = {
 };
 
 const dashboardTitle: CSSProperties = {
-  margin: "10px 0 0",
-  fontSize: "24px",
+  margin: "12px 0 0",
+  fontSize: "26px",
   lineHeight: 1.2,
   fontWeight: 800,
   color: "#111827",
 };
 
-const topActions: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-  flexWrap: "wrap",
-};
-
-const homeButton: CSSProperties = {
-  padding: "10px 16px",
-  borderRadius: "14px",
-  background: "#0f766e",
-  border: "1px solid #0f766e",
-  color: "#ffffff",
-  textDecoration: "none",
-  fontSize: "14px",
-  fontWeight: 700,
-};
-
-const logoutButton: CSSProperties = {
-  padding: "10px 16px",
-  borderRadius: "14px",
-  border: "1px solid #e5e7eb",
-  background: "#ffffff",
-  color: "#111827",
-  fontSize: "14px",
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
 const subtitle: CSSProperties = {
-  maxWidth: "820px",
+  maxWidth: "850px",
   fontSize: "16px",
   lineHeight: 1.65,
   margin: "18px 0 0",
   color: "#5f6f82",
-};
-
-const statusRow: CSSProperties = {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap",
-  marginTop: "22px",
-};
-
-const statusBadge: CSSProperties = {
-  padding: "10px 16px",
-  borderRadius: "999px",
-  background: "#f3f4f6",
-  color: "#111827",
-  fontWeight: 700,
-  fontSize: "13px",
-  border: "1px solid #e5e7eb",
-};
-
-const sectionHeader: CSSProperties = {
-  marginBottom: "16px",
-};
-
-const sectionTitle: CSSProperties = {
-  margin: "0 0 6px",
-  fontSize: "18px",
-  fontWeight: 800,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  color: "#334155",
-};
-
-const sectionText: CSSProperties = {
-  margin: 0,
-  fontSize: "14px",
-  color: "#64748b",
 };
 
 const grid: CSSProperties = {
