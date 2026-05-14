@@ -19,7 +19,7 @@ type Subscription = {
   updated_at?: string | null;
 };
 
-const plans = ["Starter", "Growth", "Premium", "Bloom", "Bloom Pro", "Bloom Elite"];
+const plans = ["Starter", "Pro"];
 const statuses = ["active", "pending", "trial", "suspended", "cancelled"];
 const paymentStatuses = ["paid", "pending", "overdue", "waived"];
 
