@@ -13,8 +13,6 @@ type Business = {
   registered_name?: string | null;
   name?: string | null;
   logo_url?: string | null;
-  status?: string | null;
-  business_status?: string | null;
 };
 
 type Employee = {
@@ -116,12 +114,6 @@ export default function EmployerDashboard() {
     business?.name ||
     "Kaone Cleaning Services";
 
-  const businessStatus =
-    business?.status || business?.business_status || "active";
-
-  const formattedStatus =
-    businessStatus.charAt(0).toUpperCase() + businessStatus.slice(1);
-
   const totalEmployees = employees.length;
 
   const activeEmployees = useMemo(() => {
@@ -135,6 +127,18 @@ export default function EmployerDashboard() {
   return (
     <main style={page}>
       <section style={hero}>
+        <div style={topRightNav}>
+          <Link href="/" style={topNavLink}>
+            Home
+          </Link>
+
+          <span style={divider}>|</span>
+
+          <button onClick={handleLogout} style={topNavButton}>
+            Logout
+          </button>
+        </div>
+
         <div style={brandBlock}>
           <Logo logoUrl={business?.logo_url || ""} businessName={businessName} />
 
@@ -146,22 +150,7 @@ export default function EmployerDashboard() {
               Employer dashboard for managing employees, payroll, HR records,
               approvals and business settings from one organised workspace.
             </p>
-
-            <div style={topActions}>
-              <Link href="/" style={homeButton}>
-                Home
-              </Link>
-
-              <button onClick={handleLogout} style={logoutButton}>
-                Logout
-              </button>
-            </div>
           </div>
-        </div>
-
-        <div style={statusCard}>
-          <span style={statusLabel}>Business Status</span>
-          <strong style={statusValue}>{formattedStatus}</strong>
         </div>
       </section>
 
@@ -300,11 +289,44 @@ const page = {
 };
 
 const hero = {
-  display: "grid",
-  gridTemplateColumns: "1.8fr 0.9fr",
+  position: "relative" as const,
+  display: "flex",
+  flexDirection: "column" as const,
   gap: "24px",
-  alignItems: "stretch",
   marginBottom: "28px",
+  paddingTop: "24px",
+};
+
+const topRightNav = {
+  position: "absolute" as const,
+  top: "0",
+  right: "0",
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  fontSize: "14px",
+  fontWeight: 500,
+};
+
+const topNavLink = {
+  color: "#1f4f4f",
+  textDecoration: "underline",
+  fontSize: "14px",
+  fontWeight: 500,
+};
+
+const topNavButton = {
+  background: "none",
+  border: "none",
+  padding: 0,
+  color: "#333",
+  cursor: "pointer",
+  fontSize: "14px",
+  fontWeight: 500,
+};
+
+const divider = {
+  color: "#999",
 };
 
 const brandBlock = {
@@ -369,58 +391,6 @@ const subtitle = {
   fontSize: "16px",
   lineHeight: 1.7,
   margin: 0,
-};
-
-const topActions = {
-  display: "flex",
-  gap: "10px",
-  alignItems: "center",
-  marginTop: "18px",
-  flexWrap: "wrap" as const,
-};
-
-const homeButton = {
-  background: "#ffffff",
-  color: "#0f766e",
-  padding: "10px 16px",
-  borderRadius: "12px",
-  textDecoration: "none",
-  fontWeight: 800,
-  border: "1px solid #dbeafe",
-};
-
-const logoutButton = {
-  background: "#dc2626",
-  color: "#ffffff",
-  padding: "10px 16px",
-  borderRadius: "12px",
-  border: "none",
-  fontWeight: 800,
-  cursor: "pointer",
-};
-
-const statusCard = {
-  background: "linear-gradient(135deg, #0f766e, #14b8a6)",
-  color: "#ffffff",
-  borderRadius: "22px",
-  padding: "30px",
-  boxShadow: "0 16px 40px rgba(15, 118, 110, 0.22)",
-  display: "flex",
-  flexDirection: "column" as const,
-  justifyContent: "center",
-};
-
-const statusLabel = {
-  display: "block",
-  fontSize: "13px",
-  opacity: 0.9,
-  marginBottom: "10px",
-};
-
-const statusValue = {
-  display: "block",
-  fontSize: "30px",
-  marginBottom: 0,
 };
 
 const notice = {
