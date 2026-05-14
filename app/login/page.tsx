@@ -64,6 +64,10 @@ export default function LoginPage() {
   return (
     <main style={page}>
       <section style={card}>
+        <Link href="/" style={homeButton}>
+          ← Back to Home
+        </Link>
+
         <h1 style={title}>Log in to WageFlow</h1>
         <p style={subtitle}>Access your payroll and staff records.</p>
 
@@ -126,6 +130,15 @@ const card = {
   borderRadius: "14px",
   padding: "34px",
   boxShadow: "0 12px 30px rgba(0,0,0,0.06)",
+};
+
+const homeButton = {
+  display: "inline-block",
+  marginBottom: "20px",
+  fontSize: "13px",
+  color: "#0f766e",
+  textDecoration: "none",
+  fontWeight: "600",
 };
 
 const title = {
