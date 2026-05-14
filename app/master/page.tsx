@@ -52,9 +52,9 @@ export default function MasterDashboard() {
       supabase.from("employees").select("*", { count: "exact", head: true }),
 
       supabase
-  .from("wageflow_setup_requests")
-  .select("*", { count: "exact", head: true })
-  .neq("status", "Approved"),
+        .from("wageflow_setup_requests")
+        .select("*", { count: "exact", head: true })
+        .neq("status", "Approved"),
     ]);
 
     setStats({
@@ -71,15 +71,17 @@ export default function MasterDashboard() {
   return (
     <main style={page}>
       <section style={hero}>
-        <div>
-          <p style={eyebrow}>WageFlow Admin</p>
+        <div style={heroTop}>
+          <div>
+            <p style={eyebrow}>WageFlow Admin</p>
 
-          <h1 style={title}>Master Dashboard</h1>
+            <h1 style={title}>Master Dashboard</h1>
 
-          <p style={subtitle}>
-            Manage WageFlow businesses, setup requests, subscriptions and users
-            from one central workspace.
-          </p>
+            <p style={subtitle}>
+              Manage WageFlow businesses, setup requests, subscriptions and users
+              from one central workspace.
+            </p>
+          </div>
 
           <div style={topActions}>
             <Link href="/" style={homeButton}>
@@ -229,6 +231,14 @@ const hero = {
   marginBottom: "28px",
 };
 
+const heroTop = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "20px",
+  flexWrap: "wrap" as const,
+};
+
 const eyebrow = {
   color: "#0f766e",
   fontWeight: 800,
@@ -255,9 +265,8 @@ const subtitle = {
 
 const topActions = {
   display: "flex",
-  flexWrap: "wrap" as const,
-  gap: "12px",
-  marginTop: "22px",
+  alignItems: "center",
+  gap: "10px",
 };
 
 const homeButton = {
