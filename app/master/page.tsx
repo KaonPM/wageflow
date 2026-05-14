@@ -78,8 +78,8 @@ export default function MasterDashboard() {
             <h1 style={title}>Master Dashboard</h1>
 
             <p style={subtitle}>
-              Manage WageFlow businesses, setup requests, subscriptions and users
-              from one central workspace.
+              Manage WageFlow businesses, setup requests, subscriptions and
+              users from one central workspace.
             </p>
           </div>
 
@@ -88,9 +88,13 @@ export default function MasterDashboard() {
               Home
             </Link>
 
+            <span style={{ color: "#94a3b8" }}>|</span>
+
             <button onClick={fetchStats} style={refreshButton}>
               Refresh Dashboard
             </button>
+
+            <span style={{ color: "#94a3b8" }}>|</span>
 
             <Link href="/login" style={logoutButton}>
               Logout
@@ -267,36 +271,42 @@ const topActions = {
   display: "flex",
   alignItems: "center",
   gap: "10px",
+  fontSize: "14px",
+  fontWeight: 500,
 };
 
 const homeButton = {
-  background: "#ffffff",
-  color: "#0f766e",
-  border: "1px solid #cbd5e1",
-  padding: "10px 18px",
-  borderRadius: "12px",
-  textDecoration: "none",
-  fontWeight: 700,
+  background: "none",
+  border: "none",
+  padding: 0,
+  color: "#1f4f4f",
+  textDecoration: "underline",
+  fontSize: "14px",
+  fontWeight: 500,
+  cursor: "pointer",
 };
 
 const refreshButton = {
-  background: "#ecfeff",
-  color: "#155e75",
-  border: "1px solid #a5f3fc",
-  padding: "10px 18px",
-  borderRadius: "12px",
-  fontWeight: 700,
+  background: "none",
+  border: "none",
+  padding: 0,
+  color: "#1f4f4f",
+  textDecoration: "underline",
+  fontSize: "14px",
+  fontWeight: 500,
   cursor: "pointer",
 };
 
 const logoutButton = {
-  background: "#0f766e",
-  color: "#ffffff",
-  padding: "10px 18px",
-  borderRadius: "12px",
+  background: "none",
+  border: "none",
+  padding: 0,
+  color: "#333",
   textDecoration: "none",
-  fontWeight: 700,
-  boxShadow: "0 8px 18px rgba(15, 118, 110, 0.18)",
+  fontSize: "14px",
+  fontWeight: 500,
+  cursor: "pointer",
+  boxShadow: "none",
 };
 
 const statsGrid = {
@@ -400,5 +410,5 @@ const cardFooter = {
   justifyContent: "space-between",
   alignItems: "center",
   color: "#0f766e",
-  fontWeight: 800,
+  fontWeight: 700,
 };
