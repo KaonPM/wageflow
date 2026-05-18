@@ -185,7 +185,7 @@ export default function WageFlowLandingPage() {
       </div>
 
       <div style={setupFeeCard}>
-        <h3 style={compactPlanName}>Once-off Setup Fee</h3>
+        <h3 style={compactPlanName}>Setup Fee</h3>
 
         <p style={compactPrice}>
           R499 <span style={compactSmall}>once-off</span>
