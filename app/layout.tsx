@@ -15,6 +15,34 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "WageFlow",
   description: "Staff Management Simplified",
+
+  openGraph: {
+    title: "WageFlow",
+    description:
+      "Staff records and payslip management platform for businesses.",
+    url: "https://wageflow.lesedismartsolutions.co.za",
+    siteName: "WageFlow",
+    images: [
+      {
+        url: "https://wageflow.lesedismartsolutions.co.za/thumbnail.png",
+        width: 1200,
+        height: 630,
+        alt: "WageFlow",
+      },
+    ],
+    locale: "en_ZA",
+    type: "website",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "WageFlow",
+    description:
+      "Staff records and payslip management platform for businesses.",
+    images: [
+      "https://wageflow.lesedismartsolutions.co.za/thumbnail.png",
+    ],
+  },
 };
 
 export default function RootLayout({
