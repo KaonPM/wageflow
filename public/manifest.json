@@ -1,0 +1,23 @@
+{
+  "name": "WageFlow",
+  "short_name": "WageFlow",
+  "description": "Staff records and payslip management for small businesses.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5FAFF",
+  "theme_color": "#0F4C81",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

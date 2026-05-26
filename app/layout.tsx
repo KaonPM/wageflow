@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,29 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "WageFlow",
   description: "Staff Management Simplified",
+  manifest: "/manifest.json",
+
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "WageFlow",
+  },
+
+  icons: {
+    icon: [
+      {
+        url: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 
   openGraph: {
     title: "WageFlow",
@@ -43,6 +66,10 @@ export const metadata: Metadata = {
       "https://wageflow.lesedismartsolutions.co.za/thumbnail.png",
     ],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0F4C81",
 };
 
 export default function RootLayout({
