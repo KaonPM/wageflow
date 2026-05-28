@@ -178,8 +178,8 @@ export default function ManageBusinessPage() {
 
       <h1 style={title}>Manage Business</h1>
       <p style={subtitle}>
-        Master controls business profile, setup status, suspension, archiving
-        and soft deletion.
+        Master controls business profile, branding, setup status, suspension,
+        archiving and soft deletion.
       </p>
 
       <section style={card}>
@@ -321,6 +321,7 @@ export default function ManageBusinessPage() {
             <input
               style={input}
               value={business.logo_url || ""}
+              placeholder="Paste logo image URL"
               onChange={(e) =>
                 setBusiness({ ...business, logo_url: e.target.value })
               }
@@ -329,24 +330,48 @@ export default function ManageBusinessPage() {
 
           <label style={label}>
             Primary Colour
-            <input
-              style={input}
-              value={business.primary_color || ""}
-              onChange={(e) =>
-                setBusiness({ ...business, primary_color: e.target.value })
-              }
-            />
+            <div style={colourRow}>
+              <input
+                style={colourInput}
+                type="color"
+                value={business.primary_color || "#0f766e"}
+                onChange={(e) =>
+                  setBusiness({ ...business, primary_color: e.target.value })
+                }
+              />
+
+              <input
+                style={input}
+                value={business.primary_color || ""}
+                placeholder="#0f766e"
+                onChange={(e) =>
+                  setBusiness({ ...business, primary_color: e.target.value })
+                }
+              />
+            </div>
           </label>
 
           <label style={label}>
             Accent Colour
-            <input
-              style={input}
-              value={business.accent_color || ""}
-              onChange={(e) =>
-                setBusiness({ ...business, accent_color: e.target.value })
-              }
-            />
+            <div style={colourRow}>
+              <input
+                style={colourInput}
+                type="color"
+                value={business.accent_color || "#7f1d1d"}
+                onChange={(e) =>
+                  setBusiness({ ...business, accent_color: e.target.value })
+                }
+              />
+
+              <input
+                style={input}
+                value={business.accent_color || ""}
+                placeholder="#7f1d1d"
+                onChange={(e) =>
+                  setBusiness({ ...business, accent_color: e.target.value })
+                }
+              />
+            </div>
           </label>
         </div>
       </section>
@@ -526,10 +551,28 @@ const label = {
 };
 
 const input = {
+  width: "100%",
   padding: 12,
   borderRadius: 12,
   border: "1px solid #bcccdc",
   fontSize: 14,
+  boxSizing: "border-box" as const,
+};
+
+const colourRow = {
+  display: "flex",
+  gap: 10,
+  alignItems: "center",
+};
+
+const colourInput = {
+  width: 58,
+  height: 44,
+  border: "1px solid #bcccdc",
+  borderRadius: 12,
+  padding: 4,
+  background: "#ffffff",
+  cursor: "pointer",
 };
 
 const saveButton = {
