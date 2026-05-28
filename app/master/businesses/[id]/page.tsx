@@ -400,18 +400,43 @@ export default function ManageBusinessPage() {
               <div style={emptyLogo}>No logo uploaded</div>
             )}
 
-            <label style={uploadButton}>
-              {uploadingLogo ? "Uploading..." : "Upload Logo"}
+            <div>
+            <label style={label}>Business Logo</label>
 
-              <input
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={uploadLogo}
-                disabled={uploadingLogo}
-              />
-            </label>
-          </div>
+            {business.logo_url ? (
+            <img
+            src={business.logo_url}
+            alt="Business Logo"
+            style={logoPreview}
+            />
+            ) : (
+            <div style={emptyLogo}>No logo uploaded</div>
+            )}
+
+            <input
+            id="logo-upload"
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={uploadLogo}
+            disabled={uploadingLogo}
+            />
+
+            <button
+            type="button"
+            style={uploadButton}
+            onClick={() => document.getElementById("logo-upload")?.click()}
+            disabled={uploadingLogo}
+            >
+            {uploadingLogo ? "Uploading..." : "Choose Logo from Computer"}
+            </button>
+
+            {business.logo_url && (
+            <p style={logoHelpText}>
+            Logo uploaded successfully. Upload a new file to replace it.
+            </p>
+            )}
+           </div>
 
           <label style={label}>
             Primary Colour
@@ -694,6 +719,12 @@ const uploadButton = {
   fontWeight: 700,
   cursor: "pointer",
   fontSize: 14,
+};
+
+const logoHelpText = {
+  color: "#64748b",
+  fontSize: 13,
+  marginTop: 10,
 };
 
 const colourRow = {
