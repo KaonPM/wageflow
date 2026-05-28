@@ -121,25 +121,58 @@ export async function POST(req: Request) {
 
     const tempPassword = generateTempPassword();
 
-    const { data: authData, error: authError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true,
-      });
+    let userId: string | null = null;
 
-    if (authError || !authData.user) {
-      console.error("SUPABASE AUTH ERROR:", authError);
+    const { data: usersData, error: usersError } =
+      await supabaseAdmin.auth.admin.listUsers();
 
+    if (usersError) {
       return NextResponse.json(
-        {
-          error: authError?.message || "Failed to create employer login.",
-        },
+        { error: usersError.message },
         { status: 500 }
       );
     }
 
-    const userId = authData.user.id;
+    const existingUser = usersData.users.find(
+      (user) => user.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (existingUser?.id) {
+      const { error: updateUserError } =
+        await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+          password: tempPassword,
+          email_confirm: true,
+        });
+
+      if (updateUserError) {
+        return NextResponse.json(
+          { error: updateUserError.message },
+          { status: 500 }
+        );
+      }
+
+      userId = existingUser.id;
+    } else {
+      const { data: authData, error: authError } =
+        await supabaseAdmin.auth.admin.createUser({
+          email,
+          password: tempPassword,
+          email_confirm: true,
+        });
+
+      if (authError || !authData.user) {
+        console.error("SUPABASE AUTH ERROR:", authError);
+
+        return NextResponse.json(
+          {
+            error: authError?.message || "Failed to create employer login.",
+          },
+          { status: 500 }
+        );
+      }
+
+      userId = authData.user.id;
+    }
 
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
