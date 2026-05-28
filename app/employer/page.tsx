@@ -13,6 +13,7 @@ type Business = {
   registered_name?: string | null;
   name?: string | null;
   logo_url?: string | null;
+  status?: string | null;
 };
 
 type Employee = {
@@ -80,6 +81,32 @@ export default function EmployerDashboard() {
         "Business profile not found. Please complete employer settings first."
       );
       setLoading(false);
+      return;
+    }
+
+    if (businessRecord.status === "suspended") {
+      await supabase.auth.signOut();
+      setMessage(
+        "Your WageFlow account has been suspended. Please contact support."
+      );
+      setLoading(false);
+      router.push("/login");
+      return;
+    }
+
+    if (businessRecord.status === "archived") {
+      await supabase.auth.signOut();
+      setMessage("This WageFlow business account has been archived.");
+      setLoading(false);
+      router.push("/login");
+      return;
+    }
+
+    if (businessRecord.status === "deleted") {
+      await supabase.auth.signOut();
+      setMessage("This WageFlow business account is no longer active.");
+      setLoading(false);
+      router.push("/login");
       return;
     }
 
@@ -524,15 +551,15 @@ const refreshButton = {
 
 const overviewGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: "14px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: "16px",
 };
 
 const overviewCard = {
   background: "#f8fafc",
   border: "1px solid #e2e8f0",
-  borderRadius: "16px",
-  padding: "20px",
+  borderRadius: "18px",
+  padding: "18px",
 };
 
 const overviewValue = {
@@ -540,12 +567,11 @@ const overviewValue = {
   color: "#0f766e",
   fontSize: "30px",
   fontWeight: 900,
-  marginBottom: "6px",
 };
 
 const overviewLabel = {
-  margin: 0,
-  color: "#334155",
+  margin: "8px 0 0",
+  color: "#64748b",
   fontSize: "14px",
   fontWeight: 700,
 };
