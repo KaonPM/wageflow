@@ -36,6 +36,7 @@ export default function MasterBusinessesPage() {
     const { data, error } = await supabase
       .from("businesses")
       .select("*")
+      .neq("status", "deleted")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -50,9 +51,7 @@ export default function MasterBusinessesPage() {
 
   const filteredBusinesses = useMemo(() => {
     return businesses.filter((business) =>
-      business.business_name
-        .toLowerCase()
-        .includes(search.toLowerCase())
+      business.business_name.toLowerCase().includes(search.toLowerCase())
     );
   }, [businesses, search]);
 
@@ -66,44 +65,27 @@ export default function MasterBusinessesPage() {
     pageNumber * PAGE_SIZE
   );
 
-  function getSetupStage(business: Business) {
-    if (!business.logo_url || !business.primary_color || !business.accent_color) {
-      return "Branding needed";
-    }
-
-    if (!business.selected_package) {
-      return "Package needed";
-    }
-
-    if (!business.status || business.status !== "Active") {
-      return "Activation pending";
-    }
-
-    return "Ready";
+  function getStatusLabel(status: string | null) {
+    if (status === "active") return "Active";
+    if (status === "suspended") return "Suspended";
+    if (status === "archived") return "Archived";
+    return "Active";
   }
 
-  function getStageStyle(stage: string) {
-    if (stage === "Ready") {
-      return {
-        ...badge,
-        background: "#dcfce7",
-        color: "#166534",
-      };
+  function getStatusStyle(status: string | null) {
+    if (status === "active") {
+      return { ...badge, background: "#dcfce7", color: "#166534" };
     }
 
-    if (stage === "Activation pending") {
-      return {
-        ...badge,
-        background: "#fef3c7",
-        color: "#92400e",
-      };
+    if (status === "suspended") {
+      return { ...badge, background: "#fef3c7", color: "#92400e" };
     }
 
-    return {
-      ...badge,
-      background: "#fee2e2",
-      color: "#991b1b",
-    };
+    if (status === "archived") {
+      return { ...badge, background: "#e0f2fe", color: "#075985" };
+    }
+
+    return { ...badge, background: "#f1f5f9", color: "#475569" };
   }
 
   return (
@@ -112,7 +94,7 @@ export default function MasterBusinessesPage() {
         <div>
           <h1 style={title}>WageFlow Businesses</h1>
           <p style={subtitle}>
-            View approved businesses and continue their setup.
+            Manage employer businesses, setup status, suspension and archiving.
           </p>
         </div>
 
@@ -145,41 +127,37 @@ export default function MasterBusinessesPage() {
         ) : (
           <>
             <div style={list}>
-              {visibleBusinesses.map((business) => {
-                const stage = getSetupStage(business);
-
-                return (
-                  <div key={business.id} style={businessRow}>
-                    <div style={mainInfo}>
-                      <div style={nameRow}>
-                        <h2 style={businessName}>
-                          {business.business_name}
-                        </h2>
-                        <span style={getStageStyle(stage)}>{stage}</span>
-                      </div>
-
-                      <p style={smallText}>
-                        {business.email || "No email"} •{" "}
-                        {business.phone || "No phone"}
-                      </p>
-
-                      <p style={smallText}>
-                        Package: {business.selected_package || "Not set"} •
-                        Employees: {business.number_of_employees || 0}
-                      </p>
+              {visibleBusinesses.map((business) => (
+                <div key={business.id} style={businessRow}>
+                  <div style={mainInfo}>
+                    <div style={nameRow}>
+                      <h2 style={businessName}>{business.business_name}</h2>
+                      <span style={getStatusStyle(business.status)}>
+                        {getStatusLabel(business.status)}
+                      </span>
                     </div>
 
-                    <div style={actions}>
-                      <Link
-                        href={`/master/businesses/${business.id}`}
-                        style={manageButton}
-                      >
-                        Manage Business
-                      </Link>
-                    </div>
+                    <p style={smallText}>
+                      {business.email || "No email"} •{" "}
+                      {business.phone || "No phone"}
+                    </p>
+
+                    <p style={smallText}>
+                      Package: {business.selected_package || "Not set"} •
+                      Employees: {business.number_of_employees || 0}
+                    </p>
                   </div>
-                );
-              })}
+
+                  <div style={actions}>
+                    <Link
+                      href={`/master/businesses/${business.id}`}
+                      style={manageButton}
+                    >
+                      Manage Business
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div style={pagination}>
@@ -275,7 +253,6 @@ const card = {
   border: "1px solid #d9e2ec",
   borderRadius: 18,
   padding: 18,
-  boxShadow: "0 10px 25px rgba(15, 23, 42, 0.05)",
 };
 
 const list = {
@@ -337,7 +314,6 @@ const manageButton = {
   borderRadius: 999,
   fontWeight: 800,
   fontSize: 13,
-  whiteSpace: "nowrap" as const,
 };
 
 const pagination = {

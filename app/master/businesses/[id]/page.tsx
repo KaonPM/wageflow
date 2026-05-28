@@ -23,13 +23,12 @@ type Business = {
 
 export default function ManageBusinessPage() {
   const params = useParams();
-  const businessId = params.id as string;
   const router = useRouter();
+  const businessId = params.id as string;
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     fetchBusiness();
@@ -54,44 +53,6 @@ export default function ManageBusinessPage() {
     setLoading(false);
   }
 
-  async function uploadLogo(event: React.ChangeEvent<HTMLInputElement>) {
-    if (!event.target.files || event.target.files.length === 0) {
-      return;
-    }
-
-    const file = event.target.files[0];
-
-    if (!business) return;
-
-    setUploadingLogo(true);
-
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${business.id}-${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("business-logos")
-      .upload(fileName, file, {
-        upsert: true,
-      });
-
-    if (uploadError) {
-      setUploadingLogo(false);
-      alert(uploadError.message);
-      return;
-    }
-
-    const { data } = supabase.storage
-      .from("business-logos")
-      .getPublicUrl(fileName);
-
-    setBusiness({
-      ...business,
-      logo_url: data.publicUrl,
-    });
-
-    setUploadingLogo(false);
-  }
-
   async function saveBusiness() {
     if (!business) return;
 
@@ -111,7 +72,7 @@ export default function ManageBusinessPage() {
         accent_color: business.accent_color,
         selected_package: business.selected_package,
         number_of_employees: business.number_of_employees,
-        status: business.status,
+        status: business.status || "active",
       })
       .eq("id", business.id);
 
@@ -123,7 +84,67 @@ export default function ManageBusinessPage() {
     }
 
     alert("Business updated successfully.");
-router.push("/master/businesses");
+    router.push("/master/businesses");
+  }
+
+  async function updateBusinessStatus(status: "active" | "suspended" | "archived" | "deleted") {
+    if (!business) return;
+
+    const actionLabel =
+      status === "deleted"
+        ? "delete"
+        : status === "archived"
+        ? "archive"
+        : status === "suspended"
+        ? "suspend"
+        : "activate";
+
+    const confirmed = confirm(
+      `Are you sure you want to ${actionLabel} ${business.business_name}?`
+    );
+
+    if (!confirmed) return;
+
+    const updatePayload: {
+      status: string;
+      archived_at?: string | null;
+      deleted_at?: string | null;
+    } = {
+      status,
+    };
+
+    if (status === "archived") {
+      updatePayload.archived_at = new Date().toISOString();
+      updatePayload.deleted_at = null;
+    }
+
+    if (status === "deleted") {
+      updatePayload.deleted_at = new Date().toISOString();
+    }
+
+    if (status === "active" || status === "suspended") {
+      updatePayload.archived_at = null;
+      updatePayload.deleted_at = null;
+    }
+
+    const { error } = await supabase
+      .from("businesses")
+      .update(updatePayload)
+      .eq("id", business.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    alert(`Business status updated to ${status}.`);
+
+    if (status === "deleted") {
+      router.push("/master/businesses");
+      return;
+    }
+
+    setBusiness({ ...business, status });
   }
 
   if (loading) {
@@ -149,14 +170,14 @@ router.push("/master/businesses");
     <main style={page}>
       <div style={topBar}>
         <Link href="/master/businesses" style={backButton}>
-          ← Back to Businesses
+          Back to Businesses
         </Link>
       </div>
 
       <h1 style={title}>Manage Business</h1>
       <p style={subtitle}>
-        Complete the business profile, branding, and setup information before
-        employer activation.
+        Master controls business profile, setup status, suspension, archiving
+        and soft deletion.
       </p>
 
       <section style={card}>
@@ -237,68 +258,10 @@ router.push("/master/businesses");
               }
             />
           </label>
-        </div>
-      </section>
 
-      <section style={card}>
-        <h2 style={sectionTitle}>Branding</h2>
-
-        <div style={grid}>
           <label style={label}>
-            Business Logo
+            Selected Package
             <input
-              type="file"
-              accept="image/*"
-              onChange={uploadLogo}
-              style={input}
-            />
-
-            {uploadingLogo && <span style={muted}>Uploading logo...</span>}
-
-            {business.logo_url && (
-              <div style={logoPreviewWrap}>
-                <img
-                  src={business.logo_url}
-                  alt="Business Logo"
-                  style={logoPreview}
-                />
-              </div>
-            )}
-          </label>
-
-          <label style={label}>
-            Primary Colour
-            <input
-              style={input}
-              value={business.primary_color || ""}
-              onChange={(e) =>
-                setBusiness({ ...business, primary_color: e.target.value })
-              }
-              placeholder="#0f766e"
-            />
-          </label>
-
-          <label style={label}>
-            Accent Colour
-            <input
-              style={input}
-              value={business.accent_color || ""}
-              onChange={(e) =>
-                setBusiness({ ...business, accent_color: e.target.value })
-              }
-              placeholder="#d4af37"
-            />
-          </label>
-        </div>
-      </section>
-
-      <section style={card}>
-        <h2 style={sectionTitle}>Setup Status</h2>
-
-        <div style={grid}>
-          <label style={label}>
-            Package
-            <select
               style={input}
               value={business.selected_package || ""}
               onChange={(e) =>
@@ -307,16 +270,7 @@ router.push("/master/businesses");
                   selected_package: e.target.value,
                 })
               }
-            >
-              <option value="">Select package</option>
-              <option value="Starter - R149/month">
-                Starter - R149/month
-              </option>
-              <option value="Growth - R249/month">
-                Growth - R249/month
-              </option>
-              <option value="Elite - Custom">Elite - Custom</option>
-            </select>
+            />
           </label>
 
           <label style={label}>
@@ -338,27 +292,101 @@ router.push("/master/businesses");
             Status
             <select
               style={input}
-              value={business.status || "Setup In Progress"}
+              value={business.status || "active"}
               onChange={(e) =>
                 setBusiness({ ...business, status: e.target.value })
               }
             >
-              <option>Setup In Progress</option>
-              <option>Branding Needed</option>
-              <option>Employee Setup Needed</option>
-              <option>Ready for Employer</option>
-              <option>Active</option>
-              <option>Suspended</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+              <option value="archived">Archived</option>
+              <option value="deleted">Deleted</option>
             </select>
+          </label>
+        </div>
+
+        <button style={saveButton} onClick={saveBusiness} disabled={saving}>
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+      </section>
+
+      <section style={card}>
+        <h2 style={sectionTitle}>Business Branding</h2>
+
+        <div style={grid}>
+          <label style={label}>
+            Logo URL
+            <input
+              style={input}
+              value={business.logo_url || ""}
+              onChange={(e) =>
+                setBusiness({ ...business, logo_url: e.target.value })
+              }
+            />
+          </label>
+
+          <label style={label}>
+            Primary Colour
+            <input
+              style={input}
+              value={business.primary_color || ""}
+              onChange={(e) =>
+                setBusiness({ ...business, primary_color: e.target.value })
+              }
+            />
+          </label>
+
+          <label style={label}>
+            Accent Colour
+            <input
+              style={input}
+              value={business.accent_color || ""}
+              onChange={(e) =>
+                setBusiness({ ...business, accent_color: e.target.value })
+              }
+            />
           </label>
         </div>
       </section>
 
-      <div style={actions}>
-        <button style={saveButton} onClick={saveBusiness} disabled={saving}>
-          {saving ? "Saving..." : "Save Business Setup"}
-        </button>
-      </div>
+      <section style={dangerCard}>
+        <h2 style={dangerTitle}>Master Account Controls</h2>
+        <p style={dangerText}>
+          These actions affect whether the employer can continue using WageFlow.
+          Deleting is handled as a soft delete so the business record is hidden
+          but not permanently removed.
+        </p>
+
+        <div style={buttonRow}>
+          <button
+            style={activeButton}
+            onClick={() => updateBusinessStatus("active")}
+          >
+            Activate
+          </button>
+
+          <button
+            style={warningButton}
+            onClick={() => updateBusinessStatus("suspended")}
+          >
+            Suspend
+          </button>
+
+          <button
+            style={archiveButton}
+            onClick={() => updateBusinessStatus("archived")}
+          >
+            Archive
+          </button>
+
+          <button
+            style={deleteButton}
+            onClick={() => updateBusinessStatus("deleted")}
+          >
+            Delete
+          </button>
+        </div>
+      </section>
     </main>
   );
 }
@@ -371,8 +399,6 @@ const page = {
 };
 
 const topBar = {
-  display: "flex",
-  justifyContent: "flex-end",
   marginBottom: 20,
 };
 
@@ -395,7 +421,7 @@ const title = {
 const subtitle = {
   color: "#486581",
   marginTop: 8,
-  marginBottom: 22,
+  marginBottom: 24,
 };
 
 const card = {
@@ -403,27 +429,46 @@ const card = {
   border: "1px solid #d9e2ec",
   borderRadius: 18,
   padding: 20,
-  marginBottom: 18,
+  marginBottom: 20,
+};
+
+const dangerCard = {
+  background: "#fff7f7",
+  border: "1px solid #fecaca",
+  borderRadius: 18,
+  padding: 20,
+  marginBottom: 20,
 };
 
 const sectionTitle = {
-  fontSize: 18,
+  fontSize: 20,
   color: "#102a43",
-  marginBottom: 16,
+  marginTop: 0,
+};
+
+const dangerTitle = {
+  fontSize: 20,
+  color: "#991b1b",
+  marginTop: 0,
+};
+
+const dangerText = {
+  color: "#7f1d1d",
+  lineHeight: 1.6,
 };
 
 const grid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: 14,
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gap: 16,
 };
 
 const label = {
   display: "grid",
-  gap: 6,
+  gap: 8,
   color: "#334e68",
-  fontSize: 13,
   fontWeight: 700,
+  fontSize: 14,
 };
 
 const input = {
@@ -433,36 +478,60 @@ const input = {
   fontSize: 14,
 };
 
-const muted = {
-  color: "#64748b",
-  fontSize: 13,
-};
-
-const logoPreviewWrap = {
-  marginTop: 12,
-};
-
-const logoPreview = {
-  width: 90,
-  height: 90,
-  objectFit: "contain" as const,
-  borderRadius: 12,
-  border: "1px solid #d9e2ec",
-  background: "#ffffff",
-  padding: 8,
-};
-
-const actions = {
-  display: "flex",
-  justifyContent: "flex-end",
-};
-
 const saveButton = {
+  marginTop: 20,
   background: "#0f766e",
   color: "#ffffff",
   border: "none",
   borderRadius: 999,
-  padding: "13px 20px",
+  padding: "12px 18px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const buttonRow = {
+  display: "flex",
+  flexWrap: "wrap" as const,
+  gap: 12,
+  marginTop: 16,
+};
+
+const activeButton = {
+  background: "#16a34a",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 999,
+  padding: "11px 16px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const warningButton = {
+  background: "#f59e0b",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 999,
+  padding: "11px 16px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const archiveButton = {
+  background: "#0284c7",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 999,
+  padding: "11px 16px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const deleteButton = {
+  background: "#dc2626",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 999,
+  padding: "11px 16px",
   fontWeight: 800,
   cursor: "pointer",
 };
