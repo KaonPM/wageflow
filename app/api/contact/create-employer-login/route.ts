@@ -79,28 +79,44 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const {
-      businessId,
-      email,
-      businessName,
-    }: {
-      businessId: number;
-      email: string;
-      businessName: string;
-    } = body;
-
-    if (!businessId) {
-      return NextResponse.json(
-        { error: "Business ID is required." },
-        { status: 400 }
-      );
-    }
+    const rawBusinessId = body.businessId || body.business_id || body.id;
+    const email = body.email;
+    const businessName = body.businessName || body.business_name || "Employer";
 
     if (!email) {
       return NextResponse.json(
         { error: "Business email is required." },
         { status: 400 }
       );
+    }
+
+    let businessId = rawBusinessId ? Number(rawBusinessId) : null;
+
+    if (!businessId) {
+      const { data: businessRecord, error: businessLookupError } =
+        await supabaseAdmin
+          .from("businesses")
+          .select("id")
+          .eq("email", email)
+          .maybeSingle();
+
+      if (businessLookupError) {
+        console.error("BUSINESS LOOKUP ERROR:", businessLookupError);
+
+        return NextResponse.json(
+          { error: businessLookupError.message },
+          { status: 500 }
+        );
+      }
+
+      if (!businessRecord?.id) {
+        return NextResponse.json(
+          { error: "Business ID is required." },
+          { status: 400 }
+        );
+      }
+
+      businessId = businessRecord.id;
     }
 
     const tempPassword = generateTempPassword();
@@ -162,7 +178,7 @@ export async function POST(req: Request) {
 
     await sendLoginEmail({
       to: email,
-      name: businessName || "Employer",
+      name: businessName,
       password: tempPassword,
     });
 
