@@ -193,22 +193,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error: businessUpdateError } = await supabaseAdmin
-      .from("businesses")
-      .update({
-        owner_user_id: userId,
-      })
-      .eq("id", businessId);
-
-    if (businessUpdateError) {
-      console.error("BUSINESS UPDATE ERROR:", businessUpdateError);
-
-      return NextResponse.json(
-        { error: businessUpdateError.message },
-        { status: 500 }
-      );
-    }
-
     await sendLoginEmail({
       to: email,
       name: businessName,
