@@ -29,6 +29,7 @@ export default function ManageBusinessPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     fetchBusiness();
@@ -51,6 +52,60 @@ export default function ManageBusinessPage() {
 
     setBusiness(data);
     setLoading(false);
+  }
+
+  async function uploadLogo(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!business) return;
+
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setUploadingLogo(true);
+
+    const fileExtension = file.name.split(".").pop();
+    const fileName = `${business.id}-${Date.now()}.${fileExtension}`;
+    const filePath = `business-logos/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("business-logos")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      alert(uploadError.message);
+      setUploadingLogo(false);
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from("business-logos")
+      .getPublicUrl(filePath);
+
+    const publicUrl = data.publicUrl;
+
+    const { error: updateError } = await supabase
+      .from("businesses")
+      .update({
+        logo_url: publicUrl,
+      })
+      .eq("id", business.id);
+
+    setUploadingLogo(false);
+
+    if (updateError) {
+      alert(updateError.message);
+      return;
+    }
+
+    setBusiness({
+      ...business,
+      logo_url: publicUrl,
+    });
+
+    alert("Logo uploaded successfully.");
   }
 
   async function saveBusiness() {
@@ -146,7 +201,10 @@ export default function ManageBusinessPage() {
       return;
     }
 
-    setBusiness({ ...business, status });
+    setBusiness({
+      ...business,
+      status,
+    });
   }
 
   if (loading) {
@@ -177,6 +235,7 @@ export default function ManageBusinessPage() {
       </div>
 
       <h1 style={title}>Manage Business</h1>
+
       <p style={subtitle}>
         Master controls business profile, branding, setup status, suspension,
         archiving and soft deletion.
@@ -192,7 +251,10 @@ export default function ManageBusinessPage() {
               style={input}
               value={business.business_name || ""}
               onChange={(e) =>
-                setBusiness({ ...business, business_name: e.target.value })
+                setBusiness({
+                  ...business,
+                  business_name: e.target.value,
+                })
               }
             />
           </label>
@@ -203,7 +265,10 @@ export default function ManageBusinessPage() {
               style={input}
               value={business.email || ""}
               onChange={(e) =>
-                setBusiness({ ...business, email: e.target.value })
+                setBusiness({
+                  ...business,
+                  email: e.target.value,
+                })
               }
             />
           </label>
@@ -214,7 +279,10 @@ export default function ManageBusinessPage() {
               style={input}
               value={business.phone || ""}
               onChange={(e) =>
-                setBusiness({ ...business, phone: e.target.value })
+                setBusiness({
+                  ...business,
+                  phone: e.target.value,
+                })
               }
             />
           </label>
@@ -296,7 +364,10 @@ export default function ManageBusinessPage() {
               style={input}
               value={business.status || "active"}
               onChange={(e) =>
-                setBusiness({ ...business, status: e.target.value })
+                setBusiness({
+                  ...business,
+                  status: e.target.value,
+                })
               }
             >
               <option value="active">Active</option>
@@ -316,17 +387,31 @@ export default function ManageBusinessPage() {
         <h2 style={sectionTitle}>Business Branding</h2>
 
         <div style={grid}>
-          <label style={label}>
-            Logo URL
-            <input
-              style={input}
-              value={business.logo_url || ""}
-              placeholder="Paste logo image URL"
-              onChange={(e) =>
-                setBusiness({ ...business, logo_url: e.target.value })
-              }
-            />
-          </label>
+          <div>
+            <label style={label}>Business Logo</label>
+
+            {business.logo_url ? (
+              <img
+                src={business.logo_url}
+                alt="Business Logo"
+                style={logoPreview}
+              />
+            ) : (
+              <div style={emptyLogo}>No logo uploaded</div>
+            )}
+
+            <label style={uploadButton}>
+              {uploadingLogo ? "Uploading..." : "Upload Logo"}
+
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={uploadLogo}
+                disabled={uploadingLogo}
+              />
+            </label>
+          </div>
 
           <label style={label}>
             Primary Colour
@@ -336,7 +421,10 @@ export default function ManageBusinessPage() {
                 type="color"
                 value={business.primary_color || "#0f766e"}
                 onChange={(e) =>
-                  setBusiness({ ...business, primary_color: e.target.value })
+                  setBusiness({
+                    ...business,
+                    primary_color: e.target.value,
+                  })
                 }
               />
 
@@ -345,7 +433,10 @@ export default function ManageBusinessPage() {
                 value={business.primary_color || ""}
                 placeholder="#0f766e"
                 onChange={(e) =>
-                  setBusiness({ ...business, primary_color: e.target.value })
+                  setBusiness({
+                    ...business,
+                    primary_color: e.target.value,
+                  })
                 }
               />
             </div>
@@ -359,7 +450,10 @@ export default function ManageBusinessPage() {
                 type="color"
                 value={business.accent_color || "#7f1d1d"}
                 onChange={(e) =>
-                  setBusiness({ ...business, accent_color: e.target.value })
+                  setBusiness({
+                    ...business,
+                    accent_color: e.target.value,
+                  })
                 }
               />
 
@@ -368,7 +462,10 @@ export default function ManageBusinessPage() {
                 value={business.accent_color || ""}
                 placeholder="#7f1d1d"
                 onChange={(e) =>
-                  setBusiness({ ...business, accent_color: e.target.value })
+                  setBusiness({
+                    ...business,
+                    accent_color: e.target.value,
+                  })
                 }
               />
             </div>
@@ -557,6 +654,46 @@ const input = {
   border: "1px solid #bcccdc",
   fontSize: 14,
   boxSizing: "border-box" as const,
+};
+
+const logoPreview = {
+  width: 140,
+  height: 140,
+  objectFit: "contain" as const,
+  borderRadius: 16,
+  border: "1px solid #d9e2ec",
+  padding: 12,
+  background: "#ffffff",
+  marginTop: 10,
+  marginBottom: 16,
+};
+
+const emptyLogo = {
+  width: 140,
+  height: 140,
+  borderRadius: 16,
+  border: "1px dashed #cbd5e1",
+  background: "#f8fafc",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#64748b",
+  fontSize: 14,
+  marginTop: 10,
+  marginBottom: 16,
+};
+
+const uploadButton = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#0f766e",
+  color: "#ffffff",
+  padding: "12px 18px",
+  borderRadius: 14,
+  fontWeight: 700,
+  cursor: "pointer",
+  fontSize: 14,
 };
 
 const colourRow = {
