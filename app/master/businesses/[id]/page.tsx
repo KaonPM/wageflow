@@ -30,6 +30,7 @@ export default function ManageBusinessPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   useEffect(() => {
     fetchBusiness();
@@ -140,6 +141,43 @@ export default function ManageBusinessPage() {
 
     alert("Business updated successfully.");
     router.push("/master/businesses");
+  }
+
+  async function resendSetupEmail() {
+    if (!business?.email || !business?.business_name) {
+      alert("Business email or name is missing.");
+      return;
+    }
+
+    setResendingEmail(true);
+
+    try {
+      const response = await fetch("/api/contact/create-employer-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: business.email,
+          name: business.business_name,
+        }),
+      });
+
+      const result = await response.json();
+
+      setResendingEmail(false);
+
+      if (!response.ok) {
+        alert(result.error || "Failed to resend setup email.");
+        return;
+      }
+
+      alert(result.message || "Employer setup email resent successfully.");
+    } catch (error) {
+      console.error(error);
+      setResendingEmail(false);
+      alert("Something went wrong.");
+    }
   }
 
   async function updateBusinessStatus(
@@ -378,9 +416,19 @@ export default function ManageBusinessPage() {
           </label>
         </div>
 
-        <button style={saveButton} onClick={saveBusiness} disabled={saving}>
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
+        <div style={actionRow}>
+          <button style={saveButton} onClick={saveBusiness} disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+
+          <button
+            style={secondaryButton}
+            onClick={resendSetupEmail}
+            disabled={resendingEmail}
+          >
+            {resendingEmail ? "Sending..." : "Resend Setup Email"}
+          </button>
+        </div>
       </section>
 
       <section style={card}>
@@ -400,43 +448,30 @@ export default function ManageBusinessPage() {
               <div style={emptyLogo}>No logo uploaded</div>
             )}
 
-            <div>
-            <label style={label}>Business Logo</label>
-
-            {business.logo_url ? (
-            <img
-            src={business.logo_url}
-            alt="Business Logo"
-            style={logoPreview}
-            />
-            ) : (
-            <div style={emptyLogo}>No logo uploaded</div>
-            )}
-
             <input
-            id="logo-upload"
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={uploadLogo}
-            disabled={uploadingLogo}
+              id="logo-upload"
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={uploadLogo}
+              disabled={uploadingLogo}
             />
 
             <button
-            type="button"
-            style={uploadButton}
-            onClick={() => document.getElementById("logo-upload")?.click()}
-            disabled={uploadingLogo}
+              type="button"
+              style={uploadButton}
+              onClick={() => document.getElementById("logo-upload")?.click()}
+              disabled={uploadingLogo}
             >
-            {uploadingLogo ? "Uploading..." : "Choose Logo from Computer"}
+              {uploadingLogo ? "Uploading..." : "Choose Logo from Computer"}
             </button>
 
             {business.logo_url && (
-            <p style={logoHelpText}>
-            Logo uploaded successfully. Upload a new file to replace it.
-            </p>
+              <p style={logoHelpText}>
+                Logo uploaded successfully. Upload a new file to replace it.
+              </p>
             )}
-           </div>
+          </div>
 
           <label style={label}>
             Primary Colour
@@ -681,6 +716,33 @@ const input = {
   boxSizing: "border-box" as const,
 };
 
+const actionRow = {
+  display: "flex",
+  gap: 12,
+  flexWrap: "wrap" as const,
+  marginTop: 20,
+};
+
+const saveButton = {
+  background: "#0f766e",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 999,
+  padding: "12px 18px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const secondaryButton = {
+  background: "#ffffff",
+  color: "#0f766e",
+  border: "2px solid #0f766e",
+  borderRadius: 999,
+  padding: "12px 18px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
 const logoPreview = {
   width: 140,
   height: 140,
@@ -714,6 +776,7 @@ const uploadButton = {
   justifyContent: "center",
   background: "#0f766e",
   color: "#ffffff",
+  border: "none",
   padding: "12px 18px",
   borderRadius: 14,
   fontWeight: 700,
@@ -740,17 +803,6 @@ const colourInput = {
   borderRadius: 12,
   padding: 4,
   background: "#ffffff",
-  cursor: "pointer",
-};
-
-const saveButton = {
-  marginTop: 20,
-  background: "#0f766e",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: 999,
-  padding: "12px 18px",
-  fontWeight: 800,
   cursor: "pointer",
 };
 
