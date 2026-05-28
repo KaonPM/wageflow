@@ -47,11 +47,52 @@ export default function WageFlowRequestsPage() {
 
   function getMonthlyFee(packageName: string | null) {
     if (!packageName) return 149;
-
     if (packageName.includes("Growth")) return 249;
     if (packageName.includes("Elite")) return 499;
-
     return 149;
+  }
+
+  async function createEmployerLogin(request: Request) {
+    const loginResponse = await fetch("/api/contact/create-employer-login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: request.email,
+        name: request.contact_person,
+      }),
+    });
+
+    if (!loginResponse.ok) {
+      const loginError = await loginResponse.json();
+
+      alert(
+        loginError.error ||
+          "The business was created, but the employer login email could not be sent."
+      );
+
+      return false;
+    }
+
+    return true;
+  }
+
+  async function markRequestApproved(id: string) {
+    const { error } = await supabase
+      .from("wageflow_setup_requests")
+      .update({
+        status: "Approved",
+        approved_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return false;
+    }
+
+    return true;
   }
 
   async function approveRequest(request: Request) {
@@ -72,97 +113,47 @@ export default function WageFlowRequestsPage() {
       return;
     }
 
-    if (existingBusiness) {
-      const { error: settingsError } = await supabase
-        .from("business_settings")
-        .upsert(
-          {
-            business_id: existingBusiness.id,
-            primary_color: "#0f766e",
-            secondary_color: "#d4af37",
-            paye_enabled: true,
-            uif_enabled: true,
-            pension_enabled: false,
-            medical_aid_enabled: false,
-            show_leave_balances: true,
-            default_payment_method: "Bank Transfer",
-          },
-          { onConflict: "business_id" }
-        );
+    let businessId = existingBusiness?.id;
 
-      if (settingsError) {
-        alert(settingsError.message);
-        return;
-      }
-
-      const { error: subscriptionError } = await supabase
-        .from("subscriptions")
-        .upsert(
-          {
-            business_id: existingBusiness.id,
-            plan_name: request.selected_package || "Starter",
-            monthly_fee: getMonthlyFee(request.selected_package),
-            setup_fee: 499,
-            setup_paid: false,
-            subscription_status: "active",
-          },
-          { onConflict: "business_id" }
-        );
-
-      if (subscriptionError) {
-        alert(subscriptionError.message);
-        return;
-      }
-
-      const { error: updateOnlyError } = await supabase
-        .from("wageflow_setup_requests")
-        .update({
-          status: "Approved",
-          approved_at: new Date().toISOString(),
+    if (!businessId) {
+      const { data: newBusiness, error: businessError } = await supabase
+        .from("businesses")
+        .insert({
+          business_name: request.business_name,
+          email: request.email,
+          phone: request.phone,
+          status: "Active",
+          source_request_id: request.id,
+          selected_package: request.selected_package,
+          number_of_employees: request.number_of_employees,
         })
-        .eq("id", request.id);
+        .select()
+        .single();
 
-      if (updateOnlyError) {
-        alert(updateOnlyError.message);
+      if (businessError || !newBusiness) {
+        alert(businessError?.message || "Failed to create business.");
         return;
       }
 
-      fetchRequests();
-      return;
-    }
-
-    const { data: newBusiness, error: businessError } = await supabase
-      .from("businesses")
-      .insert({
-        business_name: request.business_name,
-        email: request.email,
-        phone: request.phone,
-        status: "Active",
-        source_request_id: request.id,
-        selected_package: request.selected_package,
-        number_of_employees: request.number_of_employees,
-      })
-      .select()
-      .single();
-
-    if (businessError || !newBusiness) {
-      alert(businessError?.message || "Failed to create business.");
-      return;
+      businessId = newBusiness.id;
     }
 
     const { error: settingsError } = await supabase
       .from("business_settings")
-      .insert({
-        business_id: newBusiness.id,
-        primary_color: "#0f766e",
-        secondary_color: "#d4af37",
-        paye_enabled: true,
-        uif_enabled: true,
-        pension_enabled: false,
-        medical_aid_enabled: false,
-        show_leave_balances: true,
-        default_payment_method: "Bank Transfer",
-      });
+      .upsert(
+        {
+          business_id: businessId,
+          primary_color: "#0f766e",
+          secondary_color: "#d4af37",
+          paye_enabled: true,
+          uif_enabled: true,
+          pension_enabled: false,
+          medical_aid_enabled: false,
+          show_leave_balances: true,
+          default_payment_method: "Bank Transfer",
+        },
+        { onConflict: "business_id" }
+      );
 
     if (settingsError) {
       alert(settingsError.message);
@@ -171,53 +162,32 @@ export default function WageFlowRequestsPage() {
 
     const { error: subscriptionError } = await supabase
       .from("subscriptions")
-      .insert({
-        business_id: newBusiness.id,
-        plan_name: request.selected_package || "Starter",
-        monthly_fee: getMonthlyFee(request.selected_package),
-        setup_fee: 499,
-        setup_paid: false,
-        subscription_status: "active",
-      });
+      .upsert(
+        {
+          business_id: businessId,
+          plan_name: request.selected_package || "Starter",
+          monthly_fee: getMonthlyFee(request.selected_package),
+          setup_fee: 499,
+          setup_paid: false,
+          subscription_status: "active",
+        },
+        { onConflict: "business_id" }
+      );
 
     if (subscriptionError) {
       alert(subscriptionError.message);
       return;
     }
 
-    const { error: requestError } = await supabase
-      .from("wageflow_setup_requests")
-      .update({
-        status: "Approved",
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", request.id);
+    const loginCreated = await createEmployerLogin(request);
 
-    if (requestError) {
-      alert(requestError.message);
-      return;
-    }
+    if (!loginCreated) return;
 
-    const loginResponse = await fetch("/api/create-employer-login", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    email: request.email,
-    name: request.contact_person,
-  }),
-});
+    const approved = await markRequestApproved(request.id);
 
-if (!loginResponse.ok) {
-  const loginError = await loginResponse.json();
-  alert(
-    loginError.error ||
-      "The request was approved, but the employer login email could not be sent."
-  );
-  return;
-}
+    if (!approved) return;
 
+    alert("Employer approved and login email sent successfully.");
     fetchRequests();
   }
 
