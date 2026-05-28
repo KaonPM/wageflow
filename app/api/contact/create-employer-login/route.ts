@@ -11,6 +11,21 @@ function generateTempPassword() {
   return `Wf@${crypto.randomBytes(4).toString("hex")}9A`;
 }
 
+async function findUserByEmail(email: string) {
+  const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data.users.find(
+    (user) => user.email?.toLowerCase() === email.toLowerCase()
+  );
+}
+
 async function sendLoginEmail({
   to,
   name,
@@ -32,12 +47,12 @@ async function sendLoginEmail({
         email: process.env.BREVO_FROM_EMAIL,
       },
       to: [{ email: to, name }],
-      subject: "Your WageFlow employer account has been approved",
+      subject: "Your WageFlow employer account setup details",
       htmlContent: `
         <div style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #111827;">
           <p>Hi ${name},</p>
 
-          <p>Your WageFlow employer account has been approved and created successfully.</p>
+          <p>Your WageFlow employer account setup details are below.</p>
 
           <p>You can now log in using the details below:</p>
 
@@ -45,6 +60,13 @@ async function sendLoginEmail({
           <p><strong>Temporary password:</strong> ${password}</p>
 
           <p>Please log in and change your password immediately after signing in.</p>
+
+          <p>
+            <a href="https://wageflow.lesedismartsolutions.co.za/login"
+              style="display:inline-block; background:#0f766e; color:#ffffff; padding:12px 18px; border-radius:10px; text-decoration:none; font-weight:bold;">
+              Open WageFlow Login
+            </a>
+          </p>
 
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
 
@@ -88,23 +110,46 @@ export async function POST(req: Request) {
 
     const temporaryPassword = generateTempPassword();
 
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email,
-        password: temporaryPassword,
-        email_confirm: true,
-      });
+    let userId = "";
 
-    if (userError) {
-      console.error("SUPABASE CREATE USER ERROR:", userError);
+    const existingUser = await findUserByEmail(email);
 
-      return NextResponse.json(
-        { error: userError.message },
-        { status: 500 }
-      );
+    if (existingUser?.id) {
+      userId = existingUser.id;
+
+      const { error: updateUserError } =
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+          password: temporaryPassword,
+          email_confirm: true,
+        });
+
+      if (updateUserError) {
+        console.error("SUPABASE UPDATE USER ERROR:", updateUserError);
+
+        return NextResponse.json(
+          { error: updateUserError.message },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { data: userData, error: userError } =
+        await supabaseAdmin.auth.admin.createUser({
+          email,
+          password: temporaryPassword,
+          email_confirm: true,
+        });
+
+      if (userError) {
+        console.error("SUPABASE CREATE USER ERROR:", userError);
+
+        return NextResponse.json(
+          { error: userError.message },
+          { status: 500 }
+        );
+      }
+
+      userId = userData.user.id;
     }
-
-    const userId = userData.user.id;
 
     const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
       id: userId,
@@ -132,13 +177,15 @@ export async function POST(req: Request) {
 
       console.error("BREVO EMAIL ERROR:", error);
 
-      return NextResponse.json(
-        { error },
-        { status: 500 }
-      );
+      return NextResponse.json({ error }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      message: existingUser
+        ? "Employer setup email resent successfully."
+        : "Employer login created and setup email sent successfully.",
+    });
   } catch (error) {
     console.error("CREATE EMPLOYER LOGIN ROUTE ERROR:", error);
 
