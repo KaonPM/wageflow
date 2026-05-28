@@ -87,7 +87,9 @@ export default function ManageBusinessPage() {
     router.push("/master/businesses");
   }
 
-  async function updateBusinessStatus(status: "active" | "suspended" | "archived" | "deleted") {
+  async function updateBusinessStatus(
+    status: "active" | "suspended" | "archived" | "deleted"
+  ) {
     if (!business) return;
 
     const actionLabel =
@@ -351,40 +353,83 @@ export default function ManageBusinessPage() {
 
       <section style={dangerCard}>
         <h2 style={dangerTitle}>Master Account Controls</h2>
+
         <p style={dangerText}>
           These actions affect whether the employer can continue using WageFlow.
           Deleting is handled as a soft delete so the business record is hidden
           but not permanently removed.
         </p>
 
-        <div style={buttonRow}>
-          <button
-            style={activeButton}
-            onClick={() => updateBusinessStatus("active")}
-          >
-            Activate
-          </button>
+        <div style={divider} />
 
-          <button
-            style={warningButton}
-            onClick={() => updateBusinessStatus("suspended")}
-          >
-            Suspend
-          </button>
+        <div style={controlList}>
+          <div style={controlItem}>
+            <div>
+              <h3 style={controlTitle}>Activate</h3>
+              <p style={controlText}>
+                Set this business as active so the employer can log in and use
+                WageFlow.
+              </p>
+            </div>
 
-          <button
-            style={archiveButton}
-            onClick={() => updateBusinessStatus("archived")}
-          >
-            Archive
-          </button>
+            <button
+              style={outlineButton}
+              onClick={() => updateBusinessStatus("active")}
+            >
+              Activate
+            </button>
+          </div>
 
-          <button
-            style={deleteButton}
-            onClick={() => updateBusinessStatus("deleted")}
-          >
-            Delete
-          </button>
+          <div style={controlItem}>
+            <div>
+              <h3 style={controlTitle}>Suspend</h3>
+              <p style={controlText}>
+                Suspend this business. The employer will not be able to log in
+                or use WageFlow.
+              </p>
+            </div>
+
+            <button
+              style={outlineButton}
+              onClick={() => updateBusinessStatus("suspended")}
+            >
+              Suspend
+            </button>
+          </div>
+
+          <div style={controlItem}>
+            <div>
+              <h3 style={controlTitle}>Archive</h3>
+              <p style={controlText}>
+                Archive this business. It will be hidden from the employer but
+                can be restored later.
+              </p>
+            </div>
+
+            <button
+              style={outlineButton}
+              onClick={() => updateBusinessStatus("archived")}
+            >
+              Archive
+            </button>
+          </div>
+
+          <div style={controlItemNoBorder}>
+            <div>
+              <h3 style={controlTitle}>Delete</h3>
+              <p style={controlText}>
+                Soft delete this business. It will be permanently hidden but not
+                removed from the system.
+              </p>
+            </div>
+
+            <button
+              style={outlineDangerButton}
+              onClick={() => updateBusinessStatus("deleted")}
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </section>
     </main>
@@ -433,10 +478,10 @@ const card = {
 };
 
 const dangerCard = {
-  background: "#fff7f7",
-  border: "1px solid #fecaca",
+  background: "#ffffff",
+  border: "1px solid #d9e2ec",
   borderRadius: 18,
-  padding: 20,
+  padding: 24,
   marginBottom: 20,
 };
 
@@ -447,14 +492,23 @@ const sectionTitle = {
 };
 
 const dangerTitle = {
-  fontSize: 20,
-  color: "#991b1b",
+  fontSize: 24,
+  color: "#7f1d1d",
   marginTop: 0,
+  marginBottom: 12,
 };
 
 const dangerText = {
-  color: "#7f1d1d",
-  lineHeight: 1.6,
+  color: "#334155",
+  lineHeight: 1.7,
+  fontSize: 16,
+  maxWidth: 900,
+};
+
+const divider = {
+  height: 1,
+  background: "#e2e8f0",
+  marginTop: 24,
 };
 
 const grid = {
@@ -489,49 +543,63 @@ const saveButton = {
   cursor: "pointer",
 };
 
-const buttonRow = {
+const controlList = {
+  display: "grid",
+  gap: 0,
+};
+
+const controlItem = {
   display: "flex",
-  flexWrap: "wrap" as const,
-  gap: 12,
-  marginTop: 16,
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 20,
+  padding: "24px 0",
+  borderBottom: "1px solid #e2e8f0",
 };
 
-const activeButton = {
-  background: "#16a34a",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: 999,
-  padding: "11px 16px",
-  fontWeight: 800,
-  cursor: "pointer",
+const controlItemNoBorder = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 20,
+  padding: "24px 0 0",
 };
 
-const warningButton = {
-  background: "#f59e0b",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: 999,
-  padding: "11px 16px",
+const controlTitle = {
+  fontSize: 22,
   fontWeight: 800,
-  cursor: "pointer",
+  color: "#7f1d1d",
+  margin: 0,
 };
 
-const archiveButton = {
-  background: "#0284c7",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: 999,
-  padding: "11px 16px",
-  fontWeight: 800,
-  cursor: "pointer",
+const controlText = {
+  marginTop: 8,
+  color: "#475569",
+  lineHeight: 1.7,
+  fontSize: 15,
+  maxWidth: 650,
 };
 
-const deleteButton = {
-  background: "#dc2626",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: 999,
-  padding: "11px 16px",
+const outlineButton = {
+  background: "#ffffff",
+  color: "#0f766e",
+  border: "2px solid #0f766e",
+  borderRadius: 14,
+  padding: "12px 22px",
   fontWeight: 800,
+  fontSize: 15,
   cursor: "pointer",
+  minWidth: 140,
+};
+
+const outlineDangerButton = {
+  background: "#ffffff",
+  color: "#7f1d1d",
+  border: "2px solid #0f766e",
+  borderRadius: 14,
+  padding: "12px 22px",
+  fontWeight: 800,
+  fontSize: 15,
+  cursor: "pointer",
+  minWidth: 140,
 };
