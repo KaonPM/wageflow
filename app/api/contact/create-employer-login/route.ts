@@ -11,21 +11,6 @@ function generateTempPassword() {
   return `Wf@${crypto.randomBytes(4).toString("hex")}9A`;
 }
 
-async function findUserByEmail(email: string) {
-  const { data, error } = await supabaseAdmin.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  return data.users.find(
-    (user) => user.email?.toLowerCase() === email.toLowerCase()
-  );
-}
-
 async function sendLoginEmail({
   to,
   name,
@@ -47,12 +32,12 @@ async function sendLoginEmail({
         email: process.env.BREVO_FROM_EMAIL,
       },
       to: [{ email: to, name }],
-      subject: "Your WageFlow employer account setup details",
+      subject: "Your WageFlow employer account has been approved",
       htmlContent: `
         <div style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #111827;">
           <p>Hi ${name},</p>
 
-          <p>Your WageFlow employer account setup details are below.</p>
+          <p>Your WageFlow employer account has been approved and created successfully.</p>
 
           <p>You can now log in using the details below:</p>
 
@@ -61,20 +46,13 @@ async function sendLoginEmail({
 
           <p>Please log in and change your password immediately after signing in.</p>
 
-          <p>
-            <a href="https://wageflow.lesedismartsolutions.co.za/login"
-              style="display:inline-block; background:#0f766e; color:#ffffff; padding:12px 18px; border-radius:10px; text-decoration:none; font-weight:bold;">
-              Open WageFlow Login
-            </a>
-          </p>
-
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
 
           <p><strong>To proceed with your WageFlow setup, please send us the following:</strong></p>
 
           <ul>
             <li>Company registration details or business name confirmation</li>
-            <li>PAYE, UIF and SDL reference numbers, if applicable</li>
+            <li>PAYE and UIF if applicable</li>
             <li>Employee list with full names, ID/passport numbers and job titles</li>
             <li>Employee salary or wage details</li>
             <li>Payment frequency, for example weekly, fortnightly or monthly</li>
@@ -99,63 +77,63 @@ async function sendLoginEmail({
 
 export async function POST(req: Request) {
   try {
-    const { email, name } = await req.json();
+    const body = await req.json();
 
-    if (!email || !name) {
+    const {
+      businessId,
+      email,
+      businessName,
+    }: {
+      businessId: number;
+      email: string;
+      businessName: string;
+    } = body;
+
+    if (!businessId) {
       return NextResponse.json(
-        { error: "Name and email are required." },
+        { error: "Business ID is required." },
         { status: 400 }
       );
     }
 
-    const temporaryPassword = generateTempPassword();
-
-    let userId = "";
-
-    const existingUser = await findUserByEmail(email);
-
-    if (existingUser?.id) {
-      userId = existingUser.id;
-
-      const { error: updateUserError } =
-        await supabaseAdmin.auth.admin.updateUserById(userId, {
-          password: temporaryPassword,
-          email_confirm: true,
-        });
-
-      if (updateUserError) {
-        console.error("SUPABASE UPDATE USER ERROR:", updateUserError);
-
-        return NextResponse.json(
-          { error: updateUserError.message },
-          { status: 500 }
-        );
-      }
-    } else {
-      const { data: userData, error: userError } =
-        await supabaseAdmin.auth.admin.createUser({
-          email,
-          password: temporaryPassword,
-          email_confirm: true,
-        });
-
-      if (userError) {
-        console.error("SUPABASE CREATE USER ERROR:", userError);
-
-        return NextResponse.json(
-          { error: userError.message },
-          { status: 500 }
-        );
-      }
-
-      userId = userData.user.id;
+    if (!email) {
+      return NextResponse.json(
+        { error: "Business email is required." },
+        { status: 400 }
+      );
     }
 
-    const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
-      id: userId,
-      role: "employer",
-      must_change_password: true,
-    });
+    const tempPassword = generateTempPassword();
+
+    const { data: authData, error: authError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+      });
+
+    if (authError || !authData.user) {
+      console.error("SUPABASE AUTH ERROR:", authError);
+
+      return NextResponse.json(
+        {
+          error: authError?.message || "Failed to create employer login.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const userId = authData.user.id;
+
+    const { error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .upsert({
+        id: userId,
+        email,
+        role: "employer",
+        business_id: businessId,
+        must_change_password: true,
+      });
 
     if (profileError) {
       console.error("SUPABASE PROFILE UPSERT ERROR:", profileError);
@@ -166,31 +144,40 @@ export async function POST(req: Request) {
       );
     }
 
-    const emailResponse = await sendLoginEmail({
-      to: email,
-      name,
-      password: temporaryPassword,
-    });
+    const { error: businessUpdateError } = await supabaseAdmin
+      .from("businesses")
+      .update({
+        owner_user_id: userId,
+      })
+      .eq("id", businessId);
 
-    if (!emailResponse.ok) {
-      const error = await emailResponse.text();
+    if (businessUpdateError) {
+      console.error("BUSINESS UPDATE ERROR:", businessUpdateError);
 
-      console.error("BREVO EMAIL ERROR:", error);
-
-      return NextResponse.json({ error }, { status: 500 });
+      return NextResponse.json(
+        { error: businessUpdateError.message },
+        { status: 500 }
+      );
     }
+
+    await sendLoginEmail({
+      to: email,
+      name: businessName || "Employer",
+      password: tempPassword,
+    });
 
     return NextResponse.json({
       success: true,
-      message: existingUser
-        ? "Employer setup email resent successfully."
-        : "Employer login created and setup email sent successfully.",
     });
-  } catch (error) {
-    console.error("CREATE EMPLOYER LOGIN ROUTE ERROR:", error);
+  } catch (error: any) {
+    console.error("CREATE EMPLOYER LOGIN ERROR:", error);
 
     return NextResponse.json(
-      { error: "Something went wrong." },
+      {
+        error:
+          error?.message ||
+          "Something went wrong while creating employer login.",
+      },
       { status: 500 }
     );
   }
