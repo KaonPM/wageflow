@@ -144,41 +144,51 @@ export default function ManageBusinessPage() {
   }
 
   async function resendSetupEmail() {
-    if (!business?.email || !business?.business_name) {
-      alert("Business email or name is missing.");
-      return;
-    }
+  if (!business?.email || !business?.business_name) {
+    alert("Business email or business name is missing.");
+    return;
+  }
 
-    setResendingEmail(true);
+  setResendingEmail(true);
 
-    try {
-      const response = await fetch("/api/contact/create-employer-login", {
+  try {
+    const response = await fetch(
+      "/api/contact/create-employer-login",
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
+          businessId: business.id,
           email: business.email,
-          name: business.business_name,
+          businessName: business.business_name,
         }),
-      });
-
-      const result = await response.json();
-
-      setResendingEmail(false);
-
-      if (!response.ok) {
-        alert(result.error || "Failed to resend setup email.");
-        return;
       }
+    );
 
-      alert(result.message || "Employer setup email resent successfully.");
-    } catch (error) {
-      console.error(error);
-      setResendingEmail(false);
-      alert("Something went wrong.");
+    const result = await response.json();
+
+    setResendingEmail(false);
+
+    if (!response.ok) {
+      alert(result.error || "Failed to send setup email.");
+      return;
     }
+
+    alert(
+      result.message ||
+        "Employer setup email sent successfully."
+    );
+  } catch (error) {
+    console.error(error);
+
+    setResendingEmail(false);
+
+    alert("Something went wrong.");
   }
+}
 
   async function updateBusinessStatus(
     status: "active" | "suspended" | "archived" | "deleted"
