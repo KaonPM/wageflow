@@ -45,22 +45,10 @@ type PayslipReportRow = {
 };
 
 const reportCategories = [
-  {
-    value: "payroll",
-    label: "Payroll Reports",
-  },
-  {
-    value: "employee",
-    label: "Employee Reports",
-  },
-  {
-    value: "compliance",
-    label: "Compliance Reports",
-  },
-  {
-    value: "business",
-    label: "Business Reports",
-  },
+  { value: "payroll", label: "Payroll Reports" },
+  { value: "employee", label: "Employee Reports" },
+  { value: "compliance", label: "Compliance Reports" },
+  { value: "business", label: "Business Reports" },
 ];
 
 const reportTypesByCategory: Record<string, { value: string; label: string }[]> =
@@ -70,38 +58,20 @@ const reportTypesByCategory: Record<string, { value: string; label: string }[]> 
         value: "salary_receipt_confirmations",
         label: "Salary Receipt Confirmation Report",
       },
-      {
-        value: "payroll_summary",
-        label: "Payroll Summary Report",
-      },
+      { value: "payroll_summary", label: "Payroll Summary Report" },
       {
         value: "employee_payment_history",
         label: "Employee Payment History Report",
       },
     ],
     employee: [
-      {
-        value: "employee_master_list",
-        label: "Employee Master List",
-      },
-      {
-        value: "employee_contact_report",
-        label: "Employee Contact Report",
-      },
+      { value: "employee_master_list", label: "Employee Master List" },
+      { value: "employee_contact_report", label: "Employee Contact Report" },
     ],
     compliance: [
-      {
-        value: "uif_report",
-        label: "UIF Report",
-      },
-      {
-        value: "paye_report",
-        label: "PAYE Report",
-      },
-      {
-        value: "emp201_summary",
-        label: "EMP201 Summary",
-      },
+      { value: "uif_report", label: "UIF Report" },
+      { value: "paye_report", label: "PAYE Report" },
+      { value: "emp201_summary", label: "EMP201 Summary" },
     ],
     business: [
       {
@@ -116,7 +86,6 @@ const reportTypesByCategory: Record<string, { value: string; label: string }[]> 
   };
 
 export default function EmployerReportsPage() {
-  const [businessId, setBusinessId] = useState("");
   const [businessName, setBusinessName] = useState("Employer");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payslips, setPayslips] = useState<PayslipReportRow[]>([]);
@@ -127,7 +96,7 @@ export default function EmployerReportsPage() {
   const [reportType, setReportType] = useState("salary_receipt_confirmations");
   const [employeeFilter, setEmployeeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [periodType, setPeriodType] = useState("monthly");
+  const [periodType, setPeriodType] = useState("all");
   const [monthFilter, setMonthFilter] = useState("");
   const [quarterFilter, setQuarterFilter] = useState("1");
   const [halfYearFilter, setHalfYearFilter] = useState("1");
@@ -163,7 +132,6 @@ export default function EmployerReportsPage() {
       return;
     }
 
-    setBusinessId(business.id);
     setBusinessName(
       business.trading_name ||
         business.business_name ||
@@ -212,7 +180,9 @@ export default function EmployerReportsPage() {
   async function fetchEmployees(activeBusinessId: string) {
     const { data, error } = await supabase
       .from("employees")
-      .select("id, full_name, first_name, last_name, email, phone, status, employment_status")
+      .select(
+        "id, full_name, first_name, last_name, email, phone, status, employment_status"
+      )
       .eq("business_id", activeBusinessId)
       .order("first_name", { ascending: true });
 
@@ -291,46 +261,59 @@ export default function EmployerReportsPage() {
   }
 
   function rowMatchesPeriod(row: PayslipReportRow) {
-    const payrollMonth = row.payroll_month;
+    if (periodType === "all") return true;
 
-    if (!payrollMonth) return false;
+    let dateSource: Date | null = null;
 
-    const [year, month] = payrollMonth.split("-").map(Number);
+    if (reportType === "salary_receipt_confirmations") {
+      dateSource = row.received_confirmed_at
+        ? new Date(row.received_confirmed_at)
+        : null;
+    } else if (row.payroll_month) {
+      dateSource = new Date(`${row.payroll_month}-01`);
+    } else if (row.created_at) {
+      dateSource = new Date(row.created_at);
+    }
+
+    if (!dateSource || Number.isNaN(dateSource.getTime())) return false;
+
+    const rowYear = dateSource.getFullYear();
+    const rowMonth = dateSource.getMonth() + 1;
 
     if (periodType === "monthly") {
-      return payrollMonth === monthFilter;
+      if (!monthFilter) return true;
+
+      const [selectedYear, selectedMonth] = monthFilter.split("-").map(Number);
+
+      return rowYear === selectedYear && rowMonth === selectedMonth;
     }
 
     if (periodType === "quarterly") {
       const selectedQuarter = Number(quarterFilter);
-      const rowQuarter = Math.ceil(month / 3);
+      const rowQuarter = Math.ceil(rowMonth / 3);
 
-      return String(year) === yearFilter && rowQuarter === selectedQuarter;
+      return String(rowYear) === yearFilter && rowQuarter === selectedQuarter;
     }
 
     if (periodType === "half_year") {
       const selectedHalf = Number(halfYearFilter);
-      const rowHalf = month <= 6 ? 1 : 2;
+      const rowHalf = rowMonth <= 6 ? 1 : 2;
 
-      return String(year) === yearFilter && rowHalf === selectedHalf;
+      return String(rowYear) === yearFilter && rowHalf === selectedHalf;
     }
 
     if (periodType === "yearly") {
-      return String(year) === yearFilter;
+      return String(rowYear) === yearFilter;
     }
 
     if (periodType === "custom") {
       if (!startDateFilter || !endDateFilter) return true;
 
-      const issuedDate = row.created_at ? new Date(row.created_at) : null;
-
-      if (!issuedDate) return false;
-
       const startDate = new Date(startDateFilter);
       const endDate = new Date(endDateFilter);
       endDate.setHours(23, 59, 59, 999);
 
-      return issuedDate >= startDate && issuedDate <= endDate;
+      return dateSource >= startDate && dateSource <= endDate;
     }
 
     return true;
@@ -346,9 +329,7 @@ export default function EmployerReportsPage() {
       const matchesStatus =
         statusFilter === "all" || statusFilter === receiptStatus;
 
-      const matchesPeriod = rowMatchesPeriod(row);
-
-      return matchesEmployee && matchesStatus && matchesPeriod;
+      return matchesEmployee && matchesStatus && rowMatchesPeriod(row);
     });
   }, [
     payslips,
@@ -361,6 +342,7 @@ export default function EmployerReportsPage() {
     yearFilter,
     startDateFilter,
     endDateFilter,
+    reportType,
   ]);
 
   const employeeReportRows = useMemo(() => {
@@ -383,90 +365,16 @@ export default function EmployerReportsPage() {
     });
   }, [employees, employeeFilter, statusFilter]);
 
-  const reportSummary = useMemo(() => {
-    const confirmed = filteredPayslips.filter(
-      (row) => getReceiptStatus(row) === "confirmed"
-    ).length;
-
-    const pending = filteredPayslips.filter(
-      (row) => getReceiptStatus(row) === "pending"
-    ).length;
-
-    const generated = filteredPayslips.filter(
-      (row) => getReceiptStatus(row) === "generated"
-    ).length;
-
-    const totalNetPay = filteredPayslips.reduce(
-      (sum, row) => sum + Number(row.net_pay || 0),
-      0
-    );
-
-    const totalPaye = filteredPayslips.reduce(
-      (sum, row) => sum + Number(row.paye || 0),
-      0
-    );
-
-    const totalUif = filteredPayslips.reduce(
-      (sum, row) => sum + Number(row.total_uif || 0),
-      0
-    );
-
-    const confirmationRate =
-      filteredPayslips.length === 0
-        ? 0
-        : Math.round((confirmed / filteredPayslips.length) * 100);
-
-    return {
-      totalPayslips: filteredPayslips.length,
-      confirmed,
-      pending,
-      generated,
-      totalNetPay,
-      totalPaye,
-      totalUif,
-      confirmationRate,
-    };
-  }, [filteredPayslips]);
-
   function getReportTitle() {
-    const category = reportCategories.find((item) => item.value === reportCategory);
+    const category = reportCategories.find(
+      (item) => item.value === reportCategory
+    );
+
     const type = (reportTypesByCategory[reportCategory] || []).find(
       (item) => item.value === reportType
     );
 
     return `${category?.label || "Reports"} · ${type?.label || "Report"}`;
-  }
-
-  function exportCsv() {
-    const rows = getCsvRows();
-
-    if (rows.length === 0) {
-      setMessage("There is no report data to export.");
-      return;
-    }
-
-    const csv = rows
-      .map((row) =>
-        row
-          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
-          .join(",")
-      )
-      .join("\n");
-
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = `${getReportTitle()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")}.csv`;
-
-    link.click();
-    URL.revokeObjectURL(url);
   }
 
   function getCsvRows() {
@@ -484,7 +392,14 @@ export default function EmployerReportsPage() {
 
     if (reportType === "employee_payment_history") {
       return [
-        ["Employee", "Payroll Month", "Payment Date", "Payment Method", "Net Pay", "Status"],
+        [
+          "Employee",
+          "Payroll Month",
+          "Payment Date",
+          "Payment Method",
+          "Net Pay",
+          "Status",
+        ],
         ...filteredPayslips.map((row) => [
           getEmployeeName(row.employee_id),
           row.payroll_month || "",
@@ -496,7 +411,14 @@ export default function EmployerReportsPage() {
       ];
     }
 
-    if (reportType === "payroll_summary") {
+    if (
+      reportType === "payroll_summary" ||
+      reportType === "uif_report" ||
+      reportType === "paye_report" ||
+      reportType === "emp201_summary" ||
+      reportType === "company_payroll_overview" ||
+      reportType === "monthly_wage_cost_report"
+    ) {
       return [
         [
           "Employee",
@@ -506,6 +428,7 @@ export default function EmployerReportsPage() {
           "UIF",
           "Other Deductions",
           "Net Pay",
+          "SARS Payable",
           "Status",
         ],
         ...filteredPayslips.map((row) => [
@@ -516,6 +439,7 @@ export default function EmployerReportsPage() {
           Number(row.total_uif || 0).toFixed(2),
           Number(row.other_deductions || 0).toFixed(2),
           Number(row.net_pay || 0).toFixed(2),
+          Number(row.sars_payable || 0).toFixed(2),
           formatStatus(row.status || "generated"),
         ]),
       ];
@@ -545,8 +469,163 @@ export default function EmployerReportsPage() {
     ];
   }
 
-  function printReport() {
-    window.print();
+  function exportCsv() {
+    const rows = getCsvRows();
+
+    if (rows.length <= 1) {
+      setMessage("There is no extracted report data to export.");
+      return;
+    }
+
+    const csv = rows
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `${getReportTitle()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")}.csv`;
+
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function buildReportHtml() {
+    const rows = getCsvRows();
+
+    if (rows.length <= 1) {
+      setMessage("There is no extracted report data to print or download.");
+      return "";
+    }
+
+    const title = getReportTitle();
+
+    const tableRows = rows
+      .map((row, index) => {
+        const cells = row
+          .map((cell) =>
+            index === 0
+              ? `<th>${String(cell ?? "")}</th>`
+              : `<td>${String(cell ?? "")}</td>`
+          )
+          .join("");
+
+        return `<tr>${cells}</tr>`;
+      })
+      .join("");
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 32px;
+              color: #0f172a;
+            }
+
+            h1 {
+              color: #0f766e;
+              margin: 0 0 6px;
+            }
+
+            p {
+              color: #475569;
+              margin: 0 0 8px;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 24px;
+            }
+
+            th {
+              background: #f8fafc;
+              color: #475569;
+              text-align: left;
+              font-size: 12px;
+              padding: 10px;
+              border: 1px solid #e2e8f0;
+            }
+
+            td {
+              font-size: 12px;
+              padding: 10px;
+              border: 1px solid #e2e8f0;
+            }
+          </style>
+        </head>
+
+        <body>
+          <h1>${title}</h1>
+          <p><strong>Company:</strong> ${businessName}</p>
+          <p><strong>Generated:</strong> ${new Date().toLocaleDateString(
+            "en-ZA"
+          )}</p>
+
+          <table>
+            ${tableRows}
+          </table>
+        </body>
+      </html>
+    `;
+  }
+
+  function printExtractedReport() {
+    const html = buildReportHtml();
+
+    if (!html) return;
+
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+      setMessage("Please allow popups to print this report.");
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+    }, 300);
+  }
+
+  function downloadExtractedReport() {
+    const html = buildReportHtml();
+
+    if (!html) return;
+
+    const blob = new Blob([html], {
+      type: "text/html;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `${getReportTitle()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")}.html`;
+
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   const isEmployeeReport = reportCategory === "employee";
@@ -573,14 +652,18 @@ export default function EmployerReportsPage() {
           <div>
             <h2 style={sectionTitle}>Report Generator</h2>
             <p style={mutedText}>
-              Select a reporting category, choose filters, then export or print
-              the report.
+              Select a reporting category, choose filters, then export, download
+              or print the extracted report only.
             </p>
           </div>
 
           <div style={buttonRow}>
-            <button style={outlineButton} onClick={printReport}>
+            <button style={outlineButton} onClick={printExtractedReport}>
               Print / Save PDF
+            </button>
+
+            <button style={outlineButton} onClick={downloadExtractedReport}>
+              Download Report
             </button>
 
             <button style={primaryButton} onClick={exportCsv}>
@@ -677,6 +760,7 @@ export default function EmployerReportsPage() {
                   value={periodType}
                   onChange={(event) => setPeriodType(event.target.value)}
                 >
+                  <option value="all">All Periods</option>
                   <option value="monthly">Monthly</option>
                   <option value="quarterly">Quarterly</option>
                   <option value="half_year">Half-Year</option>
@@ -687,7 +771,12 @@ export default function EmployerReportsPage() {
 
               {periodType === "monthly" && (
                 <div>
-                  <label style={label}>Month</label>
+                  <label style={label}>
+                    {reportType === "salary_receipt_confirmations"
+                      ? "Confirmation Month"
+                      : "Payroll Month"}
+                  </label>
+
                   <input
                     style={input}
                     type="month"
@@ -766,7 +855,12 @@ export default function EmployerReportsPage() {
               {periodType === "custom" && (
                 <>
                   <div>
-                    <label style={label}>Start Date</label>
+                    <label style={label}>
+                      {reportType === "salary_receipt_confirmations"
+                        ? "Confirmation Start Date"
+                        : "Start Date"}
+                    </label>
+
                     <input
                       style={input}
                       type="date"
@@ -776,7 +870,12 @@ export default function EmployerReportsPage() {
                   </div>
 
                   <div>
-                    <label style={label}>End Date</label>
+                    <label style={label}>
+                      {reportType === "salary_receipt_confirmations"
+                        ? "Confirmation End Date"
+                        : "End Date"}
+                    </label>
+
                     <input
                       style={input}
                       type="date"
@@ -798,82 +897,45 @@ export default function EmployerReportsPage() {
           <p style={mutedText}>Loading reports...</p>
         </section>
       ) : (
-        <>
-          {!isEmployeeReport && (
-            <section style={summaryGrid}>
-              <div style={summaryCard}>
-                <span style={summaryLabel}>Total Payslips</span>
-                <strong style={summaryValue}>{reportSummary.totalPayslips}</strong>
-              </div>
-
-              <div style={summaryCard}>
-                <span style={summaryLabel}>Confirmed</span>
-                <strong style={summaryValue}>{reportSummary.confirmed}</strong>
-              </div>
-
-              <div style={summaryCard}>
-                <span style={summaryLabel}>Pending</span>
-                <strong style={summaryValue}>{reportSummary.pending}</strong>
-              </div>
-
-              <div style={summaryCard}>
-                <span style={summaryLabel}>Generated</span>
-                <strong style={summaryValue}>{reportSummary.generated}</strong>
-              </div>
-
-              <div style={summaryCard}>
-                <span style={summaryLabel}>Total Net Pay</span>
-                <strong style={summaryValue}>
-                  R {reportSummary.totalNetPay.toFixed(2)}
-                </strong>
-              </div>
-
-              <div style={summaryCard}>
-                <span style={summaryLabel}>Confirmation Rate</span>
-                <strong style={summaryValue}>
-                  {reportSummary.confirmationRate}%
-                </strong>
-              </div>
-            </section>
-          )}
-
-          <section style={panel}>
-            <div style={panelHeader}>
-              <div>
-                <h2 style={sectionTitle}>{getReportTitle()}</h2>
-                <p style={mutedText}>
-                  Generated for {businessName}. Use the filters above to refine
-                  the report output.
-                </p>
-              </div>
+        <section style={panel}>
+          <div style={panelHeader}>
+            <div>
+              <h2 style={sectionTitle}>{getReportTitle()}</h2>
+              <p style={mutedText}>
+                Generated for {businessName}. Use the filters above to refine
+                the extracted report output.
+              </p>
             </div>
+          </div>
 
-            {isEmployeeReport ? (
-              <EmployeeReportTable
-                rows={employeeReportRows}
-                getEmployeeName={getEmployeeName}
-              />
-            ) : reportType === "payroll_summary" ||
-              reportType === "uif_report" ||
-              reportType === "paye_report" ||
-              reportType === "emp201_summary" ||
-              reportType === "company_payroll_overview" ||
-              reportType === "monthly_wage_cost_report" ? (
-              <PayrollSummaryTable rows={filteredPayslips} getEmployeeName={getEmployeeName} />
-            ) : reportType === "employee_payment_history" ? (
-              <EmployeePaymentHistoryTable
-                rows={filteredPayslips}
-                getEmployeeName={getEmployeeName}
-              />
-            ) : (
-              <SalaryReceiptTable
-                rows={filteredPayslips}
-                getEmployeeName={getEmployeeName}
-                getReceiptStatus={getReceiptStatus}
-              />
-            )}
-          </section>
-        </>
+          {isEmployeeReport ? (
+            <EmployeeReportTable
+              rows={employeeReportRows}
+              getEmployeeName={getEmployeeName}
+            />
+          ) : reportType === "payroll_summary" ||
+            reportType === "uif_report" ||
+            reportType === "paye_report" ||
+            reportType === "emp201_summary" ||
+            reportType === "company_payroll_overview" ||
+            reportType === "monthly_wage_cost_report" ? (
+            <PayrollSummaryTable
+              rows={filteredPayslips}
+              getEmployeeName={getEmployeeName}
+            />
+          ) : reportType === "employee_payment_history" ? (
+            <EmployeePaymentHistoryTable
+              rows={filteredPayslips}
+              getEmployeeName={getEmployeeName}
+            />
+          ) : (
+            <SalaryReceiptTable
+              rows={filteredPayslips}
+              getEmployeeName={getEmployeeName}
+              getReceiptStatus={getReceiptStatus}
+            />
+          )}
+        </section>
       )}
     </main>
   );
@@ -971,9 +1033,7 @@ function PayrollSummaryTable({
               <td style={td}>R {Number(row.gross_pay || 0).toFixed(2)}</td>
               <td style={td}>R {Number(row.paye || 0).toFixed(2)}</td>
               <td style={td}>R {Number(row.total_uif || 0).toFixed(2)}</td>
-              <td style={td}>
-                R {Number(row.other_deductions || 0).toFixed(2)}
-              </td>
+              <td style={td}>R {Number(row.other_deductions || 0).toFixed(2)}</td>
               <td style={td}>R {Number(row.net_pay || 0).toFixed(2)}</td>
               <td style={td}>R {Number(row.sars_payable || 0).toFixed(2)}</td>
               <td style={td}>{formatStatus(row.status || "generated")}</td>
@@ -1220,36 +1280,6 @@ const outlineButton = {
   borderRadius: "10px",
   cursor: "pointer",
   fontWeight: 800,
-};
-
-const summaryGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-  gap: "14px",
-  marginBottom: "20px",
-};
-
-const summaryCard = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
-  borderRadius: "18px",
-  padding: "18px",
-  boxShadow: "0 10px 24px rgba(15, 23, 42, 0.05)",
-};
-
-const summaryLabel = {
-  display: "block",
-  color: "#64748b",
-  fontSize: "12px",
-  fontWeight: 800,
-  marginBottom: "8px",
-};
-
-const summaryValue = {
-  display: "block",
-  color: "#0f766e",
-  fontSize: "24px",
-  fontWeight: 900,
 };
 
 const tableWrap = {
