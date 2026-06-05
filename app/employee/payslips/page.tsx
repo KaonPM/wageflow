@@ -23,6 +23,8 @@ type Payslip = {
   viewed_at: string | null;
   downloaded_at: string | null;
   pdf_url: string | null;
+  received_confirmed: boolean | null;
+  received_confirmed_at: string | null;
 };
 
 export default function EmployeePayslipsPage() {
@@ -34,6 +36,9 @@ export default function EmployeePayslipsPage() {
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [message, setMessage] = useState("");
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
+  const [currentBusinessId, setCurrentBusinessId] = useState<string | null>(null);
 
   useEffect(() => {
     loadPayslips();
@@ -84,6 +89,8 @@ export default function EmployeePayslipsPage() {
     }
 
     setEmployeeName(employee.full_name || "Employee");
+    setCurrentEmployeeId(employee.id);
+    setCurrentBusinessId(employee.business_id);
 
     const { data: business } = await supabase
       .from("businesses")
@@ -98,30 +105,33 @@ export default function EmployeePayslipsPage() {
     );
 
     const { data: payslipData, error: payslipError } = await supabase
-  .from("payslips")
-  .select(
-    `
-    id,
-    payroll_month,
-    pay_period_month,
-    pay_period_year,
-    basic_pay,
-    gross_pay,
-    uif_employee,
-    total_uif,
-    paye,
-    other_deductions,
-    net_pay,
-    payment_method,
-    status,
-    created_at,
-    viewed_at,
-    downloaded_at,
-    pdf_url
-  `
-  )
-  .eq("employee_id", employee.id)
-  .order("created_at", { ascending: false });
+      .from("payslips")
+      .select(
+        `
+        id,
+        payroll_month,
+        pay_period_month,
+        pay_period_year,
+        basic_pay,
+        gross_pay,
+        uif_employee,
+        total_uif,
+        paye,
+        other_deductions,
+        net_pay,
+        payment_method,
+        status,
+        created_at,
+        viewed_at,
+        downloaded_at,
+        pdf_url,
+        received_confirmed,
+        received_confirmed_at
+      `
+      )
+      .eq("employee_id", employee.id)
+      .order("created_at", { ascending: false });
+
     if (payslipError) {
       setMessage("Could not load payslips.");
       setLoading(false);
@@ -156,6 +166,63 @@ export default function EmployeePayslipsPage() {
     }
 
     return "Unknown";
+  }
+
+  async function handleConfirmSalaryReceived(payslip: Payslip) {
+    if (!currentEmployeeId || !currentBusinessId) {
+      setMessage("Employee or business details could not be confirmed.");
+      return;
+    }
+
+    setConfirmingId(payslip.id);
+    setMessage("");
+
+    const confirmedAt = new Date().toISOString();
+    const period = getPayrollPeriod(payslip);
+
+    const { error: updateError } = await supabase
+      .from("payslips")
+      .update({
+        received_confirmed: true,
+        received_confirmed_at: confirmedAt,
+        status: "received_confirmed",
+      })
+      .eq("id", payslip.id)
+      .eq("employee_id", currentEmployeeId);
+
+    if (updateError) {
+      setMessage("Could not confirm salary receipt. Please try again.");
+      setConfirmingId(null);
+      return;
+    }
+
+    await supabase.from("payslip_notifications").insert([
+      {
+        payslip_id: payslip.id,
+        employee_id: currentEmployeeId,
+        business_id: currentBusinessId,
+        notification_type: "salary_received",
+        recipient: "employer",
+        message: `${employeeName} confirmed receipt of salary for ${period}.`,
+        status: "pending",
+      },
+    ]);
+
+    setPayslips((items) =>
+      items.map((item) =>
+        item.id === payslip.id
+          ? {
+              ...item,
+              received_confirmed: true,
+              received_confirmed_at: confirmedAt,
+              status: "received_confirmed",
+            }
+          : item
+      )
+    );
+
+    setMessage("Salary receipt confirmed successfully.");
+    setConfirmingId(null);
   }
 
   async function handleLogout() {
@@ -195,14 +262,12 @@ export default function EmployeePayslipsPage() {
           </div>
 
           <p style={subtitle}>
-            View and download employer-issued payslips linked to your employee
-            profile.
+            View, download, and confirm receipt of employer-issued payslips
+            linked to your employee profile.
           </p>
 
           <div style={summaryRow}>
-            <div style={summaryBadge}>
-              Employee: {employeeName}
-            </div>
+            <div style={summaryBadge}>Employee: {employeeName}</div>
 
             <div style={summaryBadge}>
               Payslips: {filteredPayslips.length}
@@ -232,9 +297,9 @@ export default function EmployeePayslipsPage() {
           </div>
         </section>
 
-        {message ? (
-          <div style={messageCard}>{message}</div>
-        ) : filteredPayslips.length === 0 ? (
+        {message ? <div style={messageCard}>{message}</div> : null}
+
+        {filteredPayslips.length === 0 ? (
           <div style={messageCard}>
             No payslips found for the selected period.
           </div>
@@ -252,6 +317,7 @@ export default function EmployeePayslipsPage() {
                     <th style={th}>Net Pay</th>
                     <th style={th}>Payment</th>
                     <th style={th}>Status</th>
+                    <th style={th}>Salary Received</th>
                     <th style={th}>Issued</th>
                     <th style={th}>Actions</th>
                   </tr>
@@ -291,8 +357,22 @@ export default function EmployeePayslipsPage() {
 
                       <td style={td}>
                         <span style={statusBadge}>
-                          {capitalise(payslip.status || "issued")}
+                          {formatStatus(payslip.status || "issued")}
                         </span>
+                      </td>
+
+                      <td style={td}>
+                        {payslip.received_confirmed ? (
+                          <span style={confirmedBadge}>
+                            Confirmed
+                            <br />
+                            <small>
+                              {formatDate(payslip.received_confirmed_at)}
+                            </small>
+                          </span>
+                        ) : (
+                          <span style={pendingBadge}>Not confirmed</span>
+                        )}
                       </td>
 
                       <td style={td}>
@@ -308,6 +388,23 @@ export default function EmployeePayslipsPage() {
                             View
                           </a>
 
+                          {!payslip.received_confirmed ? (
+                            <button
+                              onClick={() =>
+                                handleConfirmSalaryReceived(payslip)
+                              }
+                              disabled={confirmingId === payslip.id}
+                              style={
+                                confirmingId === payslip.id
+                                  ? disabledButton
+                                  : confirmButton
+                              }
+                            >
+                              {confirmingId === payslip.id
+                                ? "Confirming..."
+                                : "Confirm Receipt"}
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -322,8 +419,13 @@ export default function EmployeePayslipsPage() {
   );
 }
 
-function capitalise(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function formatStatus(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 function formatDate(value?: string | null) {
@@ -515,6 +617,29 @@ const statusBadge: CSSProperties = {
   fontWeight: 700,
 };
 
+const confirmedBadge: CSSProperties = {
+  display: "inline-block",
+  padding: "8px 12px",
+  borderRadius: "12px",
+  background: "#ecfdf5",
+  border: "1px solid #bbf7d0",
+  color: "#166534",
+  fontSize: "12px",
+  fontWeight: 700,
+  lineHeight: 1.4,
+};
+
+const pendingBadge: CSSProperties = {
+  display: "inline-block",
+  padding: "8px 12px",
+  borderRadius: "12px",
+  background: "#fff7ed",
+  border: "1px solid #fed7aa",
+  color: "#9a3412",
+  fontSize: "12px",
+  fontWeight: 700,
+};
+
 const actionRow: CSSProperties = {
   display: "flex",
   gap: "8px",
@@ -531,24 +656,26 @@ const viewButton: CSSProperties = {
   fontWeight: 700,
 };
 
-const downloadButton: CSSProperties = {
+const confirmButton: CSSProperties = {
   padding: "8px 12px",
   borderRadius: "10px",
-  background: "#ffffff",
-  border: "1px solid #d1d5db",
-  color: "#111827",
-  textDecoration: "none",
+  background: "#111827",
+  border: "1px solid #111827",
+  color: "#ffffff",
   fontSize: "13px",
   fontWeight: 700,
+  cursor: "pointer",
 };
 
 const disabledButton: CSSProperties = {
   padding: "8px 12px",
   borderRadius: "10px",
   background: "#f3f4f6",
+  border: "1px solid #e5e7eb",
   color: "#94a3b8",
   fontSize: "13px",
   fontWeight: 700,
+  cursor: "not-allowed",
 };
 
 const messageCard: CSSProperties = {
@@ -557,4 +684,5 @@ const messageCard: CSSProperties = {
   background: "#ffffff",
   border: "1px solid #e5e7eb",
   boxShadow: "0 14px 36px rgba(15, 23, 42, 0.06)",
+  marginBottom: "18px",
 };
