@@ -37,6 +37,7 @@ type SalaryReceipt = {
   status: string | null;
   received_confirmed: boolean | null;
   received_confirmed_at: string | null;
+  created_at: string | null;
 };
 
 const UIF_LIMIT = 17712;
@@ -58,8 +59,12 @@ export default function PayrollPage() {
   const [saving, setSaving] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
+
   const [salaryReceipts, setSalaryReceipts] = useState<SalaryReceipt[]>([]);
   const [loadingReceipts, setLoadingReceipts] = useState(true);
+  const [receiptStatusFilter, setReceiptStatusFilter] = useState("all");
+  const [receiptMonthFilter, setReceiptMonthFilter] = useState("all");
+  const [receiptEmployeeFilter, setReceiptEmployeeFilter] = useState("all");
 
   useEffect(() => {
     initialisePayroll();
@@ -129,7 +134,8 @@ export default function PayrollPage() {
         net_pay,
         status,
         received_confirmed,
-        received_confirmed_at
+        received_confirmed_at,
+        created_at
       `
       )
       .eq("business_id", activeBusinessId)
@@ -208,6 +214,54 @@ export default function PayrollPage() {
     return getEmployeeName(employee);
   }
 
+  function getReceiptStatus(receipt: SalaryReceipt) {
+    const rawStatus = (receipt.status || "").toLowerCase().trim();
+
+    if (
+      receipt.received_confirmed === true ||
+      rawStatus === "received_confirmed" ||
+      rawStatus === "received confirmed"
+    ) {
+      return "confirmed";
+    }
+
+    if (rawStatus === "generated") return "generated";
+
+    return "pending";
+  }
+
+  const receiptMonthOptions = useMemo(() => {
+    const months = salaryReceipts
+      .map((item) => item.payroll_month)
+      .filter(Boolean) as string[];
+
+    return [...new Set(months)];
+  }, [salaryReceipts]);
+
+  const filteredSalaryReceipts = useMemo(() => {
+    return salaryReceipts.filter((receipt) => {
+      const receiptStatus = getReceiptStatus(receipt);
+
+      const matchesStatus =
+        receiptStatusFilter === "all" || receiptStatusFilter === receiptStatus;
+
+      const matchesMonth =
+        receiptMonthFilter === "all" ||
+        receipt.payroll_month === receiptMonthFilter;
+
+      const matchesEmployee =
+        receiptEmployeeFilter === "all" ||
+        receipt.employee_id === receiptEmployeeFilter;
+
+      return matchesStatus && matchesMonth && matchesEmployee;
+    });
+  }, [
+    salaryReceipts,
+    receiptStatusFilter,
+    receiptMonthFilter,
+    receiptEmployeeFilter,
+  ]);
+
   function calculatePaye(annualTaxableIncome: number, age: string) {
     let annualTax = 0;
 
@@ -260,16 +314,6 @@ export default function PayrollPage() {
       sarsPayable,
     };
   }, [basicPay, bonus, overtimePay, otherDeductions, ageCategory]);
-
-  const confirmedReceipts = salaryReceipts.filter(
-    (item) => item.received_confirmed === true
-  );
-
-  const pendingReceipts = salaryReceipts.filter(
-    (item) => item.received_confirmed !== true
-  );
-
-  const recentConfirmedReceipts = confirmedReceipts.slice(0, 5);
 
   async function queuePayslipNotifications({
     payslipId,
@@ -572,12 +616,13 @@ export default function PayrollPage() {
         </Link>
       </section>
 
-      <section style={receiptCard}>
-        <div style={receiptHeader}>
+      <section style={registerCard}>
+        <div style={registerHeader}>
           <div>
-            <h2 style={sectionTitle}>Salary Receipt Confirmations</h2>
-            <p style={receiptSubtitle}>
-              Track employees who confirmed that they received their salary.
+            <h2 style={sectionTitle}>Salary Confirmations Register</h2>
+            <p style={registerSubtitle}>
+              Filter payslips by company, employee, payroll month, and receipt
+              status.
             </p>
           </div>
 
@@ -591,47 +636,123 @@ export default function PayrollPage() {
           </button>
         </div>
 
-        <div style={receiptStatsGrid}>
-          <div style={receiptStatBox}>
-            <span style={receiptStatLabel}>Confirmed</span>
-            <strong style={receiptStatValue}>{confirmedReceipts.length}</strong>
+        <div style={filterGrid}>
+          <div>
+            <label style={label}>Company</label>
+            <select style={input} value="company" disabled>
+              <option value="company">{businessName}</option>
+            </select>
           </div>
 
-          <div style={receiptStatBox}>
-            <span style={receiptStatLabel}>Pending</span>
-            <strong style={receiptStatValue}>{pendingReceipts.length}</strong>
+          <div>
+            <label style={label}>Status</label>
+            <select
+              style={input}
+              value={receiptStatusFilter}
+              onChange={(e) => setReceiptStatusFilter(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="generated">Generated</option>
+              <option value="pending">Pending Confirmation</option>
+              <option value="confirmed">Confirmed</option>
+            </select>
           </div>
 
-          <div style={receiptStatBox}>
-            <span style={receiptStatLabel}>Total Payslips</span>
-            <strong style={receiptStatValue}>{salaryReceipts.length}</strong>
+          <div>
+            <label style={label}>Payroll Month</label>
+            <select
+              style={input}
+              value={receiptMonthFilter}
+              onChange={(e) => setReceiptMonthFilter(e.target.value)}
+            >
+              <option value="all">All Months</option>
+              {receiptMonthOptions.map((month) => (
+                <option key={month} value={month}>
+                  {month}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={label}>Employee</label>
+            <select
+              style={input}
+              value={receiptEmployeeFilter}
+              onChange={(e) => setReceiptEmployeeFilter(e.target.value)}
+            >
+              <option value="all">All Employees</option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {getEmployeeName(employee)}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
         {loadingReceipts ? (
           <p style={helperText}>Loading salary confirmations...</p>
-        ) : recentConfirmedReceipts.length === 0 ? (
-          <p style={helperText}>No employee has confirmed salary receipt yet.</p>
+        ) : filteredSalaryReceipts.length === 0 ? (
+          <p style={helperText}>
+            No salary confirmation records match the selected filters.
+          </p>
         ) : (
-          <div style={receiptList}>
-            {recentConfirmedReceipts.map((receipt) => (
-              <div key={receipt.id} style={receiptItem}>
-                <div>
-                  <strong style={receiptEmployee}>
-                    {getReceiptEmployeeName(receipt.employee_id)}
-                  </strong>
+          <div style={tableWrap}>
+            <table style={table}>
+              <thead>
+                <tr>
+                  <th style={th}>Employee</th>
+                  <th style={th}>Payroll Month</th>
+                  <th style={th}>Net Pay</th>
+                  <th style={th}>Status</th>
+                  <th style={th}>Confirmed Date</th>
+                  <th style={th}>Issued Date</th>
+                </tr>
+              </thead>
 
-                  <p style={receiptMeta}>
-                    {receipt.payroll_month || "Unknown period"} · R{" "}
-                    {Number(receipt.net_pay || 0).toFixed(2)}
-                  </p>
-                </div>
+              <tbody>
+                {filteredSalaryReceipts.map((receipt) => {
+                  const receiptStatus = getReceiptStatus(receipt);
 
-                <span style={confirmedPill}>
-                  Confirmed {formatDate(receipt.received_confirmed_at)}
-                </span>
-              </div>
-            ))}
+                  return (
+                    <tr key={receipt.id}>
+                      <td style={td}>
+                        {getReceiptEmployeeName(receipt.employee_id)}
+                      </td>
+
+                      <td style={td}>{receipt.payroll_month || "Unknown"}</td>
+
+                      <td style={td}>
+                        R {Number(receipt.net_pay || 0).toFixed(2)}
+                      </td>
+
+                      <td style={td}>
+                        <span
+                          style={
+                            receiptStatus === "confirmed"
+                              ? confirmedBadge
+                              : receiptStatus === "generated"
+                              ? generatedBadge
+                              : pendingBadge
+                          }
+                        >
+                          {formatStatus(receiptStatus)}
+                        </span>
+                      </td>
+
+                      <td style={td}>
+                        {receipt.received_confirmed_at
+                          ? formatDate(receipt.received_confirmed_at)
+                          : "Not confirmed"}
+                      </td>
+
+                      <td style={td}>{formatDate(receipt.created_at)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
@@ -814,13 +935,22 @@ export default function PayrollPage() {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "";
+  if (!value) return "Not available";
 
   return new Date(value).toLocaleDateString("en-ZA", {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+}
+
+function formatStatus(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 function CalculationRow({
@@ -940,93 +1070,89 @@ const actionText = {
   lineHeight: 1.45,
 };
 
-const receiptCard = {
+const registerCard = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
+  padding: "24px",
   borderRadius: "20px",
-  padding: "22px",
-  marginBottom: "20px",
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
+  marginBottom: "20px",
 };
 
-const receiptHeader = {
+const registerHeader = {
   display: "flex",
-  justifyContent: "space-between",
   alignItems: "flex-start",
+  justifyContent: "space-between",
   gap: "14px",
   flexWrap: "wrap" as const,
-  marginBottom: "16px",
+  marginBottom: "18px",
 };
 
-const receiptSubtitle = {
+const registerSubtitle = {
   margin: "8px 0 0",
   color: "#64748b",
   fontSize: "14px",
   lineHeight: 1.5,
 };
 
-const receiptStatsGrid = {
+const filterGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-  gap: "12px",
-  marginBottom: "16px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+  gap: "14px",
+  marginBottom: "18px",
 };
 
-const receiptStatBox = {
+const tableWrap = {
+  overflowX: "auto" as const,
+};
+
+const table = {
+  width: "100%",
+  borderCollapse: "collapse" as const,
+};
+
+const th = {
   background: "#f8fafc",
-  border: "1px solid #e2e8f0",
-  borderRadius: "16px",
-  padding: "16px",
-};
-
-const receiptStatLabel = {
-  display: "block",
-  color: "#64748b",
+  color: "#475569",
   fontSize: "12px",
-  fontWeight: 800,
-  marginBottom: "8px",
-};
-
-const receiptStatValue = {
-  display: "block",
-  color: "#0f766e",
-  fontSize: "26px",
   fontWeight: 900,
+  textAlign: "left" as const,
+  padding: "12px",
+  borderBottom: "1px solid #e2e8f0",
 };
 
-const receiptList = {
-  display: "grid",
-  gap: "10px",
-};
-
-const receiptItem = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "12px",
-  padding: "14px",
-  border: "1px solid #e2e8f0",
-  borderRadius: "14px",
-  background: "#ffffff",
-  flexWrap: "wrap" as const,
-};
-
-const receiptEmployee = {
+const td = {
   color: "#0f172a",
-  fontSize: "14px",
-};
-
-const receiptMeta = {
-  margin: "4px 0 0",
-  color: "#64748b",
   fontSize: "13px",
+  padding: "12px",
+  borderBottom: "1px solid #f1f5f9",
 };
 
-const confirmedPill = {
+const confirmedBadge = {
   background: "#ecfdf5",
   border: "1px solid #bbf7d0",
   color: "#166534",
-  padding: "8px 12px",
+  padding: "7px 10px",
+  borderRadius: "999px",
+  fontSize: "12px",
+  fontWeight: 800,
+};
+
+const pendingBadge = {
+  background: "#fff7ed",
+  border: "1px solid #fed7aa",
+  color: "#9a3412",
+  padding: "7px 10px",
+  borderRadius: "999px",
+  fontSize: "12px",
+  fontWeight: 800,
+};
+
+const generatedBadge = {
+  background: "#eff6ff",
+  border: "1px solid #bfdbfe",
+  color: "#1d4ed8",
+  padding: "7px 10px",
   borderRadius: "999px",
   fontSize: "12px",
   fontWeight: 800,
