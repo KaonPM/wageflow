@@ -22,6 +22,7 @@ type Employee = {
   basic_salary?: number | null;
   salary?: number | null;
   employment_status?: string | null;
+  status?: string | null;
 };
 
 export default function EmployerDashboard() {
@@ -143,12 +144,24 @@ export default function EmployerDashboard() {
 
   const totalEmployees = employees.length;
 
-  const activeEmployees = useMemo(() => {
-    return employees.filter(
-      (employee) =>
-        !employee.employment_status ||
-        employee.employment_status === "active"
-    ).length;
+  const employeesOnLeave = useMemo(() => {
+    return employees.filter((employee) => {
+      const status = (employee.status || employee.employment_status || "")
+        .trim()
+        .toLowerCase();
+
+      return status === "on_leave" || status === "on leave" || status === "leave";
+    }).length;
+  }, [employees]);
+
+  const employeesAbsentToday = useMemo(() => {
+    return employees.filter((employee) => {
+      const status = (employee.status || employee.employment_status || "")
+        .trim()
+        .toLowerCase();
+
+      return status === "absent" || status === "absent_today";
+    }).length;
   }, [employees]);
 
   return (
@@ -209,6 +222,14 @@ export default function EmployerDashboard() {
         />
 
         <DashboardCard
+          icon="📑"
+          title="Reports"
+          description="Generate payroll, employee, compliance, salary confirmation and business reports."
+          href="/employer/reports"
+          tag="Reports"
+        />
+
+        <DashboardCard
           icon="⚙️"
           title="Settings"
           description="Configure company details, branding, PAYE, UIF and payment preferences."
@@ -220,8 +241,8 @@ export default function EmployerDashboard() {
       <section style={overviewBox}>
         <div style={overviewHeader}>
           <div>
-            <p style={overviewEyebrow}>Employee Overview</p>
-            <h2 style={overviewTitle}>Current Workforce</h2>
+            <p style={overviewEyebrow}>Workforce Overview</p>
+            <h2 style={overviewTitle}>Employees & Attendance</h2>
           </div>
 
           <button style={refreshButton} onClick={loadDashboard} disabled={loading}>
@@ -231,7 +252,8 @@ export default function EmployerDashboard() {
 
         <div style={overviewGrid}>
           <OverviewCard label="Total Employees" value={String(totalEmployees)} />
-          <OverviewCard label="Active Employees" value={String(activeEmployees)} />
+          <OverviewCard label="On Leave" value={String(employeesOnLeave)} />
+          <OverviewCard label="Absent Today" value={String(employeesAbsentToday)} />
         </div>
       </section>
     </main>
@@ -379,44 +401,43 @@ const logoBox = {
 const logoImage = {
   width: "100%",
   height: "100%",
-  objectFit: "contain" as const,
-  padding: "10px",
+  objectFit: "cover" as const,
 };
 
 const logoFallback = {
   width: "132px",
   height: "132px",
   borderRadius: "26px",
-  background: "linear-gradient(135deg, #0f766e, #14b8a6)",
+  background: "#0f766e",
   color: "#ffffff",
   flexShrink: 0,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  fontSize: "38px",
   fontWeight: 900,
-  fontSize: "36px",
-  boxShadow: "0 14px 32px rgba(15, 118, 110, 0.22)",
+  boxShadow: "0 14px 32px rgba(15, 23, 42, 0.08)",
 };
 
 const businessTitle = {
-  fontSize: "36px",
   color: "#0f766e",
-  margin: "0 0 6px",
+  fontSize: "40px",
+  margin: "0 0 8px",
   fontWeight: 900,
 };
 
 const dashboardTitle = {
   color: "#0f172a",
-  fontSize: "23px",
-  margin: "0 0 14px",
+  fontSize: "24px",
+  margin: "0 0 10px",
   fontWeight: 800,
 };
 
 const subtitle = {
   maxWidth: "760px",
   color: "#64748b",
-  fontSize: "16px",
-  lineHeight: 1.7,
+  fontSize: "15px",
+  lineHeight: 1.6,
   margin: 0,
 };
 
@@ -424,23 +445,22 @@ const notice = {
   background: "#fff7ed",
   border: "1px solid #fed7aa",
   color: "#9a3412",
-  borderRadius: "14px",
   padding: "14px 16px",
-  marginBottom: "18px",
+  borderRadius: "14px",
+  marginBottom: "20px",
   fontWeight: 700,
 };
 
 const moduleGrid = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-  gap: "20px",
-  marginBottom: "24px",
+  gap: "18px",
+  marginBottom: "22px",
 };
 
 const cardLink = {
   textDecoration: "none",
   color: "inherit",
-  height: "100%",
 };
 
 const card = {
@@ -448,13 +468,8 @@ const card = {
   border: "1px solid #e2e8f0",
   borderRadius: "22px",
   padding: "22px",
-  height: "100%",
-  minHeight: "220px",
-  boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
-  display: "flex",
-  flexDirection: "column" as const,
-  justifyContent: "space-between",
-  cursor: "pointer",
+  minHeight: "210px",
+  boxShadow: "0 12px 32px rgba(15, 23, 42, 0.05)",
 };
 
 const cardTop = {
@@ -462,34 +477,34 @@ const cardTop = {
   justifyContent: "space-between",
   alignItems: "center",
   gap: "12px",
-  marginBottom: "16px",
+  marginBottom: "18px",
 };
 
 const iconBox = {
-  width: "46px",
-  height: "46px",
-  borderRadius: "16px",
+  width: "44px",
+  height: "44px",
+  borderRadius: "14px",
   background: "#ecfeff",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: "21px",
+  fontSize: "22px",
 };
 
 const tagStyle = {
-  background: "#f8fafc",
-  color: "#0f766e",
-  border: "1px solid #dbeafe",
-  borderRadius: "999px",
+  background: "#f1f5f9",
+  color: "#475569",
   padding: "6px 10px",
-  fontSize: "12px",
+  borderRadius: "999px",
+  fontSize: "11px",
   fontWeight: 800,
 };
 
 const cardTitle = {
-  margin: "0 0 10px",
   color: "#0f172a",
-  fontSize: "21px",
+  fontSize: "20px",
+  margin: "0 0 10px",
+  fontWeight: 900,
 };
 
 const cardText = {
