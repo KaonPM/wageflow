@@ -29,6 +29,16 @@ type Business = {
   name?: string | null;
 };
 
+type SalaryReceipt = {
+  id: string;
+  employee_id: string;
+  payroll_month: string | null;
+  net_pay: number | null;
+  status: string | null;
+  received_confirmed: boolean | null;
+  received_confirmed_at: string | null;
+};
+
 const UIF_LIMIT = 17712;
 
 export default function PayrollPage() {
@@ -48,6 +58,8 @@ export default function PayrollPage() {
   const [saving, setSaving] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [salaryReceipts, setSalaryReceipts] = useState<SalaryReceipt[]>([]);
+  const [loadingReceipts, setLoadingReceipts] = useState(true);
 
   useEffect(() => {
     initialisePayroll();
@@ -104,6 +116,36 @@ export default function PayrollPage() {
     return employeeStatus.trim().toLowerCase() === "active";
   }
 
+  async function fetchSalaryReceipts(activeBusinessId: string) {
+    setLoadingReceipts(true);
+
+    const { data, error } = await supabase
+      .from("payslips")
+      .select(
+        `
+        id,
+        employee_id,
+        payroll_month,
+        net_pay,
+        status,
+        received_confirmed,
+        received_confirmed_at
+      `
+      )
+      .eq("business_id", activeBusinessId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Salary receipt lookup failed", error);
+      setSalaryReceipts([]);
+      setLoadingReceipts(false);
+      return;
+    }
+
+    setSalaryReceipts(data || []);
+    setLoadingReceipts(false);
+  }
+
   async function fetchEmployees() {
     setLoadingEmployees(true);
     setMessage("");
@@ -113,8 +155,10 @@ export default function PayrollPage() {
     if (!business?.id) {
       setEmployees([]);
       setBusinessId("");
+      setSalaryReceipts([]);
       setMessage("Business profile not found for this employer.");
       setLoadingEmployees(false);
+      setLoadingReceipts(false);
       return;
     }
 
@@ -137,6 +181,7 @@ export default function PayrollPage() {
       setEmployees([]);
       setMessage(error.message);
       setLoadingEmployees(false);
+      setLoadingReceipts(false);
       return;
     }
 
@@ -144,6 +189,8 @@ export default function PayrollPage() {
 
     setEmployees(activeEmployees);
     setLoadingEmployees(false);
+
+    await fetchSalaryReceipts(business.id);
   }
 
   function getEmployeeName(employee: Employee | undefined) {
@@ -154,6 +201,11 @@ export default function PayrollPage() {
       `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
       "Employee"
     );
+  }
+
+  function getReceiptEmployeeName(employeeId: string) {
+    const employee = employees.find((item) => item.id === employeeId);
+    return getEmployeeName(employee);
   }
 
   function calculatePaye(annualTaxableIncome: number, age: string) {
@@ -208,6 +260,16 @@ export default function PayrollPage() {
       sarsPayable,
     };
   }, [basicPay, bonus, overtimePay, otherDeductions, ageCategory]);
+
+  const confirmedReceipts = salaryReceipts.filter(
+    (item) => item.received_confirmed === true
+  );
+
+  const pendingReceipts = salaryReceipts.filter(
+    (item) => item.received_confirmed !== true
+  );
+
+  const recentConfirmedReceipts = confirmedReceipts.slice(0, 5);
 
   async function queuePayslipNotifications({
     payslipId,
@@ -431,6 +493,8 @@ export default function PayrollPage() {
           pay_period_month: Number(month),
           pay_period_year: Number(year),
           status: "generated",
+          received_confirmed: false,
+          received_confirmed_at: null,
         },
       ])
       .select()
@@ -447,6 +511,8 @@ export default function PayrollPage() {
       employee,
       activeBusinessId,
     });
+
+    await fetchSalaryReceipts(activeBusinessId);
 
     setMessage("Payslip generated successfully and linked to payroll run.");
     setSaving(false);
@@ -498,12 +564,76 @@ export default function PayrollPage() {
         </Link>
 
         <Link href="/employer/payroll/compliance" style={actionCardLink}>
-        <span style={actionIcon}>🧾</span>
-        <strong style={actionTitle}>Compliance Summary</strong>
-        <span style={actionText}>
-         Review PAYE, UIF and EMP201-ready monthly totals.
-        </span>
+          <span style={actionIcon}>🧾</span>
+          <strong style={actionTitle}>Compliance Summary</strong>
+          <span style={actionText}>
+            Review PAYE, UIF and EMP201-ready monthly totals.
+          </span>
         </Link>
+      </section>
+
+      <section style={receiptCard}>
+        <div style={receiptHeader}>
+          <div>
+            <h2 style={sectionTitle}>Salary Receipt Confirmations</h2>
+            <p style={receiptSubtitle}>
+              Track employees who confirmed that they received their salary.
+            </p>
+          </div>
+
+          <button
+            style={smallButton}
+            onClick={() => {
+              if (businessId) fetchSalaryReceipts(businessId);
+            }}
+          >
+            Refresh
+          </button>
+        </div>
+
+        <div style={receiptStatsGrid}>
+          <div style={receiptStatBox}>
+            <span style={receiptStatLabel}>Confirmed</span>
+            <strong style={receiptStatValue}>{confirmedReceipts.length}</strong>
+          </div>
+
+          <div style={receiptStatBox}>
+            <span style={receiptStatLabel}>Pending</span>
+            <strong style={receiptStatValue}>{pendingReceipts.length}</strong>
+          </div>
+
+          <div style={receiptStatBox}>
+            <span style={receiptStatLabel}>Total Payslips</span>
+            <strong style={receiptStatValue}>{salaryReceipts.length}</strong>
+          </div>
+        </div>
+
+        {loadingReceipts ? (
+          <p style={helperText}>Loading salary confirmations...</p>
+        ) : recentConfirmedReceipts.length === 0 ? (
+          <p style={helperText}>No employee has confirmed salary receipt yet.</p>
+        ) : (
+          <div style={receiptList}>
+            {recentConfirmedReceipts.map((receipt) => (
+              <div key={receipt.id} style={receiptItem}>
+                <div>
+                  <strong style={receiptEmployee}>
+                    {getReceiptEmployeeName(receipt.employee_id)}
+                  </strong>
+
+                  <p style={receiptMeta}>
+                    {receipt.payroll_month || "Unknown period"} · R{" "}
+                    {Number(receipt.net_pay || 0).toFixed(2)}
+                  </p>
+                </div>
+
+                <span style={confirmedPill}>
+                  Confirmed {formatDate(receipt.received_confirmed_at)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {showGenerateForm && (
@@ -683,6 +813,16 @@ export default function PayrollPage() {
   );
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return "";
+
+  return new Date(value).toLocaleDateString("en-ZA", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function CalculationRow({
   label,
   value,
@@ -774,13 +914,6 @@ const actionCardLink = {
   textDecoration: "none",
 };
 
-const disabledActionCard = {
-  ...actionCard,
-  opacity: 0.75,
-  cursor: "not-allowed",
-  background: "#f8fafc",
-};
-
 const actionIcon = {
   display: "inline-flex",
   width: "34px",
@@ -805,6 +938,98 @@ const actionText = {
   color: "#64748b",
   fontSize: "13px",
   lineHeight: 1.45,
+};
+
+const receiptCard = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: "20px",
+  padding: "22px",
+  marginBottom: "20px",
+  boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
+};
+
+const receiptHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "14px",
+  flexWrap: "wrap" as const,
+  marginBottom: "16px",
+};
+
+const receiptSubtitle = {
+  margin: "8px 0 0",
+  color: "#64748b",
+  fontSize: "14px",
+  lineHeight: 1.5,
+};
+
+const receiptStatsGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: "12px",
+  marginBottom: "16px",
+};
+
+const receiptStatBox = {
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
+  borderRadius: "16px",
+  padding: "16px",
+};
+
+const receiptStatLabel = {
+  display: "block",
+  color: "#64748b",
+  fontSize: "12px",
+  fontWeight: 800,
+  marginBottom: "8px",
+};
+
+const receiptStatValue = {
+  display: "block",
+  color: "#0f766e",
+  fontSize: "26px",
+  fontWeight: 900,
+};
+
+const receiptList = {
+  display: "grid",
+  gap: "10px",
+};
+
+const receiptItem = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "12px",
+  padding: "14px",
+  border: "1px solid #e2e8f0",
+  borderRadius: "14px",
+  background: "#ffffff",
+  flexWrap: "wrap" as const,
+};
+
+const receiptEmployee = {
+  color: "#0f172a",
+  fontSize: "14px",
+};
+
+const receiptMeta = {
+  margin: "4px 0 0",
+  color: "#64748b",
+  fontSize: "13px",
+};
+
+const confirmedPill = {
+  background: "#ecfdf5",
+  border: "1px solid #bbf7d0",
+  color: "#166534",
+  padding: "8px 12px",
+  borderRadius: "999px",
+  fontSize: "12px",
+  fontWeight: 800,
 };
 
 const grid = {
