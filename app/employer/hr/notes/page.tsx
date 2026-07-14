@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
+import { showAppMessage } from "@/app/lib/appMessage";
 
 type Employee = {
   id: string;
@@ -65,7 +66,7 @@ export default function HRNotesPage() {
       .order("created_at", { ascending: false });
 
     if (employeeError) {
-      alert(`Could not load employees: ${employeeError.message}`);
+      showAppMessage(`Could not load employees: ${employeeError.message}`);
       setLoading(false);
       return;
     }
@@ -76,7 +77,7 @@ export default function HRNotesPage() {
       .order("created_at", { ascending: false });
 
     if (noteError) {
-      alert(`Could not load HR notes: ${noteError.message}`);
+      showAppMessage(`Could not load HR notes: ${noteError.message}`);
       setLoading(false);
       return;
     }
@@ -118,7 +119,7 @@ export default function HRNotesPage() {
     setSelectedEmployee(employee);
 
     if (!latestNote) {
-      alert("This employee does not have any HR notes yet.");
+      showAppMessage("This employee does not have any HR notes yet.");
       clearForm();
       return;
     }
@@ -142,12 +143,12 @@ export default function HRNotesPage() {
 
   async function saveNote() {
     if (!selectedEmployee) {
-      alert("Please select an employee first.");
+      showAppMessage("Please select an employee first.");
       return;
     }
 
     if (!noteTitle.trim() || !noteBody.trim()) {
-      alert("Please enter a note title and note details.");
+      showAppMessage("Please enter a note title and note details.");
       return;
     }
 
@@ -165,7 +166,7 @@ export default function HRNotesPage() {
         .eq("id", editingNote.id);
 
       if (error) {
-        alert(`Could not update HR note: ${error.message}`);
+        showAppMessage(`Could not update HR note: ${error.message}`);
         setSaving(false);
         return;
       }
@@ -179,7 +180,7 @@ export default function HRNotesPage() {
       });
 
       if (error) {
-        alert(`Could not save HR note: ${error.message}`);
+        showAppMessage(`Could not save HR note: ${error.message}`);
         setSaving(false);
         return;
       }
@@ -188,7 +189,7 @@ export default function HRNotesPage() {
     await loadPageData();
     clearForm();
     setSaving(false);
-    alert("HR note saved successfully.");
+    showAppMessage("HR note saved successfully.");
   }
 
   if (loading) {

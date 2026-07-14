@@ -19,12 +19,16 @@ type RawPayslip = {
   pay_period_month: string | number | null;
   pay_period_year: string | number | null;
   basic_pay: number | null;
+  bonus: number | null;
+  overtime_pay: number | null;
   gross_pay: number | null;
+  taxable_income: number | null;
   paye: number | null;
   uif_employee: number | null;
   other_deductions: number | null;
   net_pay: number | null;
   payment_method: string | null;
+  payment_date: string | null;
   created_at: string | null;
   downloaded_at?: string | null;
 };
@@ -54,6 +58,9 @@ type BusinessRecord = {
   uif_reference: string | null;
   email: string | null;
   phone: string | null;
+  paye_enabled: boolean | null;
+  uif_enabled: boolean | null;
+  show_leave_balances: boolean | null;
 };
 
 export default function EmployeePayslipViewPage() {
@@ -140,12 +147,16 @@ export default function EmployeePayslipViewPage() {
         pay_period_month,
         pay_period_year,
         basic_pay,
+        bonus,
+        overtime_pay,
         gross_pay,
+        taxable_income,
         paye,
         uif_employee,
         other_deductions,
         net_pay,
         payment_method,
+        payment_date,
         created_at,
         downloaded_at
       `
@@ -173,7 +184,10 @@ export default function EmployeePayslipViewPage() {
         paye_reference,
         uif_reference,
         email,
-        phone
+        phone,
+        paye_enabled,
+        uif_enabled,
+        show_leave_balances
       `
       )
       .eq("id", employeeData.business_id)
@@ -190,12 +204,16 @@ export default function EmployeePayslipViewPage() {
         pay_period_month,
         pay_period_year,
         basic_pay,
+        bonus,
+        overtime_pay,
         gross_pay,
+        taxable_income,
         paye,
         uif_employee,
         other_deductions,
         net_pay,
         payment_method,
+        payment_date,
         created_at
       `
       )
@@ -215,20 +233,37 @@ export default function EmployeePayslipViewPage() {
     const earnings = [
       {
         item: "Basic Salary",
-        amount: Number(payslip.basic_pay || payslip.gross_pay || 0),
+        amount: Number(payslip.basic_pay || 0),
       },
-    ];
-
-    const deductions = [
       {
+        item: "Overtime",
+        amount: Number(payslip.overtime_pay || 0),
+      },
+      {
+        item: "Bonus",
+        amount: Number(payslip.bonus || 0),
+      },
+    ].filter((item) => item.amount > 0);
+
+    const showPaye = business?.paye_enabled ?? true;
+    const showUif = business?.uif_enabled ?? true;
+    const showLeave = business?.show_leave_balances ?? true;
+
+    const deductions: { item: string; amount: number }[] = [];
+
+    if (showPaye && Number(payslip.paye || 0) > 0) {
+      deductions.push({
         item: "PAYE",
         amount: Number(payslip.paye || 0),
-      },
-      {
+      });
+    }
+
+    if (showUif && Number(payslip.uif_employee || 0) > 0) {
+      deductions.push({
         item: "UIF",
         amount: Number(payslip.uif_employee || 0),
-      },
-    ];
+      });
+    }
 
     const otherDeductions = Number(payslip.other_deductions || 0);
 
@@ -281,7 +316,7 @@ export default function EmployeePayslipViewPage() {
       },
       pay: {
         period: formatPayrollPeriod(payslip),
-        payDate: formatPayDate(payslip.created_at),
+        payDate: formatPayDate(payslip.payment_date || payslip.created_at),
         payReference: `PAY-${formatReferenceMonth(payslip)}-${
           employee.employee_number || payslip.id.slice(0, 6)
         }`,
@@ -298,6 +333,11 @@ export default function EmployeePayslipViewPage() {
       },
       leave: {
         annual: Number(employee.leave_balance || 0),
+      },
+      settings: {
+        showPaye,
+        showUif,
+        showLeave,
       },
     };
   }, [payslip, employee, business, ytdPayslips]);
@@ -375,15 +415,34 @@ export default function EmployeePayslipViewPage() {
 }
 
 function formatPayrollPeriod(payslip: RawPayslip) {
-  if (payslip.payroll_month) return payslip.payroll_month;
+  if (payslip.payroll_month) {
+    const [year, month] = payslip.payroll_month.split("-");
+    const startDate = new Date(Number(year), Number(month) - 1, 1);
+    const endDate = new Date(Number(year), Number(month), 0);
 
-  if (payslip.pay_period_month && payslip.pay_period_year) {
-    return `${payslip.pay_period_year}/${String(
-      payslip.pay_period_month
-    ).padStart(2, "0")}`;
+    return `${startDate.toLocaleDateString("en-ZA")} - ${endDate.toLocaleDateString(
+      "en-ZA"
+    )}`;
   }
 
-  return "Payroll Period";
+  if (payslip.pay_period_month && payslip.pay_period_year) {
+    const startDate = new Date(
+      Number(payslip.pay_period_year),
+      Number(payslip.pay_period_month) - 1,
+      1
+    );
+    const endDate = new Date(
+      Number(payslip.pay_period_year),
+      Number(payslip.pay_period_month),
+      0
+    );
+
+    return `${startDate.toLocaleDateString("en-ZA")} - ${endDate.toLocaleDateString(
+      "en-ZA"
+    )}`;
+  }
+
+  return "Payroll period not set";
 }
 
 function formatReferenceMonth(payslip: RawPayslip) {

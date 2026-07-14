@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
+import { showAppMessage } from "@/app/lib/appMessage";
 
 type Business = {
   id: string;
@@ -40,7 +41,7 @@ export default function MasterBusinessesPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      alert(error.message);
+      showAppMessage(error.message);
       setLoading(false);
       return;
     }

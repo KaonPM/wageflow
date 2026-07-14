@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  calculateEstimatedPaye,
+  calculateEstimatedUif,
+} from "../../lib/payrollTaxConfig";
 import { supabase } from "../../lib/supabaseClient";
 
 type Employee = {
@@ -27,6 +31,9 @@ type Business = {
   trading_name?: string | null;
   registered_name?: string | null;
   name?: string | null;
+  paye_enabled?: boolean | null;
+  uif_enabled?: boolean | null;
+  show_leave_balances?: boolean | null;
 };
 
 type SalaryReceipt = {
@@ -40,7 +47,6 @@ type SalaryReceipt = {
   created_at: string | null;
 };
 
-const UIF_LIMIT = 17712;
 
 export default function PayrollPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -59,6 +65,8 @@ export default function PayrollPage() {
   const [saving, setSaving] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [payeEnabled, setPayeEnabled] = useState(true);
+  const [uifEnabled, setUifEnabled] = useState(true);
 
   const [salaryReceipts, setSalaryReceipts] = useState<SalaryReceipt[]>([]);
   const [loadingReceipts, setLoadingReceipts] = useState(true);
@@ -176,6 +184,8 @@ export default function PayrollPage() {
         business.name ||
         "Kaone Cleaning Services"
     );
+    setPayeEnabled(business.paye_enabled ?? true);
+    setUifEnabled(business.uif_enabled ?? true);
 
     const { data, error } = await supabase
       .from("employees")
@@ -262,42 +272,21 @@ export default function PayrollPage() {
     receiptEmployeeFilter,
   ]);
 
-  function calculatePaye(annualTaxableIncome: number, age: string) {
-    let annualTax = 0;
-
-    if (annualTaxableIncome <= 245100) {
-      annualTax = annualTaxableIncome * 0.18;
-    } else if (annualTaxableIncome <= 383100) {
-      annualTax = 44118 + (annualTaxableIncome - 245100) * 0.26;
-    } else if (annualTaxableIncome <= 530200) {
-      annualTax = 79998 + (annualTaxableIncome - 383100) * 0.31;
-    } else if (annualTaxableIncome <= 695800) {
-      annualTax = 125599 + (annualTaxableIncome - 530200) * 0.36;
-    } else if (annualTaxableIncome <= 887000) {
-      annualTax = 185215 + (annualTaxableIncome - 695800) * 0.39;
-    } else if (annualTaxableIncome <= 1878600) {
-      annualTax = 259783 + (annualTaxableIncome - 887000) * 0.41;
-    } else {
-      annualTax = 666339 + (annualTaxableIncome - 1878600) * 0.45;
-    }
-
-    let rebate = 17820;
-
-    if (age === "65to74") rebate = 27630;
-    if (age === "75plus") rebate = 30735;
-
-    return Number((Math.max(annualTax - rebate, 0) / 12).toFixed(2));
-  }
-
   const calculations = useMemo(() => {
     const grossPay = basicPay + bonus + overtimePay;
-    const uifSalary = Math.min(grossPay, UIF_LIMIT);
+    const estimatedUif = calculateEstimatedUif(grossPay);
 
-    const employeeUif = Number((uifSalary * 0.01).toFixed(2));
-    const employerUif = Number((uifSalary * 0.01).toFixed(2));
-    const totalUif = Number((employeeUif + employerUif).toFixed(2));
+    const employeeUif = uifEnabled ? estimatedUif.employee : 0;
+    const employerUif = uifEnabled ? estimatedUif.employer : 0;
+    const totalUif = uifEnabled ? estimatedUif.total : 0;
 
-    const paye = calculatePaye(grossPay * 12, ageCategory);
+    const paye = payeEnabled
+      ? calculateEstimatedPaye({
+          annualTaxableIncome: grossPay * 12,
+          ageCategory,
+          payrollMonth,
+        })
+      : 0;
 
     const totalEmployeeDeductions = employeeUif + paye + otherDeductions;
     const netPay = Number((grossPay - totalEmployeeDeductions).toFixed(2));
@@ -313,7 +302,16 @@ export default function PayrollPage() {
       netPay,
       sarsPayable,
     };
-  }, [basicPay, bonus, overtimePay, otherDeductions, ageCategory]);
+  }, [
+    basicPay,
+    bonus,
+    overtimePay,
+    otherDeductions,
+    ageCategory,
+    payrollMonth,
+    payeEnabled,
+    uifEnabled,
+  ]);
 
   async function queuePayslipNotifications({
     payslipId,
@@ -369,6 +367,63 @@ export default function PayrollPage() {
     }
 
     await supabase.from("payslip_notifications").insert(notificationRows);
+  }
+
+  async function recalculatePayrollRunTotals(
+    payrollRunId: string,
+    activeBusinessId: string
+  ) {
+    const { data: payslips, error: payslipsError } = await supabase
+      .from("payslips")
+      .select(
+        "basic_pay, gross_pay, paye, uif_employee, employer_uif, total_uif, other_deductions, net_pay, sars_payable"
+      )
+      .eq("payroll_run_id", payrollRunId)
+      .eq("business_id", activeBusinessId);
+
+    if (payslipsError) return payslipsError.message;
+
+    const totals = (payslips || []).reduce(
+      (sum, payslip) => ({
+        total_basic_pay:
+          sum.total_basic_pay + Number(payslip.basic_pay || 0),
+        total_gross_pay:
+          sum.total_gross_pay + Number(payslip.gross_pay || 0),
+        total_paye: sum.total_paye + Number(payslip.paye || 0),
+        total_uif_employee:
+          sum.total_uif_employee + Number(payslip.uif_employee || 0),
+        total_uif_employer:
+          sum.total_uif_employer + Number(payslip.employer_uif || 0),
+        total_uif: sum.total_uif + Number(payslip.total_uif || 0),
+        total_other_deductions:
+          sum.total_other_deductions + Number(payslip.other_deductions || 0),
+        total_net_pay: sum.total_net_pay + Number(payslip.net_pay || 0),
+        sars_payable: sum.sars_payable + Number(payslip.sars_payable || 0),
+      }),
+      {
+        total_basic_pay: 0,
+        total_gross_pay: 0,
+        total_paye: 0,
+        total_uif_employee: 0,
+        total_uif_employer: 0,
+        total_uif: 0,
+        total_other_deductions: 0,
+        total_net_pay: 0,
+        sars_payable: 0,
+      }
+    );
+
+    const { error: updateError } = await supabase
+      .from("payroll_runs")
+      .update({
+        employee_count: payslips?.length || 0,
+        ...totals,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payrollRunId)
+      .eq("business_id", activeBusinessId);
+
+    return updateError?.message || null;
   }
 
   async function generatePayslip() {
@@ -441,45 +496,6 @@ export default function PayrollPage() {
 
     if (existingRun?.id) {
       payrollRunId = existingRun.id;
-
-      const { error: updateRunError } = await supabase
-        .from("payroll_runs")
-        .update({
-          employee_count: Number(existingRun.employee_count || 0) + 1,
-          total_basic_pay:
-            Number(existingRun.total_basic_pay || 0) + Number(basicPay || 0),
-          total_gross_pay:
-            Number(existingRun.total_gross_pay || 0) +
-            Number(calculations.grossPay || 0),
-          total_paye:
-            Number(existingRun.total_paye || 0) + Number(calculations.paye || 0),
-          total_uif_employee:
-            Number(existingRun.total_uif_employee || 0) +
-            Number(calculations.employeeUif || 0),
-          total_uif_employer:
-            Number(existingRun.total_uif_employer || 0) +
-            Number(calculations.employerUif || 0),
-          total_uif:
-            Number(existingRun.total_uif || 0) +
-            Number(calculations.totalUif || 0),
-          total_other_deductions:
-            Number(existingRun.total_other_deductions || 0) +
-            Number(otherDeductions || 0),
-          total_net_pay:
-            Number(existingRun.total_net_pay || 0) +
-            Number(calculations.netPay || 0),
-          sars_payable:
-            Number(existingRun.sars_payable || 0) +
-            Number(calculations.sarsPayable || 0),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existingRun.id);
-
-      if (updateRunError) {
-        setMessage(updateRunError.message);
-        setSaving(false);
-        return;
-      }
     } else {
       const { data: newRun, error: payrollRunError } = await supabase
         .from("payroll_runs")
@@ -487,16 +503,16 @@ export default function PayrollPage() {
           {
             business_id: activeBusinessId,
             payroll_month: payrollMonth,
-            employee_count: 1,
-            total_basic_pay: basicPay,
-            total_gross_pay: calculations.grossPay,
-            total_paye: calculations.paye,
-            total_uif_employee: calculations.employeeUif,
-            total_uif_employer: calculations.employerUif,
-            total_uif: calculations.totalUif,
-            total_other_deductions: otherDeductions,
-            total_net_pay: calculations.netPay,
-            sars_payable: calculations.sarsPayable,
+            employee_count: 0,
+            total_basic_pay: 0,
+            total_gross_pay: 0,
+            total_paye: 0,
+            total_uif_employee: 0,
+            total_uif_employer: 0,
+            total_uif: 0,
+            total_other_deductions: 0,
+            total_net_pay: 0,
+            sars_payable: 0,
             status: "generated",
           },
         ])
@@ -550,6 +566,23 @@ export default function PayrollPage() {
       return;
     }
 
+    if (!payrollRunId) {
+      setMessage("Payroll run could not be created.");
+      setSaving(false);
+      return;
+    }
+
+    const recalculateError = await recalculatePayrollRunTotals(
+      payrollRunId,
+      activeBusinessId
+    );
+
+    if (recalculateError) {
+      setMessage(recalculateError);
+      setSaving(false);
+      return;
+    }
+
     await queuePayslipNotifications({
       payslipId: payslipData.id,
       employee,
@@ -586,7 +619,7 @@ export default function PayrollPage() {
         >
           <strong style={actionTitle}>Generate Payslip</strong>
           <span style={actionText}>
-            Calculate payroll and issue an employee payslip.
+            Calculate estimated payroll deductions and issue an employee payslip.
           </span>
         </button>
 
@@ -607,7 +640,7 @@ export default function PayrollPage() {
         <Link href="/employer/payroll/compliance" style={actionCardLink}>
           <strong style={actionTitle}>Compliance Summary</strong>
           <span style={actionText}>
-            Review PAYE, UIF and EMP201-ready monthly totals.
+            Review estimated PAYE, UIF and EMP201-ready monthly totals.
           </span>
         </Link>
       </section>
@@ -814,16 +847,20 @@ export default function PayrollPage() {
               </p>
             )}
 
-            <label style={label}>Age Category for PAYE</label>
-            <select
-              style={input}
-              value={ageCategory}
-              onChange={(e) => setAgeCategory(e.target.value)}
-            >
-              <option value="under65">Under 65</option>
-              <option value="65to74">65 to 74</option>
-              <option value="75plus">75 and older</option>
-            </select>
+            {payeEnabled && (
+              <>
+                <label style={label}>Age Category for Estimated PAYE</label>
+                <select
+                  style={input}
+                  value={ageCategory}
+                  onChange={(e) => setAgeCategory(e.target.value)}
+                >
+                  <option value="under65">Under 65</option>
+                  <option value="65to74">65 to 74</option>
+                  <option value="75plus">75 and older</option>
+                </select>
+              </>
+            )}
 
             <label style={label}>Payment Method</label>
             <select
@@ -881,8 +918,10 @@ export default function PayrollPage() {
             <h2 style={sectionTitle}>Payroll Calculation</h2>
 
             <CalculationRow label="Basic Pay" value={basicPay} />
-            <CalculationRow label="Bonus" value={bonus} />
-            <CalculationRow label="Overtime Pay" value={overtimePay} />
+            {bonus > 0 && <CalculationRow label="Bonus" value={bonus} />}
+            {overtimePay > 0 && (
+              <CalculationRow label="Overtime Pay" value={overtimePay} />
+            )}
             <CalculationRow
               label="Gross Pay"
               value={calculations.grossPay}
@@ -891,11 +930,18 @@ export default function PayrollPage() {
 
             <div style={divider} />
 
-            <CalculationRow
-              label="Employee UIF Deduction"
-              value={calculations.employeeUif}
-            />
-            <CalculationRow label="PAYE Deduction" value={calculations.paye} />
+            {uifEnabled && (
+              <CalculationRow
+                label="Estimated Employee UIF Deduction"
+                value={calculations.employeeUif}
+              />
+            )}
+            {payeEnabled && (
+              <CalculationRow
+                label="Estimated PAYE Deduction"
+                value={calculations.paye}
+              />
+            )}
             <CalculationRow label="Other Deductions" value={otherDeductions} />
             <CalculationRow
               label="Total Employee Deductions"
@@ -905,16 +951,20 @@ export default function PayrollPage() {
 
             <div style={divider} />
 
+            {uifEnabled && (
+              <>
+                <CalculationRow
+                  label="Estimated Employer UIF Contribution"
+                  value={calculations.employerUif}
+                />
+                <CalculationRow
+                  label="Estimated Total UIF Payable"
+                  value={calculations.totalUif}
+                />
+              </>
+            )}
             <CalculationRow
-              label="Employer UIF Contribution"
-              value={calculations.employerUif}
-            />
-            <CalculationRow
-              label="Total UIF Payable"
-              value={calculations.totalUif}
-            />
-            <CalculationRow
-              label="Total Payable to SARS/UIF"
+              label="Estimated Total Payable to SARS/UIF"
               value={calculations.sarsPayable}
               strong
             />

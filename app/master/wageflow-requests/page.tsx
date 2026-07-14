@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
+import { showAppMessage } from "@/app/lib/appMessage";
 
 type Request = {
   id: string;
@@ -36,7 +37,7 @@ export default function WageFlowRequestsPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      alert(error.message);
+      showAppMessage(error.message);
       setLoading(false);
       return;
     }
@@ -52,22 +53,24 @@ export default function WageFlowRequestsPage() {
     return 149;
   }
 
-  async function createEmployerLogin(request: Request) {
+  async function createEmployerLogin(request: Request, businessId: string) {
     const loginResponse = await fetch("/api/contact/create-employer-login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        businessId,
         email: request.email,
         name: request.contact_person,
+        businessName: request.business_name,
       }),
     });
 
     if (!loginResponse.ok) {
       const loginError = await loginResponse.json();
 
-      alert(
+      showAppMessage(
         loginError.error ||
           "The business was created, but the employer login email could not be sent."
       );
@@ -88,7 +91,7 @@ export default function WageFlowRequestsPage() {
       .eq("id", id);
 
     if (error) {
-      alert(error.message);
+      showAppMessage(error.message);
       return false;
     }
 
@@ -109,7 +112,7 @@ export default function WageFlowRequestsPage() {
       .maybeSingle();
 
     if (checkError) {
-      alert(checkError.message);
+      showAppMessage(checkError.message);
       return;
     }
 
@@ -131,7 +134,7 @@ export default function WageFlowRequestsPage() {
         .single();
 
       if (businessError || !newBusiness) {
-        alert(businessError?.message || "Failed to create business.");
+        showAppMessage(businessError?.message || "Failed to create business.");
         return;
       }
 
@@ -156,7 +159,7 @@ export default function WageFlowRequestsPage() {
       );
 
     if (settingsError) {
-      alert(settingsError.message);
+      showAppMessage(settingsError.message);
       return;
     }
 
@@ -175,11 +178,11 @@ export default function WageFlowRequestsPage() {
       );
 
     if (subscriptionError) {
-      alert(subscriptionError.message);
+      showAppMessage(subscriptionError.message);
       return;
     }
 
-    const loginCreated = await createEmployerLogin(request);
+    const loginCreated = await createEmployerLogin(request, String(businessId));
 
     if (!loginCreated) return;
 
@@ -187,7 +190,7 @@ export default function WageFlowRequestsPage() {
 
     if (!approved) return;
 
-    alert("Employer approved and login email sent successfully.");
+    showAppMessage("Employer approved and login email sent successfully.");
     fetchRequests();
   }
 
@@ -201,7 +204,7 @@ export default function WageFlowRequestsPage() {
       .eq("id", id);
 
     if (error) {
-      alert(error.message);
+      showAppMessage(error.message);
       return;
     }
 

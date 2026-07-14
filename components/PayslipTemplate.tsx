@@ -44,9 +44,18 @@ export type PayslipData = {
   leave: {
     annual: number;
   };
+  settings?: {
+    showPaye?: boolean;
+    showUif?: boolean;
+    showLeave?: boolean;
+  };
 };
 
 export default function PayslipTemplate({ payslip }: { payslip: PayslipData }) {
+  const showPaye = payslip.settings?.showPaye ?? true;
+  const showUif = payslip.settings?.showUif ?? true;
+  const showLeave = payslip.settings?.showLeave ?? true;
+
   const grossPay = payslip.earnings.reduce((sum, row) => sum + row.amount, 0);
 
   const totalDeductions = payslip.deductions.reduce(
@@ -88,8 +97,8 @@ export default function PayslipTemplate({ payslip }: { payslip: PayslipData }) {
             <p style={strong}>{payslip.company.name}</p>
             <p>{payslip.company.address}</p>
             <p>Reg No: {payslip.company.registrationNumber}</p>
-            <p>PAYE Ref: {payslip.company.payeReference}</p>
-            <p>UIF Ref: {payslip.company.uifReference}</p>
+            {showPaye && <p>PAYE Ref: {payslip.company.payeReference}</p>}
+            {showUif && <p>UIF Ref: {payslip.company.uifReference}</p>}
             <p>Phone: {payslip.company.phone}</p>
             <p>Email: {payslip.company.email}</p>
           </div>
@@ -128,20 +137,22 @@ export default function PayslipTemplate({ payslip }: { payslip: PayslipData }) {
           <div style={ytdGrid}>
             <Ytd label="YTD Gross Pay" value={money(payslip.ytd.gross)} />
             <Ytd label="YTD Taxable Pay" value={money(payslip.ytd.taxable)} />
-            <Ytd label="YTD PAYE" value={money(payslip.ytd.paye)} />
-            <Ytd label="YTD UIF" value={money(payslip.ytd.uif)} />
+            {showPaye && <Ytd label="YTD PAYE" value={money(payslip.ytd.paye)} />}
+            {showUif && <Ytd label="YTD UIF" value={money(payslip.ytd.uif)} />}
           </div>
         </section>
 
-        <section style={leaveBox}>
-          <h3 style={sectionTitle}>Leave Balances</h3>
-          <div style={leaveGrid}>
-            <div style={leaveItem}>
-              <span>Annual Leave</span>
-              <strong>{payslip.leave.annual} days</strong>
+        {showLeave && (
+          <section style={leaveBox}>
+            <h3 style={sectionTitle}>Leave Balances</h3>
+            <div style={leaveGrid}>
+              <div style={leaveItem}>
+                <span>Annual Leave</span>
+                <strong>{payslip.leave.annual} days</strong>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <section style={netBox}>
           <div>

@@ -58,6 +58,9 @@ type BusinessRecord = {
   phone: string | null;
   email: string | null;
   logo_url: string | null;
+  paye_enabled?: boolean | null;
+  uif_enabled?: boolean | null;
+  show_leave_balances?: boolean | null;
 };
 
 export default function EmployerPayslipViewerPage() {
@@ -227,11 +230,18 @@ const payrollMonth =
       { item: "Bonus", amount: Number(payslip.bonus || 0) },
     ].filter((item) => item.amount > 0);
 
+    const showPaye = business?.paye_enabled ?? true;
+    const showUif = business?.uif_enabled ?? true;
+    const showLeave = business?.show_leave_balances ?? true;
+
     const deductions = [
-      { item: "PAYE", amount: Number(payslip.paye || 0) },
-      { item: "UIF", amount: Number(payslip.uif_employee || 0) },
+      showPaye ? { item: "PAYE", amount: Number(payslip.paye || 0) } : null,
+      showUif ? { item: "UIF", amount: Number(payslip.uif_employee || 0) } : null,
       { item: "Other Deductions", amount: Number(payslip.other_deductions || 0) },
-    ].filter((item) => item.amount > 0);
+    ].filter(
+      (item): item is { item: string; amount: number } =>
+        item !== null && item.amount > 0
+    );
 
     return {
       company: {
@@ -281,6 +291,11 @@ const payrollMonth =
       },
       leave: {
         annual: Number(employee?.leave_balance || 0),
+      },
+      settings: {
+        showPaye,
+        showUif,
+        showLeave,
       },
     };
   }, [payslip, employee, business, ytdPayslips]);

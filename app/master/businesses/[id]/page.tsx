@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
+import { showAppMessage } from "@/app/lib/appMessage";
 
 type Business = {
   id: string;
@@ -46,7 +47,7 @@ export default function ManageBusinessPage() {
       .single();
 
     if (error) {
-      alert(error.message);
+      showAppMessage(error.message);
       setLoading(false);
       return;
     }
@@ -76,7 +77,7 @@ export default function ManageBusinessPage() {
       });
 
     if (uploadError) {
-      alert(uploadError.message);
+      showAppMessage(uploadError.message);
       setUploadingLogo(false);
       return;
     }
@@ -97,7 +98,7 @@ export default function ManageBusinessPage() {
     setUploadingLogo(false);
 
     if (updateError) {
-      alert(updateError.message);
+      showAppMessage(updateError.message);
       return;
     }
 
@@ -106,7 +107,7 @@ export default function ManageBusinessPage() {
       logo_url: publicUrl,
     });
 
-    alert("Logo uploaded successfully.");
+    showAppMessage("Logo uploaded successfully.");
   }
 
   async function saveBusiness() {
@@ -135,17 +136,17 @@ export default function ManageBusinessPage() {
     setSaving(false);
 
     if (error) {
-      alert(error.message);
+      showAppMessage(error.message);
       return;
     }
 
-    alert("Business updated successfully.");
+    showAppMessage("Business updated successfully.");
     router.push("/master/businesses");
   }
 
   async function resendSetupEmail() {
   if (!business?.email || !business?.business_name) {
-    alert("Business email or business name is missing.");
+    showAppMessage("Business email or business name is missing.");
     return;
   }
 
@@ -173,11 +174,11 @@ export default function ManageBusinessPage() {
     setResendingEmail(false);
 
     if (!response.ok) {
-      alert(result.error || "Failed to send setup email.");
+      showAppMessage(result.error || "Failed to send setup email.");
       return;
     }
 
-    alert(
+    showAppMessage(
       result.message ||
         "Employer setup email sent successfully."
     );
@@ -186,7 +187,7 @@ export default function ManageBusinessPage() {
 
     setResendingEmail(false);
 
-    alert("Something went wrong.");
+    showAppMessage("Something went wrong.");
   }
 }
 
@@ -238,11 +239,11 @@ export default function ManageBusinessPage() {
       .eq("id", business.id);
 
     if (error) {
-      alert(error.message);
+      showAppMessage(error.message);
       return;
     }
 
-    alert(`Business status updated to ${status}.`);
+    showAppMessage(`Business status updated to ${status}.`);
 
     if (status === "deleted") {
       router.push("/master/businesses");

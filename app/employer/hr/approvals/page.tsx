@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
+import { showAppMessage } from "@/app/lib/appMessage";
 
 type ApprovalStatus = "Pending" | "Approved" | "Declined" | "Cancelled";
 
@@ -66,7 +67,7 @@ export default function HRApprovalsPage() {
       .order("created_at", { ascending: false });
 
     if (employeeError) {
-      alert(`Could not load employees: ${employeeError.message}`);
+      showAppMessage(`Could not load employees: ${employeeError.message}`);
       setLoading(false);
       return;
     }
@@ -77,7 +78,7 @@ export default function HRApprovalsPage() {
       .order("created_at", { ascending: false });
 
     if (requestError) {
-      alert(`Could not load approval requests: ${requestError.message}`);
+      showAppMessage(`Could not load approval requests: ${requestError.message}`);
       setLoading(false);
       return;
     }
@@ -121,7 +122,7 @@ export default function HRApprovalsPage() {
 
   async function saveDecision(status: "Approved" | "Declined") {
     if (!selectedRequest) {
-      alert("Please select a request first.");
+      showAppMessage("Please select a request first.");
       return;
     }
 
@@ -139,7 +140,7 @@ export default function HRApprovalsPage() {
       .eq("id", selectedRequest.id);
 
     if (error) {
-      alert(`Decision was not saved: ${error.message}`);
+      showAppMessage(`Decision was not saved: ${error.message}`);
       setSaving(false);
       return;
     }
@@ -148,7 +149,7 @@ export default function HRApprovalsPage() {
 
     setSaving(false);
     setSelectedRequest(null);
-    alert(`Request ${status.toLowerCase()} successfully.`);
+    showAppMessage(`Request ${status.toLowerCase()} successfully.`);
   }
 
   function requestSummary(request: ApprovalRequest) {

@@ -48,27 +48,65 @@ export default function EmployerDashboard() {
       .from("profiles")
       .select("business_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !profile?.business_id) {
+    if (profileError) {
       console.error("Profile lookup failed", profileError);
-      return null;
     }
 
-    const { data: businessRecord, error: businessError } = await supabase
-      .from("businesses")
-      .select("*")
-      .eq("id", profile.business_id)
-      .single();
+    let businessRecord: Business | null = null;
 
-    if (businessError) {
-      console.error("Business lookup failed", businessError);
-      return null;
+    if (profile?.business_id) {
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("id", profile.business_id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Business lookup by profile failed", error);
+      }
+
+      businessRecord = data;
+    }
+
+    if (!businessRecord) {
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("employer_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Business lookup by employer failed", error);
+      }
+
+      businessRecord = data;
+    }
+
+    if (!businessRecord && user.email) {
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("email", user.email)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Business lookup by email failed", error);
+      }
+
+      businessRecord = data;
+    }
+
+    if (businessRecord?.id && profile?.business_id !== businessRecord.id) {
+      await supabase
+        .from("profiles")
+        .update({ business_id: businessRecord.id })
+        .eq("id", user.id);
     }
 
     return businessRecord;
   }
-
   async function loadDashboard() {
     setLoading(true);
     setMessage("");

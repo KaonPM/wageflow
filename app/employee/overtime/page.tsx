@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+import { showAppMessage } from "@/app/lib/appMessage";
 
 type ApprovalStatus = "Pending" | "Approved" | "Declined" | "Cancelled";
 
@@ -133,12 +134,12 @@ export default function EmployeeOvertimePage() {
     const hours = calculateHours();
 
     if (!overtimeDate || !startTime || !endTime) {
-      alert("Please complete all overtime fields.");
+      showAppMessage("Please complete all overtime fields.");
       return;
     }
 
     if (hours <= 0) {
-      alert("End time must be after start time.");
+      showAppMessage("End time must be after start time.");
       return;
     }
 
@@ -155,7 +156,7 @@ export default function EmployeeOvertimePage() {
     });
 
     if (error) {
-      alert(`Overtime request failed: ${error.message}`);
+      showAppMessage(`Overtime request failed: ${error.message}`);
       setSaving(false);
       return;
     }
@@ -169,7 +170,7 @@ export default function EmployeeOvertimePage() {
 
     setSaving(false);
 
-    alert("Overtime request submitted.");
+    showAppMessage("Overtime request submitted.");
   }
 
   if (loading) {

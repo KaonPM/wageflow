@@ -90,7 +90,7 @@ export async function POST(req: Request) {
       );
     }
 
-    let businessId = rawBusinessId ? Number(rawBusinessId) : null;
+    let businessId = rawBusinessId ? String(rawBusinessId) : null;
 
     if (!businessId) {
       const { data: businessRecord, error: businessLookupError } =
@@ -189,6 +189,20 @@ export async function POST(req: Request) {
 
       return NextResponse.json(
         { error: profileError.message },
+        { status: 500 }
+      );
+    }
+
+    const { error: businessUpdateError } = await supabaseAdmin
+      .from("businesses")
+      .update({ employer_id: userId })
+      .eq("id", businessId);
+
+    if (businessUpdateError) {
+      console.error("SUPABASE BUSINESS LINK ERROR:", businessUpdateError);
+
+      return NextResponse.json(
+        { error: businessUpdateError.message },
         { status: 500 }
       );
     }

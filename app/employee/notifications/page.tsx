@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+import { showAppMessage } from "@/app/lib/appMessage";
 
 type Notification = {
   id: string;
@@ -113,7 +114,7 @@ export default function EmployeeNotificationsPage() {
       .eq("id", notificationId);
 
     if (error) {
-      alert(error.message);
+      showAppMessage(error.message);
       return;
     }
 
@@ -134,7 +135,7 @@ export default function EmployeeNotificationsPage() {
       .eq("is_read", false);
 
     if (error) {
-      alert(error.message);
+      showAppMessage(error.message);
       return;
     }
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+import { showAppMessage } from "@/app/lib/appMessage";
 
 type ApprovalStatus = "Pending" | "Approved" | "Declined" | "Cancelled";
 
@@ -89,7 +90,7 @@ export default function EmployeeLeavePage() {
       .maybeSingle();
 
     if (accountError || !account || account.portal_enabled !== true) {
-      alert("Employee portal access is not active.");
+      showAppMessage("Employee portal access is not active.");
       setLoading(false);
       return;
     }
@@ -111,7 +112,7 @@ export default function EmployeeLeavePage() {
       .maybeSingle();
 
     if (employeeError || !employeeData) {
-      alert(
+      showAppMessage(
         `Employee record could not be loaded.${
           employeeError?.message ? ` ${employeeError.message}` : ""
         }`
@@ -143,7 +144,7 @@ export default function EmployeeLeavePage() {
       .order("created_at", { ascending: false });
 
     if (requestError) {
-      alert(`Could not load leave requests: ${requestError.message}`);
+      showAppMessage(`Could not load leave requests: ${requestError.message}`);
       setLoading(false);
       return;
     }
@@ -160,12 +161,12 @@ export default function EmployeeLeavePage() {
     if (!employee) return;
 
     if (!startDate || !endDate) {
-      alert("Please select both start date and end date.");
+      showAppMessage("Please select both start date and end date.");
       return;
     }
 
     if (new Date(endDate) < new Date(startDate)) {
-      alert("End date cannot be before start date.");
+      showAppMessage("End date cannot be before start date.");
       return;
     }
 
@@ -188,7 +189,7 @@ export default function EmployeeLeavePage() {
     });
 
     if (error) {
-      alert(`Leave request was not submitted: ${error.message}`);
+      showAppMessage(`Leave request was not submitted: ${error.message}`);
       setSaving(false);
       return;
     }
@@ -201,12 +202,12 @@ export default function EmployeeLeavePage() {
     await loadPageData();
 
     setSaving(false);
-    alert("Leave request submitted successfully.");
+    showAppMessage("Leave request submitted successfully.");
   }
 
   async function cancelRequest(request: LeaveRequest) {
     if (request.status !== "Pending") {
-      alert("Only pending requests can be cancelled.");
+      showAppMessage("Only pending requests can be cancelled.");
       return;
     }
 
@@ -219,7 +220,7 @@ export default function EmployeeLeavePage() {
       .eq("id", request.id);
 
     if (error) {
-      alert(`Request could not be cancelled: ${error.message}`);
+      showAppMessage(`Request could not be cancelled: ${error.message}`);
       return;
     }
 

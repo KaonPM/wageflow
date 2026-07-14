@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
+import { showAppMessage } from "@/app/lib/appMessage";
 
 type Employee = {
   id: string;
@@ -132,7 +133,7 @@ export default function DisciplinaryRecordsPage() {
 
     if (employeeError) {
       console.error("Employees error:", employeeError);
-      alert(`Could not load employees: ${employeeError.message}`);
+      showAppMessage(`Could not load employees: ${employeeError.message}`);
       setEmployees([]);
       setRecords([]);
       setLoading(false);
@@ -164,7 +165,7 @@ export default function DisciplinaryRecordsPage() {
 
     if (recordError) {
       console.error("Disciplinary records error:", recordError);
-      alert(`Could not load disciplinary records: ${recordError.message}`);
+      showAppMessage(`Could not load disciplinary records: ${recordError.message}`);
       setRecords([]);
       setLoading(false);
       return;
@@ -194,7 +195,7 @@ export default function DisciplinaryRecordsPage() {
     const employeeRecords = records.filter((record) => record.employee_id === employee.id);
 
     if (employeeRecords.length === 0) {
-      alert("No disciplinary record found for this employee yet. Create a new record first.");
+      showAppMessage("No disciplinary record found for this employee yet. Create a new record first.");
       return;
     }
 
@@ -206,7 +207,7 @@ export default function DisciplinaryRecordsPage() {
     const employeeRecords = records.filter((record) => record.employee_id === employee.id);
 
     if (employeeRecords.length === 0) {
-      alert("No disciplinary records found for this employee yet.");
+      showAppMessage("No disciplinary records found for this employee yet.");
       return;
     }
 
@@ -219,7 +220,7 @@ export default function DisciplinaryRecordsPage() {
       )
       .join("\n\n");
 
-    alert(`${employeeName(employee)} disciplinary records:\n\n${summary}`);
+    showAppMessage(`${employeeName(employee)} disciplinary records:\n\n${summary}`);
   }
 
   function openEdit(record: DisciplinaryRecord) {
@@ -244,7 +245,7 @@ export default function DisciplinaryRecordsPage() {
     const employeeRecords = records.filter((record) => record.employee_id === employee.id);
 
     if (employeeRecords.length === 0) {
-      alert("No disciplinary record found for this employee yet. Create a record before generating a letter.");
+      showAppMessage("No disciplinary record found for this employee yet. Create a record before generating a letter.");
       return;
     }
 
@@ -258,12 +259,12 @@ export default function DisciplinaryRecordsPage() {
 
   async function saveRecord() {
     if (!selectedEmployee) {
-      alert("Please select an employee first.");
+      showAppMessage("Please select an employee first.");
       return;
     }
 
     if (!form.incident_date || !form.incident_description || !form.action_taken) {
-      alert("Please complete incident date, description of incident and action taken.");
+      showAppMessage("Please complete incident date, description of incident and action taken.");
       return;
     }
 
@@ -291,7 +292,7 @@ export default function DisciplinaryRecordsPage() {
 
       if (error) {
         console.error("Update disciplinary record error:", error);
-        alert(`Record was not updated: ${error.message}`);
+        showAppMessage(`Record was not updated: ${error.message}`);
         setSaving(false);
         return;
       }
@@ -300,7 +301,7 @@ export default function DisciplinaryRecordsPage() {
 
       if (error) {
         console.error("Insert disciplinary record error:", error);
-        alert(`Record was not saved: ${error.message}`);
+        showAppMessage(`Record was not saved: ${error.message}`);
         setSaving(false);
         return;
       }
@@ -311,7 +312,7 @@ export default function DisciplinaryRecordsPage() {
     setSelectedEmployee(null);
     setSelectedRecord(null);
     setMode(null);
-    alert("Disciplinary record saved successfully.");
+    showAppMessage("Disciplinary record saved successfully.");
   }
 
   function buildLetter() {

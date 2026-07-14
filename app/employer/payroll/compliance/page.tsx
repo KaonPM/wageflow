@@ -147,7 +147,7 @@ export default function ComplianceSummaryPage() {
           <h1 style={title}>Compliance Summary</h1>
           <p style={businessLine}>{businessName}</p>
           <p style={subtitle}>
-            Review PAYE and UIF totals for the selected payroll month.
+            Review estimated PAYE and UIF totals for the selected payroll month.
           </p>
         </div>
 
@@ -190,7 +190,7 @@ export default function ComplianceSummaryPage() {
           <h2 style={emptyTitle}>No payroll run found</h2>
           <p style={emptyText}>
             Generate payslips for this payroll month first. Once payroll has
-            been processed, PAYE and UIF totals will appear here.
+            been processed, estimated PAYE and UIF totals will appear here.
           </p>
         </section>
       ) : (
@@ -206,15 +206,15 @@ export default function ComplianceSummaryPage() {
               value={money(payrollRun.total_gross_pay)}
             />
 
-            <SummaryCard label="Total PAYE" value={money(payrollRun.total_paye)} />
+            <SummaryCard label="Estimated PAYE" value={money(payrollRun.total_paye)} />
 
             <SummaryCard
-              label="UIF Employee"
+              label="Estimated UIF Employee"
               value={money(payrollRun.total_uif_employee)}
             />
 
             <SummaryCard
-              label="UIF Employer"
+              label="Estimated UIF Employer"
               value={money(payrollRun.total_uif_employer)}
             />
 
@@ -230,7 +230,7 @@ export default function ComplianceSummaryPage() {
               <div>
                 <h2 style={sectionTitle}>EMP201 Summary</h2>
                 <p style={smallText}>
-                  Use this summary to complete your EMP201 return on SARS
+                  Use this estimated summary to prepare your EMP201 return on SARS
                   eFiling. WageFlow does not submit tax returns on your behalf.
                 </p>
               </div>
@@ -241,17 +241,17 @@ export default function ComplianceSummaryPage() {
             </div>
 
             <div style={breakdown}>
-              <ComplianceRow label="PAYE" value={money(payrollRun.total_paye)} />
+              <ComplianceRow label="Estimated PAYE" value={money(payrollRun.total_paye)} />
               <ComplianceRow
-                label="UIF Employee"
+                label="Estimated UIF Employee"
                 value={money(payrollRun.total_uif_employee)}
               />
               <ComplianceRow
-                label="UIF Employer"
+                label="Estimated UIF Employer"
                 value={money(payrollRun.total_uif_employer)}
               />
               <ComplianceRow
-                label="Total UIF Payable"
+                label="Estimated Total UIF Payable"
                 value={money(payrollRun.total_uif)}
               />
               <ComplianceRow
@@ -279,8 +279,8 @@ export default function ComplianceSummaryPage() {
           </section>
 
           <section style={disclaimerBox}>
-            <strong>Important:</strong> WageFlow helps you calculate and organise
-            PAYE and UIF totals. The employer remains responsible for reviewing
+            <strong>Important:</strong> WageFlow helps you estimate and organise
+            PAYE and UIF totals. The employer remains responsible for verifying
             the figures and submitting the EMP201 return directly on SARS
             eFiling.
           </section>
