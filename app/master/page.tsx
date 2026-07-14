@@ -137,7 +137,6 @@ export default function MasterDashboard() {
 
       <section style={grid}>
         <DashboardCard
-          icon="🏢"
           title="Businesses"
           description="View, edit and manage WageFlow client businesses."
           href="/master/businesses"
@@ -145,7 +144,6 @@ export default function MasterDashboard() {
         />
 
         <DashboardCard
-          icon="🧾"
           title="WageFlow Requests"
           description="Approve pending businesses and complete onboarding."
           href="/master/wageflow-requests"
@@ -153,7 +151,6 @@ export default function MasterDashboard() {
         />
 
         <DashboardCard
-          icon="💳"
           title="Subscriptions"
           description="Change plans, payment status, setup fees and billing records."
           href="/master/subscriptions"
@@ -161,7 +158,6 @@ export default function MasterDashboard() {
         />
 
         <DashboardCard
-          icon="👤"
           title="Users"
           description="Manage employer and employee access across WageFlow."
           href="/master/users"
@@ -191,13 +187,11 @@ function StatCard({
 }
 
 function DashboardCard({
-  icon,
   title,
   description,
   href,
   tag,
 }: {
-  icon: string;
   title: string;
   description: string;
   href: string;
@@ -207,7 +201,6 @@ function DashboardCard({
     <Link href={href} style={cardLink}>
       <article style={card}>
         <div style={cardTop}>
-          <div style={iconBox}>{icon}</div>
           <span style={tagStyle}>{tag}</span>
         </div>
 
@@ -215,8 +208,7 @@ function DashboardCard({
         <p style={cardText}>{description}</p>
 
         <div style={cardFooter}>
-          <span>Open</span>
-          <strong>→</strong>
+          <span style={openPill}>Open</span>
         </div>
       </article>
     </Link>
@@ -366,20 +358,9 @@ const card = {
 
 const cardTop = {
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent: "flex-end",
   alignItems: "center",
   marginBottom: "20px",
-};
-
-const iconBox = {
-  width: "50px",
-  height: "50px",
-  borderRadius: "15px",
-  background: "#e6fffb",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "23px",
 };
 
 const tagStyle = {
@@ -407,8 +388,18 @@ const cardText = {
 const cardFooter = {
   marginTop: "18px",
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent: "flex-start",
   alignItems: "center",
+};
+
+const openPill = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#ecfeff",
   color: "#0f766e",
-  fontWeight: 700,
+  border: "1px solid #99f6e4",
+  borderRadius: "999px",
+  padding: "8px 16px",
+  fontWeight: 900,
 };

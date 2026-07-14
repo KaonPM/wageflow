@@ -212,7 +212,7 @@ export default function WageFlowRequestsPage() {
     <main style={page}>
       <div style={topBar}>
         <Link href="/master" style={backButton}>
-          ← Back to Dashboard
+           ← Back to Dashboard
         </Link>
       </div>
 

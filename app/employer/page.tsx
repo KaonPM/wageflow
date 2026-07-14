@@ -154,13 +154,13 @@ export default function EmployerDashboard() {
     }).length;
   }, [employees]);
 
-  const employeesAbsentToday = useMemo(() => {
+  const employeesTerminated = useMemo(() => {
     return employees.filter((employee) => {
       const status = (employee.status || employee.employment_status || "")
         .trim()
         .toLowerCase();
 
-      return status === "absent" || status === "absent_today";
+      return status === "terminated";
     }).length;
   }, [employees]);
 
@@ -182,7 +182,7 @@ export default function EmployerDashboard() {
         <div style={brandBlock}>
           <Logo logoUrl={business?.logo_url || ""} businessName={businessName} />
 
-          <div>
+          <div style={brandText}>
             <h1 style={businessTitle}>{businessName}</h1>
             <h2 style={dashboardTitle}>Employer Dashboard</h2>
 
@@ -198,7 +198,6 @@ export default function EmployerDashboard() {
 
       <section style={moduleGrid}>
         <DashboardCard
-          icon="👥"
           title="Employees"
           description="Add and manage employee profiles, job details, salary information, bank details and employment records."
           href="/employer/employees"
@@ -206,7 +205,6 @@ export default function EmployerDashboard() {
         />
 
         <DashboardCard
-          icon="💰"
           title="Payroll"
           description="Generate payslips, view payroll history, manage payslip records and review payroll totals."
           href="/employer/payroll"
@@ -214,7 +212,6 @@ export default function EmployerDashboard() {
         />
 
         <DashboardCard
-          icon="🗂️"
           title="HR Records"
           description="Manage leave records, employee documents, warnings, confirmations of employment and HR notes."
           href="/employer/hr"
@@ -222,7 +219,6 @@ export default function EmployerDashboard() {
         />
 
         <DashboardCard
-          icon="📑"
           title="Reports"
           description="Generate payroll, employee, compliance, salary confirmation and business reports."
           href="/employer/reports"
@@ -230,7 +226,6 @@ export default function EmployerDashboard() {
         />
 
         <DashboardCard
-          icon="⚙️"
           title="Settings"
           description="Configure company details, branding, PAYE, UIF and payment preferences."
           href="/employer/settings"
@@ -241,8 +236,7 @@ export default function EmployerDashboard() {
       <section style={overviewBox}>
         <div style={overviewHeader}>
           <div>
-            <p style={overviewEyebrow}>Workforce Overview</p>
-            <h2 style={overviewTitle}>Employees & Attendance</h2>
+            <h2 style={overviewTitle}>Workforce Summary</h2>
           </div>
 
           <button style={refreshButton} onClick={loadDashboard} disabled={loading}>
@@ -253,7 +247,7 @@ export default function EmployerDashboard() {
         <div style={overviewGrid}>
           <OverviewCard label="Total Employees" value={String(totalEmployees)} />
           <OverviewCard label="On Leave" value={String(employeesOnLeave)} />
-          <OverviewCard label="Absent Today" value={String(employeesAbsentToday)} />
+          <OverviewCard label="Terminated" value={String(employeesTerminated)} />
         </div>
       </section>
     </main>
@@ -288,13 +282,11 @@ function Logo({
 }
 
 function DashboardCard({
-  icon,
   title,
   description,
   href,
   tag,
 }: {
-  icon: string;
   title: string;
   description: string;
   href: string;
@@ -304,7 +296,6 @@ function DashboardCard({
     <Link href={href} style={cardLink}>
       <article style={card}>
         <div style={cardTop}>
-          <div style={iconBox}>{icon}</div>
           <span style={tagStyle}>{tag}</span>
         </div>
 
@@ -312,8 +303,7 @@ function DashboardCard({
         <p style={cardText}>{description}</p>
 
         <div style={cardFooter}>
-          <span>Open</span>
-          <strong>→</strong>
+          <span style={openPill}>Open</span>
         </div>
       </article>
     </Link>
@@ -382,6 +372,12 @@ const brandBlock = {
   display: "flex",
   alignItems: "center",
   gap: "24px",
+  flexWrap: "wrap" as const,
+};
+
+const brandText = {
+  flex: "1 1 220px",
+  minWidth: 0,
 };
 
 const logoBox = {
@@ -421,9 +417,11 @@ const logoFallback = {
 
 const businessTitle = {
   color: "#0f766e",
-  fontSize: "40px",
+  fontSize: "clamp(32px, 9vw, 40px)",
+  lineHeight: 1.08,
   margin: "0 0 8px",
   fontWeight: 900,
+  overflowWrap: "anywhere" as const,
 };
 
 const dashboardTitle = {
@@ -474,22 +472,12 @@ const card = {
 
 const cardTop = {
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent: "flex-end",
   alignItems: "center",
   gap: "12px",
   marginBottom: "18px",
 };
 
-const iconBox = {
-  width: "44px",
-  height: "44px",
-  borderRadius: "14px",
-  background: "#ecfeff",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "22px",
-};
 
 const tagStyle = {
   background: "#f1f5f9",
@@ -516,11 +504,21 @@ const cardText = {
 
 const cardFooter = {
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent: "flex-start",
   alignItems: "center",
   marginTop: "22px",
+};
+
+const openPill = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#ecfeff",
   color: "#0f766e",
-  fontWeight: 800,
+  border: "1px solid #99f6e4",
+  borderRadius: "999px",
+  padding: "8px 16px",
+  fontWeight: 900,
 };
 
 const overviewBox = {
@@ -552,6 +550,7 @@ const overviewTitle = {
   color: "#0f172a",
   fontSize: "22px",
   margin: 0,
+  fontWeight: 900,
 };
 
 const refreshButton = {

@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
     <main style={page}>
       <section style={card}>
         <Link href="/login" style={backLink}>
-          ← Back to login
+           ← Back to login
         </Link>
 
         <h1 style={title}>Reset your password</h1>

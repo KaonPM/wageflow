@@ -250,7 +250,7 @@ export default function EmployerSettingsPage() {
         </div>
 
         <Link href="/employer" style={backButton}>
-          ← Back to Employer Dashboard
+           ← Back to Employer Dashboard
         </Link>
       </section>
 
@@ -263,8 +263,6 @@ export default function EmployerSettingsPage() {
           <section style={grid}>
             <div style={card}>
               <div style={cardHeader}>
-                <div style={iconCircle}>🏢</div>
-
                 <div>
                   <h2 style={cardTitle}>Business Details</h2>
                   <p style={cardSubtitle}>
@@ -319,8 +317,6 @@ export default function EmployerSettingsPage() {
 
             <div style={card}>
               <div style={cardHeader}>
-                <div style={iconCircle}>📞</div>
-
                 <div>
                   <h2 style={cardTitle}>Contact Details</h2>
                   <p style={cardSubtitle}>
@@ -394,8 +390,6 @@ export default function EmployerSettingsPage() {
 
             <div style={card}>
               <div style={cardHeader}>
-                <div style={iconCircle}>🧾</div>
-
                 <div>
                   <h2 style={cardTitle}>SARS and UIF References</h2>
                   <p style={cardSubtitle}>
@@ -445,8 +439,6 @@ export default function EmployerSettingsPage() {
 
             <div style={card}>
               <div style={cardHeader}>
-                <div style={iconCircle}>💰</div>
-
                 <div>
                   <h2 style={cardTitle}>Payslip Preferences</h2>
                   <p style={cardSubtitle}>
@@ -645,17 +637,6 @@ const cardHeader = {
   alignItems: "center",
   gap: "14px",
   marginBottom: "20px",
-};
-
-const iconCircle = {
-  width: "44px",
-  height: "44px",
-  borderRadius: "14px",
-  background: "#ecfeff",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "21px",
 };
 
 const cardTitle = {

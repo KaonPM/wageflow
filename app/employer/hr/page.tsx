@@ -14,13 +14,12 @@ export default function EmployerHRPage() {
         </div>
 
         <Link href="/employer" style={backButton}>
-          ← Back to Employer Dashboard
+           ← Back to Employer Dashboard
         </Link>
       </section>
 
       <section style={grid}>
         <ModuleCard
-          icon="📁"
           title="Employee Documents"
           description="Upload contracts, IDs, proof of address, certificates and other staff documents."
           href="/employer/hr/documents"
@@ -28,7 +27,6 @@ export default function EmployerHRPage() {
         />
 
         <ModuleCard
-          icon="⚖️"
           title="Disciplinary Records"
           description="Record disciplinary incidents, warning letters, hearings, outcomes and follow-up actions."
           href="/employer/hr/disciplinary-records"
@@ -36,7 +34,6 @@ export default function EmployerHRPage() {
         />
 
         <ModuleCard
-          icon="✅"
           title="HR Approvals"
           description="Manage leave requests, overtime requests, approval status, approval notes and employee notifications."
           href="/employer/hr/approvals"
@@ -44,7 +41,6 @@ export default function EmployerHRPage() {
         />
 
         <ModuleCard
-          icon="🗒️"
           title="HR Notes"
           description="Keep general employee HR notes, internal comments and non-payroll records."
           href="/employer/hr/notes"
@@ -56,13 +52,11 @@ export default function EmployerHRPage() {
 }
 
 function ModuleCard({
-  icon,
   title,
   description,
   href,
   tag,
 }: {
-  icon: string;
   title: string;
   description: string;
   href: string;
@@ -72,7 +66,6 @@ function ModuleCard({
     <Link href={href} style={link}>
       <article style={card}>
         <div style={cardTop}>
-          <span style={iconBox}>{icon}</span>
           <span style={tagStyle}>{tag}</span>
         </div>
 
@@ -81,8 +74,7 @@ function ModuleCard({
         <p style={cardText}>{description}</p>
 
         <div style={cardFooter}>
-          <span>Open</span>
-          <strong>→</strong>
+          <span style={openPill}>Open</span>
         </div>
       </article>
     </Link>
@@ -150,26 +142,15 @@ const card = {
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
   display: "flex",
   flexDirection: "column" as const,
-  justifyContent: "space-between",
+  justifyContent: "flex-start",
 };
 
 const cardTop = {
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent: "flex-end",
   alignItems: "center",
   gap: "12px",
   marginBottom: "14px",
-};
-
-const iconBox = {
-  width: "44px",
-  height: "44px",
-  borderRadius: "15px",
-  background: "#ecfeff",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "20px",
 };
 
 const tagStyle = {
@@ -197,9 +178,19 @@ const cardText = {
 
 const cardFooter = {
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent: "flex-start",
   alignItems: "center",
   marginTop: "20px",
+};
+
+const openPill = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#ecfeff",
   color: "#0f766e",
-  fontWeight: 800,
+  border: "1px solid #99f6e4",
+  borderRadius: "999px",
+  padding: "8px 16px",
+  fontWeight: 900,
 };

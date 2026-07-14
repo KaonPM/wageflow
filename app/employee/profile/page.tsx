@@ -192,7 +192,7 @@ export default function EmployeeProfilePage() {
 
             <div style={topActions}>
               <a href="/employee" style={primaryButton}>
-                ← Back to Dashboard
+                 ← Back to Dashboard
               </a>
 
               <a href="/" style={secondaryButton}>

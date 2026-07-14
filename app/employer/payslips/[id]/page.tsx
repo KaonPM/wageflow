@@ -289,7 +289,7 @@ const payrollMonth =
     <main style={page}>
       <section style={topBar}>
         <Link href="/employer/payslips" style={backLink}>
-          ← Back to Payslips
+           ← Back to Payslips
         </Link>
 
         <button

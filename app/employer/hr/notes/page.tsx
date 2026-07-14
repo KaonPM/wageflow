@@ -210,7 +210,7 @@ export default function HRNotesPage() {
         </div>
 
         <Link href="/employer/hr" style={styles.backButton}>
-          ← Back to HR Records
+           ← Back to HR Records
         </Link>
       </section>
 

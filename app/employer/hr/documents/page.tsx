@@ -524,7 +524,7 @@ export default function EmployeeDocumentsPage() {
         </div>
 
         <Link href="/employer/hr" style={backButton}>
-          ← Back to HR Records
+           ← Back to HR Records
         </Link>
       </section>
 

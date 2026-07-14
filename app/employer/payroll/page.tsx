@@ -575,7 +575,7 @@ export default function PayrollPage() {
         </div>
 
         <Link href="/employer" style={backButton}>
-          ← Back to Employer Dashboard
+           ← Back to Employer Dashboard
         </Link>
       </section>
 
@@ -584,7 +584,6 @@ export default function PayrollPage() {
           style={actionCard}
           onClick={() => setShowGenerateForm((current) => !current)}
         >
-          <span style={actionIcon}>＋</span>
           <strong style={actionTitle}>Generate Payslip</strong>
           <span style={actionText}>
             Calculate payroll and issue an employee payslip.
@@ -592,7 +591,6 @@ export default function PayrollPage() {
         </button>
 
         <Link href="/employer/payroll/history" style={actionCardLink}>
-          <span style={actionIcon}>📊</span>
           <strong style={actionTitle}>Payroll History</strong>
           <span style={actionText}>
             View payroll runs, monthly totals, and batches.
@@ -600,7 +598,6 @@ export default function PayrollPage() {
         </Link>
 
         <Link href="/employer/payslips" style={actionCardLink}>
-          <span style={actionIcon}>📄</span>
           <strong style={actionTitle}>Payslip Records</strong>
           <span style={actionText}>
             Search and manage generated employee payslips.
@@ -608,7 +605,6 @@ export default function PayrollPage() {
         </Link>
 
         <Link href="/employer/payroll/compliance" style={actionCardLink}>
-          <span style={actionIcon}>🧾</span>
           <strong style={actionTitle}>Compliance Summary</strong>
           <span style={actionText}>
             Review PAYE, UIF and EMP201-ready monthly totals.
@@ -1042,18 +1038,6 @@ const actionCardLink = {
   display: "block",
   color: "inherit",
   textDecoration: "none",
-};
-
-const actionIcon = {
-  display: "inline-flex",
-  width: "34px",
-  height: "34px",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: "12px",
-  background: "#ecfeff",
-  color: "#0f766e",
-  marginBottom: "10px",
 };
 
 const actionTitle = {

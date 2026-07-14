@@ -58,7 +58,7 @@ export default function ExamplePayslipPage() {
   return (
     <main style={page}>
       <Link href="/" style={backLink}>
-        ← Back
+         ← Back
       </Link>
 
       <PayslipTemplate payslip={payslip} />

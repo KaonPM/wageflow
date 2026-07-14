@@ -255,7 +255,6 @@ export default function EmployeeDashboard() {
 
         <section style={grid}>
           <DashboardCard
-            icon="👤"
             eyebrow="My Details"
             title="Employee Profile"
             description="View your personal details, job details, banking information, emergency contact and employee profile records."
@@ -263,7 +262,6 @@ export default function EmployeeDashboard() {
           />
 
           <DashboardCard
-            icon="📄"
             eyebrow="Payroll"
             title="My Payslips"
             description="View issued payslips, payment dates, net pay, payment method and PDF copies when available."
@@ -271,7 +269,6 @@ export default function EmployeeDashboard() {
           />
 
           <DashboardCard
-            icon="🌿"
             eyebrow="Leave"
             title="Manage Leave"
             description="Submit leave requests, view leave history and track pending, approved or declined requests."
@@ -279,7 +276,6 @@ export default function EmployeeDashboard() {
           />
 
           <DashboardCard
-            icon="⏱️"
             eyebrow="Overtime"
             title="Manage Overtime"
             description="Submit overtime requests, view overtime history and track approval status."
@@ -287,7 +283,6 @@ export default function EmployeeDashboard() {
           />
 
           <DashboardCard
-            icon="🗂️"
             eyebrow="HR"
             title="HR Records"
             description="View shared HR records, leave records, employment notes and records linked to your profile."
@@ -300,13 +295,11 @@ export default function EmployeeDashboard() {
 }
 
 function DashboardCard({
-  icon,
   eyebrow,
   title,
   description,
   href,
 }: {
-  icon: string;
   eyebrow: string;
   title: string;
   description: string;
@@ -315,8 +308,6 @@ function DashboardCard({
   return (
     <a href={href} style={link}>
       <div style={card}>
-        <div style={cardIcon}>{icon}</div>
-
         <p style={cardEyebrow}>{eyebrow}</p>
 
         <h3 style={cardTitle}>{title}</h3>
@@ -325,7 +316,6 @@ function DashboardCard({
 
         <div style={cardFooter}>
           <span style={openText}>Open</span>
-          <span style={arrow}>→</span>
         </div>
       </div>
     </a>
@@ -513,18 +503,6 @@ const card: CSSProperties = {
   flexDirection: "column",
 };
 
-const cardIcon: CSSProperties = {
-  width: "42px",
-  height: "42px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: "14px",
-  background: "#eef7f6",
-  marginBottom: "16px",
-  fontSize: "20px",
-};
-
 const cardEyebrow: CSSProperties = {
   margin: "0 0 10px",
   fontSize: "13px",
@@ -551,16 +529,18 @@ const cardFooter: CSSProperties = {
   marginTop: "auto",
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent: "flex-start",
 };
 
 const openText: CSSProperties = {
-  fontSize: "15px",
-  fontWeight: 800,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#ecfeff",
   color: "#0f766e",
-};
-
-const arrow: CSSProperties = {
-  fontSize: "18px",
-  color: "#94a3b8",
+  border: "1px solid #99f6e4",
+  borderRadius: "999px",
+  padding: "8px 16px",
+  fontSize: "15px",
+  fontWeight: 900,
 };

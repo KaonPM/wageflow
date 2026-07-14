@@ -267,7 +267,7 @@ export default function EmployeeHrRecordDetailPage() {
       <div style={shell}>
         <section style={topBar}>
           <a href="/employee/hr-records" style={primaryButton}>
-            ← Back to HR Records
+             ← Back to HR Records
           </a>
 
           {isConfirmation && (

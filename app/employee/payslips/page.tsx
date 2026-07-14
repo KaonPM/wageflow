@@ -252,7 +252,7 @@ export default function EmployeePayslipsPage() {
 
             <div style={topActions}>
               <a href="/employee" style={primaryButton}>
-                ← Back to Dashboard
+                 ← Back to Dashboard
               </a>
 
               <button onClick={handleLogout} style={secondaryButton}>

@@ -308,7 +308,7 @@ if (!employeeLoginResponse.ok) {
         </div>
 
         <Link href="/employer" style={backButton}>
-          ← Back to Employer Dashboard
+           ← Back to Employer Dashboard
         </Link>
       </section>
 
@@ -342,7 +342,7 @@ if (!employeeLoginResponse.ok) {
             >
               <option value="all">All statuses</option>
               <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="leave">Leave</option>
               <option value="terminated">Terminated</option>
             </select>
 
@@ -719,7 +719,7 @@ if (!employeeLoginResponse.ok) {
                 }
               >
                 <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="leave">Leave</option>
                 <option value="terminated">Terminated</option>
               </select>
             </Field>

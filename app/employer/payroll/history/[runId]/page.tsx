@@ -162,7 +162,7 @@ export default function PayrollRunDetailPage() {
           </Link>
 
           <Link href="/employer/payroll/history" style={backButton}>
-            ← Payroll History
+             Payroll History
           </Link>
         </div>
       </section>

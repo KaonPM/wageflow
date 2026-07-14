@@ -114,7 +114,7 @@ export default function MasterSubscriptionsPage() {
         </div>
 
         <Link href="/master" style={backButton}>
-          ← Back to Master Dashboard
+           ← Back to Master Dashboard
         </Link>
       </section>
 

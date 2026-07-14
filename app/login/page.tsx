@@ -65,7 +65,7 @@ export default function LoginPage() {
     <main style={page}>
       <section style={card}>
         <Link href="/" style={homeButton}>
-          ← Back to Home
+           ← Back to Home
         </Link>
 
         <h1 style={title}>Log in to WageFlow</h1>

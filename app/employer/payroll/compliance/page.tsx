@@ -152,7 +152,7 @@ export default function ComplianceSummaryPage() {
         </div>
 
         <Link href="/employer/payroll" style={backButton}>
-          ← Back to Payroll
+           ← Back to Payroll
         </Link>
       </section>
 
