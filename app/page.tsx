@@ -18,6 +18,7 @@ export default function WageFlowLandingPage() {
   const [isSending, setIsSending] = useState(false);
 
   const [openPricing, setOpenPricing] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -64,18 +65,44 @@ export default function WageFlowLandingPage() {
 
   return (
     <main style={page}>
-      <nav style={nav}>
+      <style>{responsiveHeaderStyles}</style>
+
+      <nav style={nav} className="landing-nav">
         <div style={brand}>
           <img src="/wageflow-logo.png" alt="WageFlow Logo" style={logo} />
         </div>
 
-        <div style={navLinks}>
+        <div style={navLinks} className="desktop-nav-links">
           <a href="#home" style={navLink}>Home</a>
           <a href="#how-it-works" style={navLink}>How It Works</a>
           <a href="#pricing" style={navLink}>Pricing</a>
           <a href="#contact" style={navLink}>Contact</a>
           <a href="/login" style={loginButton}>Login</a>
         </div>
+
+        <div className="mobile-actions" style={mobileActions}>
+          <a href="/login" style={mobileLoginButton}>Login</a>
+          <button
+            type="button"
+            style={menuButton}
+            onClick={() => setMobileMenuOpen((current) => !current)}
+            aria-expanded={mobileMenuOpen}
+            aria-label="Open navigation menu"
+          >
+            <span style={menuLine}></span>
+            <span style={menuLine}></span>
+            <span style={menuLine}></span>
+          </button>
+        </div>
+
+        {mobileMenuOpen && (
+          <div className="mobile-menu-panel" style={mobileMenuPanel}>
+            <a href="#home" style={mobileMenuLink} onClick={() => setMobileMenuOpen(false)}>Home</a>
+            <a href="#how-it-works" style={mobileMenuLink} onClick={() => setMobileMenuOpen(false)}>How It Works</a>
+            <a href="#pricing" style={mobileMenuLink} onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+            <a href="#contact" style={mobileMenuLink} onClick={() => setMobileMenuOpen(false)}>Contact</a>
+          </div>
+        )}
       </nav>
 
       <section id="home" style={hero}>
@@ -368,6 +395,41 @@ const page = {
   background: "#f7fafc",
 };
 
+const responsiveHeaderStyles = `
+  .mobile-actions,
+  .mobile-menu-panel {
+    display: none !important;
+  }
+
+  @media (max-width: 720px) {
+    .landing-nav {
+      padding: 14px 18px !important;
+      align-items: center !important;
+      gap: 12px !important;
+    }
+
+    .desktop-nav-links {
+      display: none !important;
+    }
+
+    .mobile-actions {
+      display: flex !important;
+    }
+
+    .mobile-menu-panel {
+      display: flex !important;
+      left: 18px !important;
+      right: 18px !important;
+      top: calc(100% + 8px) !important;
+    }
+
+    .landing-nav img {
+      width: 170px !important;
+      max-width: 48vw !important;
+    }
+  }
+`;
+
 const nav = {
   position: "sticky" as const,
   top: 0,
@@ -416,6 +478,59 @@ const loginButton = {
   textDecoration: "none",
   fontWeight: 800,
   boxShadow: "0 8px 18px rgba(15, 118, 110, 0.22)",
+};
+
+const mobileActions = {
+  alignItems: "center",
+  gap: 10,
+  marginLeft: "auto",
+};
+
+const mobileLoginButton = {
+  ...loginButton,
+  padding: "10px 16px",
+  fontSize: 14,
+};
+
+const menuButton = {
+  width: 42,
+  height: 42,
+  borderRadius: 999,
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  display: "inline-flex",
+  flexDirection: "column" as const,
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  cursor: "pointer",
+};
+
+const menuLine = {
+  width: 18,
+  height: 2,
+  borderRadius: 999,
+  background: "#102a43",
+};
+
+const mobileMenuPanel = {
+  position: "absolute" as const,
+  flexDirection: "column" as const,
+  gap: 4,
+  padding: "12px",
+  borderRadius: 18,
+  background: "#ffffff",
+  border: "1px solid #d9e2ec",
+  boxShadow: "0 18px 36px rgba(15, 23, 42, 0.14)",
+};
+
+const mobileMenuLink = {
+  color: "#102a43",
+  textDecoration: "none",
+  fontSize: 16,
+  fontWeight: 800,
+  padding: "13px 14px",
+  borderRadius: 12,
 };
 
 const hero = {
