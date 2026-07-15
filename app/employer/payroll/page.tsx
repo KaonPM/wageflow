@@ -637,6 +637,12 @@ export default function PayrollPage() {
           </span>
         </Link>
 
+        <Link href="/employer/payroll/payments" style={actionCardLink}>
+          <strong style={actionTitle}>Payment Review</strong>
+          <span style={actionText}>
+            Prepare bank payments, cash lists, and estimated SARS/UIF totals.
+          </span>
+        </Link>
         <Link href="/employer/payroll/compliance" style={actionCardLink}>
           <strong style={actionTitle}>Compliance Summary</strong>
           <span style={actionText}>

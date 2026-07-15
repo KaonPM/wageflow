@@ -161,6 +161,9 @@ export default function PayrollRunDetailPage() {
             Run Payroll
           </Link>
 
+          <Link href="/employer/payroll/payments" style={secondaryLink}>
+            Payment Review
+          </Link>
           <Link href="/employer/payroll/history" style={backButton}>
              Payroll History
           </Link>
