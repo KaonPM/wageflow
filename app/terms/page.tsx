@@ -27,7 +27,7 @@ export default function TermsPage() {
         <p>
           These Terms & Conditions constitute a binding agreement between
           WageFlow, a product of Lesedi Smart Solutions (Pty) Ltd and the
-          subscribing employer ("the Client").
+          subscribing employer (&quot;the Client&quot;).
         </p>
 
         <h3>2. Nature of Service</h3>

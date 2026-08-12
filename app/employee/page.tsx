@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 
 type DashboardData = {
@@ -220,9 +221,9 @@ export default function EmployeeDashboard() {
   return (
     <main style={page}>
       <div style={topActions}>
-        <a href="/" style={topLink}>
+        <Link href="/" style={topLink}>
           Home
-        </a>
+        </Link>
         <span style={divider}>|</span>
         <button onClick={handleLogout} style={logoutLink}>
           Logout

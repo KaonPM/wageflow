@@ -8,8 +8,8 @@
 :root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: "Courier New", monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,3 +56,13 @@ body {
     margin-left: -11%;
   }
 }
+/* Shared resilient application states */
+.app-state-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f4f8fb; font-family: Arial, sans-serif; color: #0f172a; }
+.app-state-card { width: min(100%, 520px); padding: 32px; border: 1px solid #e2e8f0; border-radius: 20px; background: #fff; box-shadow: 0 18px 50px rgba(15, 23, 42, .10); text-align: center; }
+.app-state-card h1 { margin: 14px 0 8px; color: #0f766e; }
+.app-state-card p { color: #64748b; line-height: 1.6; }
+.app-state-logo { width: 150px; height: auto; }
+.app-state-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.app-state-actions button, .app-state-actions a { border: 1px solid #0f766e; border-radius: 10px; padding: 11px 16px; background: #0f766e; color: #fff; font-weight: 800; text-decoration: none; cursor: pointer; }
+.app-loading-mark { width: 42px; height: 42px; margin: auto; border: 4px solid #ccfbf1; border-top-color: #0f766e; border-radius: 50%; animation: app-spin .8s linear infinite; }
+@keyframes app-spin { to { transform: rotate(360deg); } }

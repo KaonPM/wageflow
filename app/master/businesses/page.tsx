@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
 import { showAppMessage } from "@/app/lib/appMessage";
+import { Pagination } from "@/components/Pagination";
 
 type Business = {
   id: string;
@@ -161,27 +162,7 @@ export default function MasterBusinessesPage() {
               ))}
             </div>
 
-            <div style={pagination}>
-              <button
-                style={pageButton}
-                disabled={pageNumber === 1}
-                onClick={() => setPageNumber((current) => current - 1)}
-              >
-                Previous
-              </button>
-
-              <span style={pageText}>
-                Page {pageNumber} of {totalPages}
-              </span>
-
-              <button
-                style={pageButton}
-                disabled={pageNumber === totalPages}
-                onClick={() => setPageNumber((current) => current + 1)}
-              >
-                Next
-              </button>
-            </div>
+            <Pagination page={pageNumber} totalPages={totalPages} onPageChange={setPageNumber} totalItems={filteredBusinesses.length} pageSize={PAGE_SIZE} />
           </>
         )}
       </section>
@@ -315,29 +296,6 @@ const manageButton = {
   borderRadius: 999,
   fontWeight: 800,
   fontSize: 13,
-};
-
-const pagination = {
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  gap: 12,
-  marginTop: 18,
-};
-
-const pageButton = {
-  background: "#ffffff",
-  border: "1px solid #bcccdc",
-  borderRadius: 999,
-  padding: "9px 14px",
-  cursor: "pointer",
-  fontWeight: 700,
-};
-
-const pageText = {
-  color: "#486581",
-  fontSize: 13,
-  fontWeight: 700,
 };
 
 const muted = {

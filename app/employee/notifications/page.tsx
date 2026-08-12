@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import { showAppMessage } from "@/app/lib/appMessage";
 
@@ -162,14 +163,14 @@ export default function EmployeeNotificationsPage() {
         }}
       >
         <div style={topRow}>
-          <a href="/" style={heroButton}>
+          <Link href="/" style={heroButton}>
             Home
-          </a>
+          </Link>
 
           <div style={buttonGroup}>
-            <a href="/employee" style={heroButton}>
+            <Link href="/employee" style={heroButton}>
               Dashboard
-            </a>
+            </Link>
 
             <button onClick={handleLogout} style={heroButton}>
               Logout

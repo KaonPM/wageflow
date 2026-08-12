@@ -1,9 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { checkRateLimit, isSameOrigin } from "../_lib/rateLimit";
 
 type ContactPayload = { name?: string; email?: string; company?: string; phone?: string; message?: string };
 
 export async function POST(req: Request) {
+  if (!isSameOrigin(req)) return NextResponse.json({ error: "Request origin is not allowed." }, { status: 403 });
+  const rate = checkRateLimit(req, "contact", 5, 10 * 60_000);
+  if (!rate.allowed) return NextResponse.json({ error: "Too many enquiries. Please try again later." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
   const body = (await req.json().catch(() => null)) as ContactPayload | null;
   const name = body?.name?.trim() || "";
   const email = body?.email?.trim().toLowerCase() || "";

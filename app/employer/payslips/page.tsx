@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
+import { Pagination } from "@/components/Pagination";
 
 type Payslip = {
   id: string;
@@ -314,39 +315,7 @@ export default function EmployerPayslipsPage() {
               </table>
             </div>
 
-            <div style={paginationContainer}>
-              <button
-                style={{
-                  ...paginationButton,
-                  opacity: currentPage === 1 ? 0.45 : 1,
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                }}
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => prev - 1)}
-              >
-                Previous
-              </button>
-
-              <span style={pageText}>
-                Page {currentPage} of {totalPages || 1}
-              </span>
-
-              <button
-                style={{
-                  ...paginationButton,
-                  opacity:
-                    currentPage === totalPages || totalPages === 0 ? 0.45 : 1,
-                  cursor:
-                    currentPage === totalPages || totalPages === 0
-                      ? "not-allowed"
-                      : "pointer",
-                }}
-                disabled={currentPage === totalPages || totalPages === 0}
-                onClick={() => setCurrentPage((prev) => prev + 1)}
-              >
-                Next
-              </button>
-            </div>
+            <Pagination page={currentPage} totalPages={Math.max(1, totalPages)} onPageChange={setCurrentPage} totalItems={filteredPayslips.length} pageSize={recordsPerPage} />
           </>
         )}
       </section>
@@ -564,27 +533,4 @@ const pdfButton = {
   alignItems: "center",
   justifyContent: "center",
   cursor: "pointer",
-};
-
-const paginationContainer = {
-  display: "flex",
-  justifyContent: "flex-end",
-  alignItems: "center",
-  gap: "12px",
-  marginTop: "18px",
-};
-
-const paginationButton = {
-  background: "#0f766e",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: "8px",
-  padding: "8px 14px",
-  cursor: "pointer",
-  fontWeight: 700,
-};
-
-const pageText = {
-  color: "#475569",
-  fontWeight: 700,
 };

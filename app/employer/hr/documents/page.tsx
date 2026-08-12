@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
+import { Pagination } from "@/components/Pagination";
+
+const PAGE_SIZE = 10;
 
 type Employee = {
   id: string;
@@ -18,7 +21,7 @@ type Employee = {
   employment_start_date?: string | null;
   date_started?: string | null;
   salary_payment_date?: string | null;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 type BusinessProfile = {
@@ -33,7 +36,7 @@ type BusinessProfile = {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 type DocumentRecord = {
@@ -64,6 +67,7 @@ export default function EmployeeDocumentsPage() {
   const [saving, setSaving] = useState(false);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [letterEmployeeId, setLetterEmployeeId] = useState("");
   const [letterType, setLetterType] = useState("Confirmation of Employment");
@@ -322,46 +326,23 @@ export default function EmployeeDocumentsPage() {
 
     setSaving(true);
 
-    const businessId = await getBusinessId();
-
-    if (!businessId) {
-      setMessage("Business profile not found.");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setMessage("Your session has expired. Please log in again.");
       setSaving(false);
       return;
     }
 
-    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const filePath = `${businessId}/${employeeId}/${Date.now()}-${safeFileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("employee-documents")
-      .upload(filePath, file);
-
-    if (uploadError) {
-      setMessage(uploadError.message);
-      setSaving(false);
-      return;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from("employee-documents")
-      .getPublicUrl(filePath);
-
-    const { error: insertError } = await supabase
-      .from("employee_documents")
-      .insert([
-        {
-          business_id: businessId,
-          employee_id: employeeId,
-          document_name: documentName,
-          document_category: documentCategory,
-          file_url: urlData.publicUrl,
-          notes,
-        },
-      ]);
-
-    if (insertError) {
-      setMessage(insertError.message);
+    const formData = new FormData();
+    formData.set("file", file);
+    formData.set("employeeId", employeeId);
+    formData.set("documentName", documentName);
+    formData.set("documentCategory", documentCategory);
+    formData.set("notes", notes);
+    const response = await fetch("/api/employee-documents", { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, body: formData });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(result.error || "Document upload failed.");
       setSaving(false);
       return;
     }
@@ -378,6 +359,15 @@ export default function EmployeeDocumentsPage() {
 
   function isGeneratedLetter(document: DocumentRecord) {
     return !document.file_url && !!document.notes;
+  }
+
+  async function openStoredDocument(document: DocumentRecord) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return setMessage("Your session has expired. Please log in again.");
+    const response = await fetch(`/api/employee-documents/${encodeURIComponent(document.id)}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.url) return setMessage(result.error || "Document could not be opened.");
+    window.open(result.url, "_blank", "noopener,noreferrer");
   }
 
   function generatedDocumentHtml(document: DocumentRecord) {
@@ -508,6 +498,9 @@ export default function EmployeeDocumentsPage() {
       (document) => document.employee_id === selectedEmployeeId
     );
   }, [documents, selectedEmployeeId]);
+
+  const totalPages = Math.max(1, Math.ceil(employeeRows.length / PAGE_SIZE));
+  const pagedEmployeeRows = employeeRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const letterEmployee = selectedLetterEmployee();
 
@@ -673,7 +666,7 @@ export default function EmployeeDocumentsPage() {
               </thead>
 
               <tbody>
-                {employeeRows.map(
+                {pagedEmployeeRows.map(
                   ({ employee, latestDocument, documentCount }) => (
                     <tr key={employee.id}>
                       <td style={td}>
@@ -746,6 +739,7 @@ export default function EmployeeDocumentsPage() {
                 )}
               </tbody>
             </table>
+            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={employeeRows.length} pageSize={PAGE_SIZE} />
           </div>
         )}
 
@@ -1079,22 +1073,21 @@ export default function EmployeeDocumentsPage() {
                         </>
                       ) : (
                         <>
-                          <a
-                            href={document.file_url || "#"}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => openStoredDocument(document)}
                             style={viewLink}
                           >
                             View
-                          </a>
+                          </button>
 
-                          <a
-                            href={document.file_url || "#"}
-                            download
+                          <button
+                            type="button"
+                            onClick={() => openStoredDocument(document)}
                             style={downloadLink}
                           >
                             Download
-                          </a>
+                          </button>
                         </>
                       )}
                     </div>
@@ -1415,19 +1408,6 @@ const letterLogo: CSSProperties = {
   width: "72px",
   height: "72px",
   objectFit: "contain",
-};
-
-const letterBusinessName: CSSProperties = {
-  margin: 0,
-  color: "#0f172a",
-  fontSize: "22px",
-};
-
-const letterContactDetails: CSSProperties = {
-  margin: "6px 0 0",
-  color: "#475569",
-  fontSize: "12px",
-  lineHeight: 1.6,
 };
 
 const letterDate: CSSProperties = {

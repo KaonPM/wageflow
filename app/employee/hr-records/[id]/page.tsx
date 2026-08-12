@@ -3,13 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
 
 type RecordType = "confirmation" | "disciplinary" | "hr";
 
-type Employee = Record<string, any>;
-type Business = Record<string, any>;
-type GenericRecord = Record<string, any>;
+// These legacy HR rows vary by record category and are narrowed at use sites.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DataRecord = Record<string, any>;
+type Employee = DataRecord;
+type Business = DataRecord;
+type GenericRecord = DataRecord;
 
 export default function EmployeeHrRecordDetailPage() {
   const params = useParams();
@@ -266,9 +270,9 @@ export default function EmployeeHrRecordDetailPage() {
     <main style={page}>
       <div style={shell}>
         <section style={topBar}>
-          <a href="/employee/hr-records" style={primaryButton}>
+          <Link href="/employee/hr-records" style={primaryButton}>
              ← Back to HR Records
-          </a>
+          </Link>
 
           {isConfirmation && (
             <button onClick={handlePrint} style={secondaryButton}>

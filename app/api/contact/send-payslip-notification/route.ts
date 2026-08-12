@@ -1,47 +1,76 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.SUPABASE_SERVICE_ROLE_KEY as string
-);
+import { getSupabaseAdmin, requireRole } from "../../_lib/authorization";
 
 async function updateNotificationStatus({
   id,
   status,
-  errorMessage,
+  businessId,
+  payslipId,
 }: {
   id?: string;
   status: "sent" | "failed";
-  errorMessage?: string;
+  businessId: string;
+  payslipId: string;
 }) {
   if (!id) return;
 
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from("payslip_notifications")
     .update({ status })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .eq("payslip_id", payslipId);
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character] || character);
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  const access = await requireRole(req, ["employer"]);
+  if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
+
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const {
     notificationId,
     email,
-    employeeName,
-    payrollMonth,
-    businessName,
     payslipId,
   } = body;
 
-  if (!email || !employeeName || !payrollMonth || !payslipId) {
+  if (!email || !payslipId || !access.profile.business_id) {
     return NextResponse.json(
-      { error: "Email, employee name, payroll month and payslip ID are required." },
+      { error: "Email and payslip ID are required." },
       { status: 400 }
     );
   }
 
   try {
+    const { data: payslip } = await access.admin
+      .from("payslips")
+      .select("id, employee_id, business_id, payroll_month")
+      .eq("id", payslipId)
+      .eq("business_id", access.profile.business_id)
+      .maybeSingle();
+    if (!payslip) return NextResponse.json({ error: "Payslip not found." }, { status: 404 });
+
+    const { data: employee } = await access.admin
+      .from("employees")
+      .select("email, first_name, last_name")
+      .eq("id", payslip.employee_id)
+      .eq("business_id", access.profile.business_id)
+      .maybeSingle();
+    if (!employee?.email || employee.email.toLowerCase() !== String(email).trim().toLowerCase()) {
+      return NextResponse.json({ error: "The recipient does not match this payslip." }, { status: 403 });
+    }
+
+    const { data: business } = await access.admin.from("businesses").select("business_name, trading_name").eq("id", access.profile.business_id).maybeSingle();
+    const employeeName = `${employee.first_name || ""} ${employee.last_name || ""}`.trim() || "Employee";
+    const payrollMonth = payslip.payroll_month || "your latest pay period";
+    const businessName = business?.trading_name || business?.business_name || "WageFlow";
+
+    if (!process.env.BREVO_API_KEY || !process.env.BREVO_FROM_EMAIL) return NextResponse.json({ error: "Email delivery is not configured." }, { status: 503 });
+
     const origin = new URL(req.url).origin;
     const payslipUrl = `${origin}/employee/payslips/${payslipId}`;
 
@@ -60,10 +89,10 @@ export async function POST(req: Request) {
         subject: `Your WageFlow payslip for ${payrollMonth} is available`,
         htmlContent: `
           <div style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #111827;">
-            <p>Hi ${employeeName},</p>
+            <p>Hi ${escapeHtml(employeeName)},</p>
 
-            <p>Your WageFlow payslip for <strong>${payrollMonth}</strong> is now available.</p>
-            <p><strong>Payslip ID:</strong> ${payslipId}</p>
+            <p>Your WageFlow payslip for <strong>${escapeHtml(payrollMonth)}</strong> is now available.</p>
+            <p><strong>Payslip ID:</strong> ${escapeHtml(payslipId)}</p>
 
             <p>
               Open this payslip using the secure payslip ID link below. You may be asked to log in first:<br />
@@ -74,7 +103,7 @@ export async function POST(req: Request) {
 
             <p>
               Kind regards,<br />
-              <strong>${businessName || "WageFlow"}</strong><br />
+              <strong>${escapeHtml(businessName || "WageFlow")}</strong><br />
               Powered by WageFlow
             </p>
           </div>
@@ -84,24 +113,27 @@ export async function POST(req: Request) {
 
     if (!emailResponse.ok) {
       const errorText = await emailResponse.text();
+      console.error("Brevo payslip notification failed", emailResponse.status, errorText.slice(0, 500));
       await updateNotificationStatus({
         id: notificationId,
         status: "failed",
-        errorMessage: errorText,
+        businessId: access.profile.business_id,
+        payslipId,
       });
 
-      return NextResponse.json({ error: errorText }, { status: 500 });
+      return NextResponse.json({ error: "The payslip email could not be delivered. Please try again." }, { status: 502 });
     }
 
-    await updateNotificationStatus({ id: notificationId, status: "sent" });
+    await updateNotificationStatus({ id: notificationId, status: "sent", businessId: access.profile.business_id, payslipId });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    const message = error?.message || "Failed to send payslip email.";
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to send payslip email.";
     await updateNotificationStatus({
       id: notificationId,
       status: "failed",
-      errorMessage: message,
+      businessId: access.profile.business_id,
+      payslipId,
     });
 
     return NextResponse.json({ error: message }, { status: 500 });

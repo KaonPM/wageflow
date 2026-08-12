@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "../lib/supabaseClient";
 
 export default function SetupRequestPage() {
   const [accepted, setAccepted] = useState(false);
@@ -16,6 +15,7 @@ export default function SetupRequestPage() {
     employeeCount: "",
     plan: "Starter - R149/month",
     message: "",
+    website: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -49,23 +49,10 @@ export default function SetupRequestPage() {
       return;
     }
 
-    const { error } = await supabase
-      .from("wageflow_setup_requests")
-      .insert({
-        business_name: form.businessName,
-        contact_person: form.ownerName,
-        email: form.email,
-        phone: form.phone,
-        selected_package: form.plan,
-        number_of_employees: Number(form.employeeCount),
-        notes: form.message,
-        terms_accepted: true,
-        privacy_accepted: true,
-        status: "Pending",
-      });
-
-    if (error) {
-      setError(error.message);
+    const response = await fetch("/api/setup-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, accepted, acceptedAt }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(result.error || "Setup request failed. Please try again.");
       setLoading(false);
       return;
     }
@@ -80,6 +67,7 @@ export default function SetupRequestPage() {
       employeeCount: "",
       plan: "Starter - R149/month",
       message: "",
+      website: "",
     });
 
     setLoading(false);

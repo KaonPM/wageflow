@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 
 type EmployeeProfile = {
@@ -191,13 +192,13 @@ export default function EmployeeProfilePage() {
             </div>
 
             <div style={topActions}>
-              <a href="/employee" style={primaryButton}>
+              <Link href="/employee" style={primaryButton}>
                  ← Back to Dashboard
-              </a>
+              </Link>
 
-              <a href="/" style={secondaryButton}>
+              <Link href="/" style={secondaryButton}>
                 Home
-              </a>
+              </Link>
 
               <button onClick={handleLogout} style={secondaryButton}>
                 Logout

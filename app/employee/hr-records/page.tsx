@@ -21,6 +21,8 @@ type Business = {
   trading_name: string | null;
 };
 
+// The list combines three differently shaped HR record tables.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GenericRecord = Record<string, any>;
 
 export default function EmployeeHRRecordsPage() {
