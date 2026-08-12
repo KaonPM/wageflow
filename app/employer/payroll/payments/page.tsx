@@ -16,6 +16,10 @@ type PayrollRun = {
   sars_payable: number | null;
   status: string | null;
   created_at: string | null;
+  payment_exported_at: string | null;
+  payment_paid_at: string | null;
+  payment_date: string | null;
+  external_payment_reference: string | null;
 };
 
 type Payslip = {
@@ -61,6 +65,8 @@ export default function PayrollPaymentsPage() {
   const [loadingPayslips, setLoadingPayslips] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
 
   useEffect(() => {
     fetchPayrollRuns();
@@ -174,6 +180,11 @@ export default function PayrollPaymentsPage() {
 
   const selectedRun = runs.find((run) => run.id === selectedRunId) || null;
 
+  useEffect(() => {
+    setPaymentDate(selectedRun?.payment_date || "");
+    setPaymentReference(selectedRun?.external_payment_reference || "");
+  }, [selectedRun?.id, selectedRun?.payment_date, selectedRun?.external_payment_reference]);
+
   const paymentRows = useMemo(() => {
     return payslips.map((payslip) => {
       const employee = payslip.employees?.[0];
@@ -204,6 +215,9 @@ export default function PayrollPaymentsPage() {
   const blockedBankRows = bankRows.filter((row) => row.missingBankDetails);
   const canApprove = Boolean(selectedRun && paymentRows.length > 0 && blockedBankRows.length === 0);
   const batchStatus = selectedRun?.status || "generated";
+  const batchApproved = ["payment_approved", "payment_exported", "paid_manually"].includes(batchStatus);
+  const batchExported = ["payment_exported", "paid_manually"].includes(batchStatus);
+  const canMarkPaid = paymentRows.length > 0 && (bankRows.length === 0 ? batchApproved : batchExported);
 
   const totals = {
     bank: bankRows.reduce((sum, row) => sum + row.amount, 0),
@@ -290,12 +304,21 @@ export default function PayrollPaymentsPage() {
   async function markBatchExported() {
     if (!selectedRun) return;
 
+    if (!batchApproved) {
+      setMessage("Approve the payment batch before marking it as exported.");
+      return;
+    }
+
     setSaving(true);
     setMessage("Marking payment batch as exported...");
 
-    const runError = await updatePayrollRunStatus("payment_exported");
+    const { error: runError } = await supabase
+      .from("payroll_runs")
+      .update({ status: "payment_exported", payment_exported_at: new Date().toISOString() })
+      .eq("id", selectedRun.id)
+      .eq("business_id", selectedRun.business_id);
     if (runError) {
-      setMessage(runError);
+      setMessage(runError.message);
       setSaving(false);
       return;
     }
@@ -317,7 +340,14 @@ export default function PayrollPaymentsPage() {
   }
 
   async function markPaidManually() {
-    if (!selectedRun || paymentRows.length === 0) return;
+    if (!selectedRun || !canMarkPaid) {
+      setMessage(bankRows.length > 0 ? "Export the approved bank batch before marking payroll as paid." : "Approve the cash payment list before marking payroll as paid.");
+      return;
+    }
+    if (!paymentDate || !paymentReference.trim()) {
+      setMessage("Enter the actual payment date and external bank/reference number before confirming payment.");
+      return;
+    }
 
     const confirmed = window.confirm(
       "Mark this payroll run as paid manually? Only do this after bank and cash payments have been completed."
@@ -328,9 +358,18 @@ export default function PayrollPaymentsPage() {
     setSaving(true);
     setMessage("Marking payroll run as paid manually...");
 
-    const runError = await updatePayrollRunStatus("paid_manually");
+    const { error: runError } = await supabase
+      .from("payroll_runs")
+      .update({
+        status: "paid_manually",
+        payment_date: paymentDate,
+        external_payment_reference: paymentReference.trim().slice(0, 120),
+        payment_paid_at: new Date().toISOString(),
+      })
+      .eq("id", selectedRun.id)
+      .eq("business_id", selectedRun.business_id);
     if (runError) {
-      setMessage(runError);
+      setMessage(runError.message);
       setSaving(false);
       return;
     }
@@ -360,24 +399,20 @@ export default function PayrollPaymentsPage() {
 
     if (!confirmed) return;
 
-    setSaving(true);
-    setMessage("Recording SARS/UIF payment status...");
-
-    const runError = await updatePayrollRunStatus("sars_uif_paid");
-    if (runError) {
-      setMessage(runError);
-      setSaving(false);
-      return;
-    }
-
-    await refreshSelectedRun();
-    setMessage("SARS/UIF marked as paid for this payroll run.");
-    setSaving(false);
+    setMessage("SARS/UIF payment must currently be confirmed in eFiling or your bank. WageFlow did not overwrite the employee payment status. Independent SARS/UIF audit tracking is the next database upgrade.");
   }
 
   function exportBankCsv() {
     if (bankRows.length === 0) {
       setMessage("No bank payment rows are available for this payroll run.");
+      return;
+    }
+    if (blockedBankRows.length > 0) {
+      setMessage("Complete all bank details before exporting the bank payment file.");
+      return;
+    }
+    if (!batchApproved) {
+      setMessage("Approve the payment batch before exporting bank payments.");
       return;
     }
 
@@ -402,6 +437,10 @@ export default function PayrollPaymentsPage() {
   function exportCashCsv() {
     if (cashRows.length === 0) {
       setMessage("No cash payment rows are available for this payroll run.");
+      return;
+    }
+    if (!batchApproved) {
+      setMessage("Approve the payment batch before exporting the cash payment list.");
       return;
     }
 
@@ -450,8 +489,7 @@ export default function PayrollPaymentsPage() {
           <div>
             <h2 style={sectionTitle}>Select Payroll Run</h2>
             <p style={muted}>
-              Active provider: <strong>Manual CSV</strong>. Ozow or Stitch can be
-              plugged into this workflow later without changing the employer flow.
+              Payment method: <strong>Manual bank processing</strong>. WageFlow prepares files and records confirmations; it does not move money.
             </p>
           </div>
 
@@ -485,8 +523,7 @@ export default function PayrollPaymentsPage() {
           <span style={summaryLabel}>Batch Status</span>
           <strong style={workflowTitle}>{formatStatus(batchStatus)}</strong>
           <p style={muted}>
-            Approve the batch first, export bank/cash CSV files, then mark the
-            payroll as paid after money has moved outside WageFlow.
+            Approve the batch, download the payment files, complete payment through your bank, then record the bank confirmation below.
           </p>
         </div>
 
@@ -495,7 +532,7 @@ export default function PayrollPaymentsPage() {
             type="button"
             style={primaryButton}
             onClick={approvePaymentBatch}
-            disabled={saving || !canApprove}
+            disabled={saving || !canApprove || batchApproved}
           >
             Approve Batch
           </button>
@@ -504,19 +541,28 @@ export default function PayrollPaymentsPage() {
             type="button"
             style={outlineButton}
             onClick={markBatchExported}
-            disabled={saving || bankRows.length === 0}
+            disabled={saving || bankRows.length === 0 || !batchApproved || batchExported}
           >
-            Mark Exported
+            Confirm CSV Downloaded
           </button>
 
           <button
             type="button"
             style={paidButton}
             onClick={markPaidManually}
-            disabled={saving || paymentRows.length === 0}
+            disabled={saving || !canMarkPaid || batchStatus === "paid_manually"}
           >
-            Mark Paid Manually
+            Confirm Paid Through Bank
           </button>
+        </div>
+      </section>
+
+      <section style={card}>
+        <h2 style={sectionTitle}>External payment confirmation</h2>
+        <p style={muted}>Complete these fields using the confirmation from your bank. WageFlow does not initiate or verify the transfer.</p>
+        <div style={confirmationGrid}>
+          <label style={fieldLabel}>Actual payment date<input style={input} type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></label>
+          <label style={fieldLabel}>Bank or external reference<input style={input} maxLength={120} placeholder="Example: BANK-2026-08-001" value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} /></label>
         </div>
       </section>
 
@@ -540,7 +586,7 @@ export default function PayrollPaymentsPage() {
       <section style={grid}>
         <PaymentTable
           title="Bank Payment Preparation"
-          description="Employees not marked as Cash. These rows are ready for bank-file export or a future payment provider integration."
+          description="Download this general CSV, then use it to prepare payments through your bank. It is not transmitted automatically."
           rows={bankRows}
           emptyText="No bank payments found for this payroll run."
           onExport={exportBankCsv}
@@ -549,7 +595,7 @@ export default function PayrollPaymentsPage() {
 
         <PaymentTable
           title="Cash Payment List"
-          description="Employees marked as Cash. These should be handled manually and confirmed outside the bank-payment flow."
+          description="Download the cash payment list for manual processing and retain external proof of payment."
           rows={cashRows}
           emptyText="No cash payments found for this payroll run."
           onExport={exportCashCsv}
@@ -622,7 +668,7 @@ function PaymentTable({
         </div>
 
         <button type="button" style={outlineButton} onClick={onExport}>
-          Export CSV
+          Download Payment CSV
         </button>
       </div>
 
@@ -1050,4 +1096,19 @@ const infoBox: CSSProperties = {
 const infoValue: CSSProperties = {
   color: "#0f172a",
   fontSize: "16px",
+};
+
+const confirmationGrid: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gap: "14px",
+  marginTop: "16px",
+};
+
+const fieldLabel: CSSProperties = {
+  display: "grid",
+  gap: "7px",
+  color: "#334155",
+  fontSize: "13px",
+  fontWeight: 800,
 };

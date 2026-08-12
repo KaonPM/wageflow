@@ -145,6 +145,9 @@ export default function EmployeeHRRecordsPage() {
   const confirmationRecords = documents.filter((record) =>
     isConfirmationOfEmployment(record)
   );
+  const sharedDocuments = documents.filter(
+    (record) => !isConfirmationOfEmployment(record)
+  );
 
   return (
     <main style={page}>
@@ -177,6 +180,14 @@ export default function EmployeeHRRecordsPage() {
         </section>
 
         <section style={recordsGrid}>
+          <RecordSection
+            title="Shared Documents"
+            description="Contracts, certificates and other files shared by your employer."
+            emptyText="No additional documents have been shared yet."
+            records={sharedDocuments}
+            type="document"
+          />
+
           <RecordSection
             title="Confirmation of Employment"
             description="Employment confirmation letters saved to your employee records."
@@ -235,7 +246,7 @@ function RecordSection({
   description: string;
   emptyText: string;
   records: GenericRecord[];
-  type: "confirmation" | "disciplinary" | "hr";
+  type: "document" | "confirmation" | "disciplinary" | "hr";
 }) {
   return (
     <section style={sectionCard}>
@@ -272,7 +283,7 @@ function RecordCard({
   index,
 }: {
   record: GenericRecord;
-  type: "confirmation" | "disciplinary" | "hr";
+  type: "document" | "confirmation" | "disciplinary" | "hr";
   index: number;
 }) {
   const title = getRecordTitle(record, type, index);
@@ -310,10 +321,10 @@ function RecordCard({
 
 function getRecordTitle(
   record: GenericRecord,
-  type: "confirmation" | "disciplinary" | "hr",
+  type: "document" | "confirmation" | "disciplinary" | "hr",
   index: number
 ) {
-  if (type === "confirmation") {
+  if (type === "confirmation" || type === "document") {
     return record.document_name || `Confirmation of Employment ${index + 1}`;
   }
 

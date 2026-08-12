@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
 
-type RecordType = "confirmation" | "disciplinary" | "hr";
+type RecordType = "document" | "confirmation" | "disciplinary" | "hr";
 
 // These legacy HR rows vary by record category and are narrowed at use sites.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,6 +162,25 @@ export default function EmployeeHrRecordDetailPage() {
     printWindow.document.close();
   }
 
+  async function openStoredDocument(download = false) {
+    if (!record?.id || !record?.file_url) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setMessage("Your session has expired. Please sign in again.");
+      return;
+    }
+    const response = await fetch(
+      `/api/employee-documents/${encodeURIComponent(record.id)}${download ? "?download=1" : ""}`,
+      { headers: { Authorization: `Bearer ${session.access_token}` } }
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.url) {
+      setMessage(result.error || "Document could not be opened.");
+      return;
+    }
+    window.open(result.url, "_blank", "noopener,noreferrer");
+  }
+
   function businessName() {
     return (
       business?.trading_name ||
@@ -210,7 +229,7 @@ export default function EmployeeHrRecordDetailPage() {
   function documentTitle() {
     if (!record) return "HR Record";
 
-    if (recordType === "confirmation") {
+    if (recordType === "confirmation" || recordType === "document") {
       return record.document_name || "Confirmation of Employment";
     }
 
@@ -265,6 +284,8 @@ export default function EmployeeHrRecordDetailPage() {
   }
 
   const isConfirmation = recordType === "confirmation";
+  const isStoredDocument =
+    (recordType === "document" || isConfirmation) && Boolean(record.file_url);
 
   return (
     <main style={page}>
@@ -274,7 +295,14 @@ export default function EmployeeHrRecordDetailPage() {
              ← Back to HR Records
           </Link>
 
-          {isConfirmation && (
+          {isStoredDocument && (
+            <>
+              <button onClick={() => openStoredDocument(false)} style={secondaryButton}>View File</button>
+              <button onClick={() => openStoredDocument(true)} style={secondaryButton}>Download File</button>
+            </>
+          )}
+
+          {isConfirmation && !isStoredDocument && (
             <button onClick={handlePrint} style={secondaryButton}>
               Print / Download
             </button>
@@ -292,7 +320,11 @@ export default function EmployeeHrRecordDetailPage() {
         </section>
 
         <section style={recordCard}>
-          {isConfirmation ? (
+          {isStoredDocument ? (
+            <div style={messageCard}>
+              This secure file is ready to view or download using the buttons above.
+            </div>
+          ) : isConfirmation ? (
             <ConfirmationLetter
               refEl={letterRef}
               business={business}
@@ -545,6 +577,7 @@ function TextBlock({ title, value }: { title: string; value?: string | null }) {
 }
 
 function normaliseRecordType(value: string | null): RecordType {
+  if (value === "document") return "document";
   if (value === "disciplinary") return "disciplinary";
   if (value === "hr") return "hr";
   return "confirmation";

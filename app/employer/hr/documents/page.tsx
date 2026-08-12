@@ -7,6 +7,16 @@ import { supabase } from "@/app/lib/supabaseClient";
 import { Pagination } from "@/components/Pagination";
 
 const PAGE_SIZE = 10;
+const CONTRACT_FIELD_LABELS: Record<keyof ContractSuggestions, string> = {
+  first_name: "First name",
+  last_name: "Last name",
+  id_number: "ID number",
+  position: "Position",
+  employment_type: "Employment type",
+  start_date: "Start date",
+  basic_salary: "Basic salary",
+  salary_payment_date: "Salary payment date",
+};
 
 type Employee = {
   id: string;
@@ -21,6 +31,7 @@ type Employee = {
   employment_start_date?: string | null;
   date_started?: string | null;
   salary_payment_date?: string | null;
+  basic_salary?: number | null;
   [key: string]: unknown;
 };
 
@@ -65,6 +76,8 @@ export default function EmployeeDocumentsPage() {
   const [fileInputKey, setFileInputKey] = useState(0);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [contractSuggestions, setContractSuggestions] = useState<ContractSuggestions | null>(null);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -222,6 +235,59 @@ export default function EmployeeDocumentsPage() {
     setNotes("");
     setFile(null);
     setFileInputKey((current) => current + 1);
+    setContractSuggestions(null);
+  }
+
+  async function extractContractDetails() {
+    if (!employeeId || !file || documentCategory !== "Contract") {
+      setMessage("Select an employee, choose Contract, and attach a PDF or DOCX file first.");
+      return;
+    }
+    setExtracting(true);
+    setMessage("Reading contract details for your review...");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setMessage("Your session has expired. Please sign in again.");
+      setExtracting(false);
+      return;
+    }
+    const extractionForm = new FormData();
+    extractionForm.set("file", file);
+    extractionForm.set("employeeId", employeeId);
+    const response = await fetch("/api/employee-documents/extract", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: extractionForm,
+    });
+    const result = await response.json().catch(() => ({}));
+    setExtracting(false);
+    if (!response.ok) {
+      setContractSuggestions(null);
+      setMessage(result.error || "Contract details could not be extracted.");
+      return;
+    }
+    setContractSuggestions(result.suggestions);
+    setMessage("Contract details extracted. Review every field before applying it to the employee record.");
+  }
+
+  async function applyContractSuggestions() {
+    if (!employeeId || !contractSuggestions) return;
+    const entries = Object.entries(contractSuggestions).filter(([, value]) => String(value).trim());
+    if (entries.length === 0) {
+      setMessage("No reliable employee fields were found in this contract.");
+      return;
+    }
+    setSaving(true);
+    const updates: Record<string, string | number> = Object.fromEntries(entries);
+    if (updates.basic_salary) updates.basic_salary = Number(updates.basic_salary);
+    const { error } = await supabase.from("employees").update(updates).eq("id", employeeId);
+    setSaving(false);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setEmployees((items) => items.map((employee) => employee.id === employeeId ? { ...employee, ...updates } : employee));
+    setMessage("Reviewed contract details applied to the employee record. You can now save the original contract.");
   }
 
   function printLetter() {
@@ -361,10 +427,10 @@ export default function EmployeeDocumentsPage() {
     return !document.file_url && !!document.notes;
   }
 
-  async function openStoredDocument(document: DocumentRecord) {
+  async function openStoredDocument(document: DocumentRecord, download = false) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return setMessage("Your session has expired. Please log in again.");
-    const response = await fetch(`/api/employee-documents/${encodeURIComponent(document.id)}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+    const response = await fetch(`/api/employee-documents/${encodeURIComponent(document.id)}${download ? "?download=1" : ""}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.url) return setMessage(result.error || "Document could not be opened.");
     window.open(result.url, "_blank", "noopener,noreferrer");
@@ -607,6 +673,38 @@ export default function EmployeeDocumentsPage() {
                 />
               </div>
             </div>
+
+            {documentCategory === "Contract" && (
+              <div style={contractAssistBox}>
+                <div>
+                  <strong>Contract autofill</strong>
+                  <p style={smallText}>Extract suggested employee details from a text-based PDF or DOCX. Nothing changes until you review and apply the fields.</p>
+                </div>
+                <button style={outlineButton} onClick={extractContractDetails} disabled={extracting || saving}>
+                  {extracting ? "Reading contract..." : "Extract & Review"}
+                </button>
+              </div>
+            )}
+
+            {contractSuggestions && (
+              <div style={suggestionPanel}>
+                <div><strong>Review extracted employee details</strong><p style={smallText}>Correct or clear any field that should not update the employee profile.</p></div>
+                <div style={grid}>
+                  {(Object.keys(CONTRACT_FIELD_LABELS) as (keyof ContractSuggestions)[]).map((field) => (
+                    <label key={field} style={label}>
+                      {CONTRACT_FIELD_LABELS[field]}
+                      <input
+                        style={input}
+                        type={field === "start_date" ? "date" : field === "basic_salary" ? "number" : "text"}
+                        value={contractSuggestions[field]}
+                        onChange={(event) => setContractSuggestions((current) => current ? { ...current, [field]: event.target.value } : current)}
+                      />
+                    </label>
+                  ))}
+                </div>
+                <button style={button} onClick={applyContractSuggestions} disabled={saving}>Apply reviewed details</button>
+              </div>
+            )}
 
             <label style={label}>Notes</label>
 
@@ -1075,7 +1173,7 @@ export default function EmployeeDocumentsPage() {
                         <>
                           <button
                             type="button"
-                            onClick={() => openStoredDocument(document)}
+                            onClick={() => openStoredDocument(document, true)}
                             style={viewLink}
                           >
                             View
@@ -1442,4 +1540,37 @@ const disclaimer: CSSProperties = {
   padding: "12px",
   fontSize: "12px",
   lineHeight: 1.5,
+};
+
+const contractAssistBox: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "16px",
+  padding: "16px",
+  marginBottom: "16px",
+  border: "1px solid #99f6e4",
+  borderRadius: "12px",
+  background: "#f0fdfa",
+};
+
+const suggestionPanel: CSSProperties = {
+  display: "grid",
+  gap: "16px",
+  padding: "18px",
+  marginBottom: "16px",
+  border: "1px solid #cbd5e1",
+  borderRadius: "14px",
+  background: "#ffffff",
+};
+
+type ContractSuggestions = {
+  first_name: string;
+  last_name: string;
+  id_number: string;
+  position: string;
+  employment_type: string;
+  start_date: string;
+  basic_salary: string;
+  salary_payment_date: string;
 };
