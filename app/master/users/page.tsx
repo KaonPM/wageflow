@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
+import { Pagination } from "@/components/Pagination";
 
 type Business = {
   id: string;
@@ -31,6 +32,9 @@ export default function MasterUsersPage() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     fetchPageData();
@@ -91,6 +95,9 @@ export default function MasterUsersPage() {
 
     return { masterAdmins, employers, employees, linkedUsers };
   }, [users]);
+
+  const filteredUsers = useMemo(()=>users.filter((user)=>`${user.full_name||""} ${user.email||""} ${user.role||""} ${user.businesses?.business_name||""}`.toLowerCase().includes(search.toLowerCase())),[users,search]);
+  const totalPages=Math.max(1,Math.ceil(filteredUsers.length/pageSize)); const safePage=Math.min(currentPage,totalPages); const visibleUsers=filteredUsers.slice((safePage-1)*pageSize,safePage*pageSize);
 
   function updateLocal(id: string, field: keyof UserProfile, value: string) {
     setUsers((current) =>
@@ -177,6 +184,8 @@ export default function MasterUsersPage() {
           </button>
         </div>
 
+        <input style={select} placeholder="Search users by name, email, role or business" value={search} onChange={(event)=>{setSearch(event.target.value);setCurrentPage(1);}} />
+
         {message && <div style={notice}>{message}</div>}
 
         {loading ? (
@@ -193,6 +202,7 @@ export default function MasterUsersPage() {
             </span>
           </div>
         ) : (
+          <>
           <div style={tableWrap}>
             <table style={table}>
               <thead>
@@ -207,7 +217,7 @@ export default function MasterUsersPage() {
               </thead>
 
               <tbody>
-                {users.map((user) => (
+                {visibleUsers.map((user) => (
                   <tr key={user.id}>
                     <td style={td}>
                       <strong>{user.full_name || "Unnamed User"}</strong>
@@ -285,6 +295,8 @@ export default function MasterUsersPage() {
               </tbody>
             </table>
           </div>
+          <Pagination page={safePage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={filteredUsers.length} pageSize={pageSize}/>
+          </>
         )}
       </section>
     </main>

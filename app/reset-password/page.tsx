@@ -45,11 +45,11 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) await supabase.from("profiles").update({ must_change_password: false }).eq("id", user.id);
     setMessage("Password updated successfully. Redirecting to login...");
-
-    setTimeout(() => {
-      router.push("/login");
-    }, 1500);
+    await supabase.auth.signOut();
+    setTimeout(() => router.push("/login"), 1000);
   }
 
   return (

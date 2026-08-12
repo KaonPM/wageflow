@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "crypto";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.SUPABASE_SERVICE_ROLE_KEY as string
-);
-
-function generateTempPassword() {
-  return `Wf@${crypto.randomBytes(4).toString("hex")}9A`;
-}
+import { getSupabaseAdmin, requireRole } from "../../_lib/authorization";
 
 async function sendLoginEmail({
   to,
   name,
-  password,
+  setupUrl,
 }: {
   to: string;
   name: string;
-  password: string;
+  setupUrl: string;
 }) {
   return fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -39,12 +30,9 @@ async function sendLoginEmail({
 
           <p>Your WageFlow employer account has been approved and created successfully.</p>
 
-          <p>You can now log in using the details below:</p>
-
-          <p><strong>Login email:</strong> ${to}</p>
-          <p><strong>Temporary password:</strong> ${password}</p>
-
-          <p>Please log in and change your password immediately after signing in.</p>
+          <p>Your login email is <strong>${to}</strong>.</p>
+          <p><a href="${setupUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Set your secure password</a></p>
+          <p>This one-time security link expires. Resending a setup link does not change your current password.</p>
 
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
 
@@ -77,6 +65,9 @@ async function sendLoginEmail({
 
 export async function POST(req: Request) {
   try {
+    const access = await requireRole(req, ["master", "master_admin"]);
+    if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
+    const supabaseAdmin = getSupabaseAdmin();
     const body = await req.json();
 
     const rawBusinessId = body.businessId || body.business_id || body.id;
@@ -119,8 +110,6 @@ export async function POST(req: Request) {
       businessId = businessRecord.id;
     }
 
-    const tempPassword = generateTempPassword();
-
     let userId: string | null = null;
 
     const { data: usersData, error: usersError } =
@@ -138,25 +127,11 @@ export async function POST(req: Request) {
     );
 
     if (existingUser?.id) {
-      const { error: updateUserError } =
-        await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
-          password: tempPassword,
-          email_confirm: true,
-        });
-
-      if (updateUserError) {
-        return NextResponse.json(
-          { error: updateUserError.message },
-          { status: 500 }
-        );
-      }
-
       userId = existingUser.id;
     } else {
       const { data: authData, error: authError } =
         await supabaseAdmin.auth.admin.createUser({
           email,
-          password: tempPassword,
           email_confirm: true,
         });
 
@@ -207,22 +182,26 @@ export async function POST(req: Request) {
       );
     }
 
-    await sendLoginEmail({
+    const redirectTo = `${new URL(req.url).origin}/reset-password`;
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({ type: "recovery", email, options: { redirectTo } });
+    if (linkError || !linkData.properties?.action_link) return NextResponse.json({ error: linkError?.message || "Could not create a secure setup link." }, { status: 500 });
+
+    const emailResponse = await sendLoginEmail({
       to: email,
       name: businessName,
-      password: tempPassword,
+      setupUrl: linkData.properties.action_link,
     });
 
-    return NextResponse.json({
-      success: true,
-    });
-  } catch (error: any) {
+    let notificationSent=emailResponse.ok;
+    if(!notificationSent){const url=process.env.NEXT_PUBLIC_SUPABASE_URL;const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;if(url&&anon){const{error}=await createClient(url,anon).auth.resetPasswordForEmail(email,{redirectTo});notificationSent=!error;if(error)console.error("Supabase employer setup email failed",error.message);}}
+    return NextResponse.json({ success: true, notificationSent });
+  } catch (error: unknown) {
     console.error("CREATE EMPLOYER LOGIN ERROR:", error);
 
     return NextResponse.json(
       {
         error:
-          error?.message ||
+          (error instanceof Error ? error.message : null) ||
           "Something went wrong while creating employer login.",
       },
       { status: 500 }

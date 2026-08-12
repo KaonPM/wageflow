@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { showAppMessage } from "@/app/lib/appMessage";
+import { Pagination } from "@/components/Pagination";
 
 type Request = {
   id: string;
@@ -22,6 +23,7 @@ type Request = {
 export default function WageFlowRequestsPage() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage,setCurrentPage]=useState(1); const pageSize=10;
 
   useEffect(() => {
     fetchRequests();
@@ -54,10 +56,13 @@ export default function WageFlowRequestsPage() {
   }
 
   async function createEmployerLogin(request: Request, businessId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { showAppMessage("Your session has expired. Please sign in again."); return false; }
     const loginResponse = await fetch("/api/contact/create-employer-login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         businessId,
@@ -211,6 +216,8 @@ export default function WageFlowRequestsPage() {
     fetchRequests();
   }
 
+  const totalPages=Math.max(1,Math.ceil(requests.length/pageSize));const safePage=Math.min(currentPage,totalPages);const visibleRequests=requests.slice((safePage-1)*pageSize,safePage*pageSize);
+
   return (
     <main style={page}>
       <div style={topBar}>
@@ -247,7 +254,7 @@ export default function WageFlowRequestsPage() {
               </thead>
 
               <tbody>
-                {requests.map((request) => (
+                {visibleRequests.map((request) => (
                   <tr key={request.id}>
                     <td style={td}>
                       <strong>{request.business_name}</strong>
@@ -304,6 +311,7 @@ export default function WageFlowRequestsPage() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={safePage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={requests.length} pageSize={pageSize}/>
           </div>
         )}
       </section>

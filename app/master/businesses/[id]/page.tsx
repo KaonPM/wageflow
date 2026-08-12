@@ -34,6 +34,7 @@ export default function ManageBusinessPage() {
   const [resendingEmail, setResendingEmail] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     fetchBusiness();
   }, []);
 
@@ -153,12 +154,15 @@ export default function ManageBusinessPage() {
   setResendingEmail(true);
 
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setResendingEmail(false); showAppMessage("Your session has expired. Please sign in again."); return; }
     const response = await fetch(
       "/api/contact/create-employer-login",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
 
         body: JSON.stringify({

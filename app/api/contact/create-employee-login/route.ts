@@ -1,45 +1,36 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "crypto";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.SUPABASE_SERVICE_ROLE_KEY as string
-);
-
-function generateTempPassword() {
-  return `Wf@${crypto.randomBytes(4).toString("hex")}7E`;
-}
+import { getSupabaseAdmin, requireRole } from "../../_lib/authorization";
 
 export async function POST(req: Request) {
   try {
-    const { email, name } = await req.json();
+    const access = await requireRole(req, ["employer"]);
+    if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
+    const supabaseAdmin = getSupabaseAdmin();
+    const { email, name, employeeId } = await req.json();
 
-    if (!email || !name) {
+    if (!email || !name || !employeeId || !access.profile.business_id) {
       return NextResponse.json(
-        { error: "Name and email are required." },
+        { error: "Employee, name and email are required." },
         { status: 400 }
       );
     }
 
-    const temporaryPassword = generateTempPassword();
+    const { data: employee } = await supabaseAdmin.from("employees").select("id, business_id, profile_id").eq("id", employeeId).eq("business_id", access.profile.business_id).single();
+    if (!employee) return NextResponse.json({ error: "Employee not found for this business." }, { status: 404 });
+    if (employee.profile_id) return NextResponse.json({ error: "This employee already has a login account." }, { status: 409 });
 
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email,
-        password: temporaryPassword,
-        email_confirm: true,
-      });
-
-    if (userError) {
-      return NextResponse.json({ error: userError.message }, { status: 500 });
-    }
-
-    const userId = userData.user.id;
+    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+    if (usersError) return NextResponse.json({ error: usersError.message }, { status: 500 });
+    const existingUser=usersData.users.find((user)=>user.email?.toLowerCase()===String(email).toLowerCase());
+    let userId=existingUser?.id;
+    if(!userId){const{data:userData,error:userError}=await supabaseAdmin.auth.admin.createUser({email,email_confirm:true});if(userError||!userData.user)return NextResponse.json({error:userError?.message||"Could not create employee account."},{status:500});userId=userData.user.id;}
 
     const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
       id: userId,
+      email,
       role: "employee",
+      business_id: access.profile.business_id,
       must_change_password: true,
     });
 
@@ -47,6 +38,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: profileError.message }, { status: 500 });
     }
 
+    const { error: employeeLinkError } = await supabaseAdmin.from("employees").update({ profile_id: userId }).eq("id", employeeId).eq("business_id", access.profile.business_id);
+    if (employeeLinkError) return NextResponse.json({ error: employeeLinkError.message }, { status: 500 });
+
+    const redirectTo=`${new URL(req.url).origin}/reset-password`;
+    const{data:linkData,error:linkError}=await supabaseAdmin.auth.admin.generateLink({type:"recovery",email,options:{redirectTo}});
+    if(linkError||!linkData.properties?.action_link)return NextResponse.json({error:linkError?.message||"Could not create a secure setup link."},{status:500});
     const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
@@ -66,10 +63,9 @@ export async function POST(req: Request) {
 
             <p>Your WageFlow employee account has been activated.</p>
 
-            <p><strong>Login email:</strong> ${email}</p>
-            <p><strong>Temporary password:</strong> ${temporaryPassword}</p>
-
-            <p>Please log in and change your password immediately after signing in.</p>
+            <p>Your login email is <strong>${email}</strong>.</p>
+            <p><a href="${linkData.properties.action_link}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Set your secure password</a></p>
+            <p>This one-time security link expires. Ask your employer to resend it if necessary.</p>
 
             <p>
               Kind regards,<br />
@@ -82,11 +78,12 @@ export async function POST(req: Request) {
     });
 
     if (!emailResponse.ok) {
-      const error = await emailResponse.text();
-      return NextResponse.json({ error }, { status: 500 });
+      console.error("Employee login email failed", emailResponse.status, await emailResponse.text());
+      const url=process.env.NEXT_PUBLIC_SUPABASE_URL;const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;let notificationSent=false;if(url&&anon){const{error}=await createClient(url,anon).auth.resetPasswordForEmail(email,{redirectTo});notificationSent=!error;if(error)console.error("Supabase employee setup email failed",error.message);}
+      return NextResponse.json({ success: true, userId, notificationSent });
     }
 
-    return NextResponse.json({ success: true, userId });
+    return NextResponse.json({ success: true, userId, notificationSent: true });
   } catch {
     return NextResponse.json(
       { error: "Something went wrong." },

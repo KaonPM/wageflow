@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
+import { Pagination } from "@/components/Pagination";
 
 type Employee = {
   id: string;
@@ -76,6 +77,8 @@ export default function EmployerEmployeesPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
 
   useEffect(() => {
     fetchEmployees();
@@ -180,14 +183,18 @@ export default function EmployerEmployeesPage() {
         return;
       }
 
-      const employeeLoginResponse = await fetch("/api/create-employee-login", {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setMessage("Your session has expired. Please sign in again."); setSaving(false); return; }
+      const employeeLoginResponse = await fetch("/api/contact/create-employee-login", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
+    Authorization: `Bearer ${session.access_token}`,
   },
   body: JSON.stringify({
     email: form.email,
     name: `${form.first_name} ${form.last_name}`.trim(),
+    employeeId: editingId,
   }),
 });
 
@@ -285,7 +292,9 @@ if (!employeeLoginResponse.ok) {
     });
   }, [employees, search, statusFilter]);
 
-  const visibleEmployees = filteredEmployees.slice(0, 5);
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const visibleEmployees = filteredEmployees.slice((safePage-1)*pageSize,safePage*pageSize);
 
   const activeEmployees = employees.filter(
     (employee) => employee.employment_status === "active"
@@ -332,13 +341,13 @@ if (!employeeLoginResponse.ok) {
               style={filterInput}
               placeholder="Search employee"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             />
 
             <select
               style={filterInput}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
             >
               <option value="all">All statuses</option>
               <option value="active">Active</option>
@@ -423,12 +432,7 @@ if (!employeeLoginResponse.ok) {
               </table>
             </div>
 
-            {filteredEmployees.length > 5 && (
-              <p style={smallNote}>
-                Showing 5 of {filteredEmployees.length} employees. Use search or
-                filters to narrow the list.
-              </p>
-            )}
+            <Pagination page={safePage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={filteredEmployees.length} pageSize={pageSize}/>
           </>
         )}
       </section>
@@ -1018,12 +1022,6 @@ const td = {
 };
 
 const muted = {
-  color: "#64748b",
-  fontSize: "13px",
-};
-
-const smallNote = {
-  marginTop: "12px",
   color: "#64748b",
   fontSize: "13px",
 };
