@@ -66,3 +66,45 @@ body {
 .app-state-actions button, .app-state-actions a { border: 1px solid #0f766e; border-radius: 10px; padding: 11px 16px; background: #0f766e; color: #fff; font-weight: 800; text-decoration: none; cursor: pointer; }
 .app-loading-mark { width: 42px; height: 42px; margin: auto; border: 4px solid #ccfbf1; border-top-color: #0f766e; border-radius: 50%; animation: app-spin .8s linear infinite; }
 @keyframes app-spin { to { transform: rotate(360deg); } }
+
+/* Master platform shell */
+.master-shell { min-height: 100vh; background: #f4f7fb; color: #0f172a; --master-sidebar: 268px; }
+.master-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 40; width: var(--master-sidebar); display: flex; flex-direction: column; padding: 20px 16px; background: #073f3a; color: #fff; box-shadow: 8px 0 30px rgba(15,23,42,.12); transition: width .2s ease, transform .2s ease; }
+.master-brand { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 4px 14px; border-bottom: 1px solid rgba(255,255,255,.13); }
+.master-brand img { width: 148px; height: auto; padding: 7px; border-radius: 10px; background: #fff; object-fit: contain; }
+.master-collapse { width: 30px; height: 30px; border: 1px solid rgba(255,255,255,.28); border-radius: 8px; background: transparent; color: #fff; font-size: 25px; cursor: pointer; }
+.master-platform-label { margin: 18px 10px 8px; color: #9ddbd1; font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.master-nav { display: grid; gap: 5px; }
+.master-nav-group { margin: 20px 10px 7px; color: #9ddbd1; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.master-nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 12px; border-radius: 11px; color: #d7f3ee; text-decoration: none; font-size: 14px; font-weight: 700; }
+.master-nav-link:hover { background: rgba(255,255,255,.09); color: #fff; }
+.master-nav-active { background: #fff !important; color: #07645b !important; box-shadow: 0 8px 20px rgba(0,0,0,.14); }
+.master-nav-icon { width: 20px; height: 20px; flex: 0 0 20px; }
+.master-privacy-note { display: grid; gap: 6px; margin: auto 4px 14px; padding: 13px; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: rgba(255,255,255,.07); color: #d7f3ee; font-size: 11px; line-height: 1.45; }
+.master-privacy-note strong { color: #fff; font-size: 12px; }
+.master-logout { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border: 0; border-radius: 11px; background: transparent; color: #fff; font-weight: 800; cursor: pointer; }
+.master-logout:hover { background: rgba(255,255,255,.09); }
+.master-main { min-height: 100vh; margin-left: var(--master-sidebar); transition: margin-left .2s ease; }
+.master-topbar { position: sticky; top: 0; z-index: 30; min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 32px; border-bottom: 1px solid #dce6ee; background: rgba(255,255,255,.96); backdrop-filter: blur(12px); }
+.master-topbar > div { display: grid; gap: 3px; }
+.master-topbar strong { color: #123c3a; font-size: 15px; }
+.master-topbar span { color: #64748b; font-size: 12px; }
+.master-site-link { color: #07645b; font-size: 13px; font-weight: 800; text-decoration: none; }
+.master-content > main { min-height: calc(100vh - 70px) !important; padding: 32px !important; background: transparent !important; }
+.master-mobile-menu { display: none; border: 0; background: transparent; color: #073f3a; font-size: 24px; }
+.master-overlay { display: none; }
+.master-shell-collapsed { --master-sidebar: 78px; }
+.master-shell-collapsed .master-brand img, .master-shell-collapsed .master-platform-label, .master-shell-collapsed .master-nav-link span, .master-shell-collapsed .master-nav-group, .master-shell-collapsed .master-privacy-note, .master-shell-collapsed .master-logout span { display: none; }
+.master-shell-collapsed .master-brand { justify-content: center; }
+.master-shell-collapsed .master-collapse { transform: rotate(180deg); }
+.master-shell-collapsed .master-nav-link, .master-shell-collapsed .master-logout { justify-content: center; padding-inline: 8px; }
+@media (max-width: 820px) {
+  .master-sidebar { transform: translateX(-105%); width: 268px; }
+  .master-sidebar-open { transform: translateX(0); }
+  .master-main { margin-left: 0 !important; }
+  .master-mobile-menu { display: block; }
+  .master-overlay { display: block; position: fixed; inset: 0; z-index: 35; border: 0; background: rgba(15,23,42,.48); }
+  .master-content > main { padding: 20px !important; }
+  .master-topbar { padding: 10px 18px; }
+  .master-site-link { display: none; }
+}

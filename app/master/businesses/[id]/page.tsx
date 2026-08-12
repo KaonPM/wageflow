@@ -20,6 +20,7 @@ type Business = {
   selected_package: string | null;
   number_of_employees: number | null;
   status: string | null;
+  employer_id: string | null;
 };
 
 export default function ManageBusinessPage() {
@@ -209,9 +210,19 @@ export default function ManageBusinessPage() {
         ? "suspend"
         : "activate";
 
-    const confirmed = confirm(
+    let confirmed = confirm(
       `Are you sure you want to ${actionLabel} ${business.business_name}?`
     );
+
+    if (confirmed && status === "deleted") {
+      const typedName = prompt(
+        `This keeps historical records but removes the business from normal views and blocks employer access. Type "${business.business_name}" to continue.`
+      );
+      confirmed = typedName === business.business_name;
+      if (!confirmed && typedName !== null) {
+        showAppMessage("Business name did not match. Nothing was deleted.");
+      }
+    }
 
     if (!confirmed) return;
 
@@ -247,12 +258,24 @@ export default function ManageBusinessPage() {
       return;
     }
 
-    showAppMessage(`Business status updated to ${status}.`);
+    if (business.employer_id) {
+      const employerAccessStatus = status === "active" ? "active" : "suspended";
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ access_status: employerAccessStatus })
+        .eq("id", business.employer_id);
 
-    if (status === "deleted") {
-      router.push("/master/businesses");
-      return;
+      if (profileError) {
+        await supabase
+          .from("businesses")
+          .update({ status: business.status || "active", deleted_at: null })
+          .eq("id", business.id);
+        showAppMessage(`Business access was not changed: ${profileError.message}`);
+        return;
+      }
     }
+
+    showAppMessage(`Business status updated to ${status}.`);
 
     setBusiness({
       ...business,

@@ -5,401 +5,85 @@ import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 
 type DashboardStats = {
-  businesses: number;
+  activeBusinesses: number;
   activeSubscriptions: number;
-  employers: number;
-  employees: number;
+  suspendedBusinesses: number;
   pendingRequests: number;
 };
 
+const emptyStats: DashboardStats = {
+  activeBusinesses: 0,
+  activeSubscriptions: 0,
+  suspendedBusinesses: 0,
+  pendingRequests: 0,
+};
+
 export default function MasterDashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    businesses: 0,
-    activeSubscriptions: 0,
-    employers: 0,
-    employees: 0,
-    pendingRequests: 0,
-  });
-
+  const [stats, setStats] = useState(emptyStats);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  const [error, setError] = useState("");
 
   async function fetchStats() {
     setLoading(true);
-
-    const [
-      businessesResult,
-      subscriptionsResult,
-      employersResult,
-      employeesResult,
-      requestsResult,
-    ] = await Promise.all([
-      supabase.from("businesses").select("*", { count: "exact", head: true }),
-
-      supabase
-        .from("subscriptions")
-        .select("*", { count: "exact", head: true })
-        .eq("subscription_status", "active"),
-
-      supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true })
-        .eq("role", "employer"),
-
-      supabase.from("employees").select("*", { count: "exact", head: true }),
-
-      supabase
-        .from("wageflow_setup_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Pending"),
+    setError("");
+    const [businesses, subscriptions, suspended, requests] = await Promise.all([
+      supabase.from("businesses").select("id", { count: "exact", head: true }).eq("status", "active"),
+      supabase.from("subscriptions").select("id", { count: "exact", head: true }).eq("subscription_status", "active"),
+      supabase.from("businesses").select("id", { count: "exact", head: true }).in("status", ["suspended", "archived"]),
+      supabase.from("wageflow_setup_requests").select("id", { count: "exact", head: true }).ilike("status", "pending"),
     ]);
-
+    const firstError = [businesses, subscriptions, suspended, requests].find((result) => result.error)?.error;
+    if (firstError) setError(firstError.message);
     setStats({
-      businesses: businessesResult.count ?? 0,
-      activeSubscriptions: subscriptionsResult.count ?? 0,
-      employers: employersResult.count ?? 0,
-      employees: employeesResult.count ?? 0,
-      pendingRequests: requestsResult.count ?? 0,
+      activeBusinesses: businesses.count ?? 0,
+      activeSubscriptions: subscriptions.count ?? 0,
+      suspendedBusinesses: suspended.count ?? 0,
+      pendingRequests: requests.count ?? 0,
     });
-
     setLoading(false);
   }
 
-  return (
-    <main style={page}>
-      <section style={hero}>
-        <div style={heroTop}>
-          <div>
-            <p style={eyebrow}>WageFlow Admin</p>
+  useEffect(() => { fetchStats(); }, []);
 
-            <h1 style={title}>Master Dashboard</h1>
+  return <main style={page}>
+    <section style={header}>
+      <div><p style={eyebrow}>Platform administration</p><h1 style={title}>Master Overview</h1><p style={subtitle}>Monitor client onboarding, billing and access without opening employee, payroll or payslip records.</p></div>
+      <button onClick={fetchStats} style={refreshButton}>Refresh overview</button>
+    </section>
 
-            <p style={subtitle}>
-              Manage WageFlow businesses, setup requests, subscriptions and
-              users from one central workspace.
-            </p>
-          </div>
+    {error && <div style={notice}>{error}</div>}
+    <section style={statsGrid}>
+      <StatCard label="Active businesses" value={loading ? "..." : String(stats.activeBusinesses)} note="Client workspaces currently enabled" />
+      <StatCard label="Active subscriptions" value={loading ? "..." : String(stats.activeSubscriptions)} note="Current active billing records" />
+      <StatCard label="Pending setup" value={loading ? "..." : String(stats.pendingRequests)} note="Requests awaiting onboarding" />
+      <StatCard label="Access paused" value={loading ? "..." : String(stats.suspendedBusinesses)} note="Suspended or archived clients" />
+    </section>
 
-          <div style={topActions}>
-            <Link href="/" style={homeButton}>
-              Home
-            </Link>
-
-            <span style={{ color: "#94a3b8" }}>|</span>
-
-            <button onClick={fetchStats} style={refreshButton}>
-              Refresh Dashboard
-            </button>
-
-            <span style={{ color: "#94a3b8" }}>|</span>
-
-            <Link href="/login" style={logoutButton}>
-              Logout
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section style={statsGrid}>
-        <StatCard
-          label="Businesses"
-          value={loading ? "..." : String(stats.businesses)}
-          note="Registered client businesses"
-        />
-
-        <StatCard
-          label="Active Subscriptions"
-          value={loading ? "..." : String(stats.activeSubscriptions)}
-          note="Currently active billing records"
-        />
-
-        <StatCard
-          label="Employers"
-          value={loading ? "..." : String(stats.employers)}
-          note="Employer user accounts"
-        />
-
-        <StatCard
-          label="Employees"
-          value={loading ? "..." : String(stats.employees)}
-          note="Employee records captured"
-        />
-
-        <StatCard
-          label="Pending Requests"
-          value={loading ? "..." : String(stats.pendingRequests)}
-          note="Businesses awaiting setup"
-        />
-      </section>
-
-      <section style={grid}>
-        <DashboardCard
-          title="Businesses"
-          description="View, edit and manage WageFlow client businesses."
-          href="/master/businesses"
-          tag="Client Records"
-        />
-
-        <DashboardCard
-          title="WageFlow Requests"
-          description="Approve pending businesses and complete onboarding."
-          href="/master/wageflow-requests"
-          tag="Onboarding"
-        />
-
-        <DashboardCard
-          title="Subscriptions"
-          description="Change plans, payment status, setup fees and billing records."
-          href="/master/subscriptions"
-          tag="Billing"
-        />
-
-        <DashboardCard
-          title="Users"
-          description="Manage employer and employee access across WageFlow."
-          href="/master/users"
-          tag="Access Control"
-        />
-      </section>
-    </main>
-  );
+    <section style={sectionHeader}><div><h2 style={sectionTitle}>Administration workspace</h2><p style={sectionText}>Only platform-level client metadata is shown here.</p></div></section>
+    <section style={grid}>
+      <DashboardCard title="Setup Requests" description="Review new client requests and complete controlled onboarding." href="/master/wageflow-requests" tag="Onboarding" />
+      <DashboardCard title="Businesses" description="Manage client identity, branding and lifecycle access." href="/master/businesses" tag="Client Admin" />
+      <DashboardCard title="Billing" description="Manage plans, fees, payment state and subscription access." href="/master/subscriptions" tag="Finance" />
+      <DashboardCard title="User Access" description="Review roles, account status and business assignments." href="/master/users" tag="Security" />
+    </section>
+  </main>;
 }
 
-function StatCard({
-  label,
-  value,
-  note,
-}: {
-  label: string;
-  value: string;
-  note: string;
-}) {
-  return (
-    <article style={statCard}>
-      <p style={statLabel}>{label}</p>
-      <strong style={statValue}>{value}</strong>
-      <span style={statNote}>{note}</span>
-    </article>
-  );
-}
+function StatCard({label,value,note}:{label:string;value:string;note:string}) { return <article style={statCard}><span style={statLabel}>{label}</span><strong style={statValue}>{value}</strong><small style={statNote}>{note}</small></article>; }
+function DashboardCard({title,description,href,tag}:{title:string;description:string;href:string;tag:string}) { return <Link href={href} style={cardLink}><article style={card}><span style={tagStyle}>{tag}</span><h2 style={cardTitle}>{title}</h2><p style={cardText}>{description}</p><span style={openLink}>Open workspace <span aria-hidden="true">→</span></span></article></Link>; }
 
-function DashboardCard({
-  title,
-  description,
-  href,
-  tag,
-}: {
-  title: string;
-  description: string;
-  href: string;
-  tag: string;
-}) {
-  return (
-    <Link href={href} style={cardLink}>
-      <article style={card}>
-        <div style={cardTop}>
-          <span style={tagStyle}>{tag}</span>
-        </div>
-
-        <h2 style={cardTitle}>{title}</h2>
-        <p style={cardText}>{description}</p>
-
-        <div style={cardFooter}>
-          <span style={openPill}>Open</span>
-        </div>
-      </article>
-    </Link>
-  );
-}
-
-const page = {
-  minHeight: "100vh",
-  padding: "38px",
-  fontFamily: "Arial, sans-serif",
-  background: "#f4f8fb",
-  color: "#0f172a",
-};
-
-const hero = {
-  marginBottom: "28px",
-};
-
-const heroTop = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: "20px",
-  flexWrap: "wrap" as const,
-};
-
-const eyebrow = {
-  color: "#0f766e",
-  fontWeight: 800,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  fontSize: "12px",
-  marginBottom: "8px",
-};
-
-const title = {
-  fontSize: "34px",
-  color: "#0f766e",
-  margin: "0 0 10px",
-  fontWeight: 900,
-};
-
-const subtitle = {
-  maxWidth: "760px",
-  color: "#64748b",
-  fontSize: "15px",
-  lineHeight: 1.6,
-  margin: 0,
-};
-
-const topActions = {
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-  fontSize: "14px",
-  fontWeight: 500,
-};
-
-const homeButton = {
-  background: "none",
-  border: "none",
-  padding: 0,
-  color: "#1f4f4f",
-  textDecoration: "underline",
-  fontSize: "14px",
-  fontWeight: 500,
-  cursor: "pointer",
-};
-
-const refreshButton = {
-  background: "none",
-  border: "none",
-  padding: 0,
-  color: "#1f4f4f",
-  textDecoration: "underline",
-  fontSize: "14px",
-  fontWeight: 500,
-  cursor: "pointer",
-};
-
-const logoutButton = {
-  background: "none",
-  border: "none",
-  padding: 0,
-  color: "#333",
-  textDecoration: "none",
-  fontSize: "14px",
-  fontWeight: 500,
-  cursor: "pointer",
-  boxShadow: "none",
-};
-
-const statsGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-  gap: "16px",
-  marginBottom: "28px",
-};
-
-const statCard = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
-  borderRadius: "18px",
-  padding: "20px",
-  boxShadow: "0 10px 26px rgba(15, 23, 42, 0.05)",
-};
-
-const statLabel = {
-  margin: "0 0 8px",
-  color: "#64748b",
-  fontSize: "12px",
-  fontWeight: 800,
-  textTransform: "uppercase" as const,
-};
-
-const statValue = {
-  display: "block",
-  color: "#0f766e",
-  fontSize: "28px",
-  marginBottom: "6px",
-};
-
-const statNote = {
-  color: "#64748b",
-  fontSize: "13px",
-};
-
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-  gap: "20px",
-};
-
-const cardLink = {
-  textDecoration: "none",
-  color: "inherit",
-};
-
-const card = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
-  borderRadius: "20px",
-  padding: "22px",
-  boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
-  cursor: "pointer",
-};
-
-const cardTop = {
-  display: "flex",
-  justifyContent: "flex-end",
-  alignItems: "center",
-  marginBottom: "20px",
-};
-
-const tagStyle = {
-  background: "#fff7ed",
-  color: "#c2410c",
-  padding: "7px 10px",
-  borderRadius: "999px",
-  fontSize: "12px",
-  fontWeight: 800,
-};
-
-const cardTitle = {
-  margin: "0 0 10px",
-  fontSize: "20px",
-  color: "#0f172a",
-};
-
-const cardText = {
-  color: "#64748b",
-  lineHeight: 1.6,
-  fontSize: "14px",
-  minHeight: "64px",
-};
-
-const cardFooter = {
-  marginTop: "18px",
-  display: "flex",
-  justifyContent: "flex-start",
-  alignItems: "center",
-};
-
-const openPill = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "#ecfeff",
-  color: "#0f766e",
-  border: "1px solid #99f6e4",
-  borderRadius: "999px",
-  padding: "8px 16px",
-  fontWeight: 900,
-};
+const page={minHeight:"100vh",padding:38,fontFamily:"Arial, sans-serif",background:"#f4f8fb",color:"#0f172a"};
+const header={display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:20,flexWrap:"wrap" as const,marginBottom:26};
+const eyebrow={margin:"0 0 7px",color:"#b7791f",fontWeight:900,textTransform:"uppercase" as const,letterSpacing:".09em",fontSize:11};
+const title={margin:"0 0 9px",fontSize:34,color:"#0b6158",fontWeight:900};
+const subtitle={margin:0,maxWidth:760,color:"#64748b",lineHeight:1.6};
+const refreshButton={border:"1px solid #0f766e",borderRadius:10,padding:"10px 16px",background:"#fff",color:"#0f766e",fontWeight:800,cursor:"pointer"};
+const notice={padding:12,marginBottom:18,borderRadius:10,background:"#fff7ed",color:"#9a3412",fontWeight:700,fontSize:13};
+const statsGrid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:15,marginBottom:28};
+const statCard={display:"grid",gap:7,padding:19,border:"1px solid #dfe7ed",borderRadius:16,background:"#fff",boxShadow:"0 8px 24px rgba(15,23,42,.04)"};
+const statLabel={color:"#64748b",fontSize:11,fontWeight:900,textTransform:"uppercase" as const};const statValue={color:"#0b6158",fontSize:27};const statNote={color:"#94a3b8",fontSize:12};
+const sectionHeader={display:"flex",justifyContent:"space-between",marginBottom:14};const sectionTitle={margin:"0 0 5px",fontSize:20};const sectionText={margin:0,color:"#64748b",fontSize:13};
+const grid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:16};const cardLink={textDecoration:"none",color:"inherit"};
+const card={height:"100%",boxSizing:"border-box" as const,padding:21,border:"1px solid #dfe7ed",borderRadius:17,background:"#fff",boxShadow:"0 10px 28px rgba(15,23,42,.045)"};
+const tagStyle={display:"inline-block",marginBottom:25,padding:"6px 10px",borderRadius:999,background:"#fff7ed",color:"#b45309",fontSize:11,fontWeight:900,textTransform:"uppercase" as const};
+const cardTitle={margin:"0 0 9px",fontSize:19};const cardText={minHeight:64,margin:"0 0 18px",color:"#64748b",lineHeight:1.55,fontSize:13};const openLink={color:"#0f766e",fontSize:13,fontWeight:900};

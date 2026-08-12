@@ -26,6 +26,7 @@ export default function MasterBusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [lifecycleFilter, setLifecycleFilter] = useState("current");
   const [pageNumber, setPageNumber] = useState(1);
 
   useEffect(() => {
@@ -38,7 +39,6 @@ export default function MasterBusinessesPage() {
     const { data, error } = await supabase
       .from("businesses")
       .select("*")
-      .neq("status", "deleted")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -52,10 +52,18 @@ export default function MasterBusinessesPage() {
   }
 
   const filteredBusinesses = useMemo(() => {
-    return businesses.filter((business) =>
-      business.business_name.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [businesses, search]);
+    return businesses.filter((business) => {
+      const matchesSearch = business.business_name
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      const matchesLifecycle =
+        lifecycleFilter === "all" ||
+        (lifecycleFilter === "deleted"
+          ? business.status === "deleted"
+          : business.status !== "deleted");
+      return matchesSearch && matchesLifecycle;
+    });
+  }, [businesses, search, lifecycleFilter]);
 
   const totalPages = Math.max(
     1,
@@ -71,6 +79,7 @@ export default function MasterBusinessesPage() {
     if (status === "active") return "Active";
     if (status === "suspended") return "Suspended";
     if (status === "archived") return "Archived";
+    if (status === "deleted") return "Deleted";
     return "Active";
   }
 
@@ -87,6 +96,10 @@ export default function MasterBusinessesPage() {
       return { ...badge, background: "#e0f2fe", color: "#075985" };
     }
 
+    if (status === "deleted") {
+      return { ...badge, background: "#fee2e2", color: "#991b1b" };
+    }
+
     return { ...badge, background: "#f1f5f9", color: "#475569" };
   }
 
@@ -100,9 +113,7 @@ export default function MasterBusinessesPage() {
           </p>
         </div>
 
-        <Link href="/master" style={backButton}>
-          Back to Dashboard
-        </Link>
+        <button onClick={fetchBusinesses} style={refreshButton}>Refresh</button>
       </div>
 
       <section style={toolbar}>
@@ -115,10 +126,16 @@ export default function MasterBusinessesPage() {
             setPageNumber(1);
           }}
         />
-
-        <button onClick={fetchBusinesses} style={refreshButton}>
-          Refresh
-        </button>
+        <select
+          style={filterSelect}
+          value={lifecycleFilter}
+          onChange={(e) => { setLifecycleFilter(e.target.value); setPageNumber(1); }}
+          aria-label="Filter businesses by lifecycle"
+        >
+          <option value="current">Current businesses</option>
+          <option value="deleted">Deleted businesses</option>
+          <option value="all">All businesses</option>
+        </select>
       </section>
 
       <section style={card}>
@@ -194,16 +211,6 @@ const title = {
 const subtitle = {
   color: "#486581",
   marginTop: 8,
-};
-
-const backButton = {
-  background: "#0f766e",
-  color: "#ffffff",
-  textDecoration: "none",
-  padding: "10px 16px",
-  borderRadius: 999,
-  fontWeight: 800,
-  fontSize: 14,
 };
 
 const toolbar = {
@@ -300,4 +307,12 @@ const manageButton = {
 
 const muted = {
   color: "#64748b",
+};
+
+const filterSelect = {
+  minWidth: 190,
+  padding: 13,
+  borderRadius: 12,
+  border: "1px solid #bcccdc",
+  background: "#ffffff",
 };
