@@ -14,11 +14,22 @@ const navigation = [
   { href: "/master/users", label: "User Access", icon: "users", group: "Platform" },
 ];
 
+const sections = [
+  { prefix: "/master/wageflow-requests", title: "Setup Requests", description: "Client onboarding" },
+  { prefix: "/master/businesses", title: "Businesses", description: "Client administration" },
+  { prefix: "/master/subscriptions", title: "Billing", description: "Plans and subscriptions" },
+  { prefix: "/master/users", title: "User Access", description: "Roles and account status" },
+  { prefix: "/master", title: "Overview", description: "Platform administration" },
+];
+
 export function MasterShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const currentSection = sections.find((section) =>
+    section.prefix === "/master" ? pathname === "/master" : pathname.startsWith(section.prefix)
+  ) ?? sections[sections.length - 1];
 
   async function logout() {
     await supabase.auth.signOut();
@@ -31,7 +42,7 @@ export function MasterShell({ children }: { children: ReactNode }) {
       <aside className={`master-sidebar ${mobileOpen ? "master-sidebar-open" : ""}`}>
         <div className="master-brand">
           <Image src="/wageflow-logo.png" alt="WageFlow" width={148} height={54} priority />
-          <button className="master-collapse" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}>‹</button>
+          <button className="master-collapse" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}><ChevronIcon /></button>
         </div>
         <div className="master-platform-label">Platform administration</div>
         <nav className="master-nav" aria-label="Master navigation">
@@ -51,15 +62,24 @@ export function MasterShell({ children }: { children: ReactNode }) {
       </aside>
       <div className="master-main">
         <header className="master-topbar">
-          <button className="master-mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation">☰</button>
-          <div><strong>WageFlow Administration</strong><span>Secure platform workspace</span></div>
-          <Link href="/" className="master-site-link">View public site</Link>
+          <div className="master-topbar-leading">
+            <button className="master-mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><MenuIcon /></button>
+            <div className="master-page-context"><strong>{currentSection.title}</strong><span>{currentSection.description}</span></div>
+          </div>
+          <div className="master-topbar-actions">
+            <span className="master-secure-label"><LockIcon /> Secure workspace</span>
+            <Link href="/" className="master-site-link">Public site</Link>
+          </div>
         </header>
         <div className="master-content">{children}</div>
       </div>
     </div>
   );
 }
+
+function ChevronIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>; }
+function MenuIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>; }
+function LockIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>; }
 
 function NavIcon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
