@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { PasswordField } from "@/components/PasswordField";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -73,11 +74,13 @@ export default function ChangePasswordPage() {
 
     setMessage("Password updated successfully.");
 
-    if (profile.role === "employer") {
+    const role = String(profile.role || "").trim().toLowerCase();
+
+    if (role === "employer") {
       router.push("/employer");
-    } else if (profile.role === "employee") {
+    } else if (role === "employee") {
       router.push("/employee");
-    } else if (profile.role === "master_admin") {
+    } else if (role === "master" || role === "master_admin") {
       router.push("/master");
     } else {
       router.push("/login");
@@ -93,18 +96,16 @@ export default function ChangePasswordPage() {
         </p>
 
         <form onSubmit={handleChangePassword} style={form}>
-          <input
-            style={input}
-            type="password"
+          <PasswordField
+            inputStyle={input}
             placeholder="New password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
 
-          <input
-            style={input}
-            type="password"
+          <PasswordField
+            inputStyle={input}
             placeholder="Confirm new password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

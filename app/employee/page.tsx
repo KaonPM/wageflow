@@ -139,7 +139,7 @@ export default function EmployeeDashboard() {
       employeeName: employee.full_name,
       employerName:
         business?.trading_name || business?.business_name || "Your Employer",
-      logoUrl: business?.logo_url || null,
+      logoUrl: business?.logo_url || "/wageflow-logo.png",
       primaryColor: business?.primary_color || "#0f766e",
       secondaryColor: business?.secondary_color || "#123c69",
     });

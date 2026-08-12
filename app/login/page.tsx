@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { PasswordField } from "@/components/PasswordField";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,7 +12,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -36,12 +36,25 @@ export default function LoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role, must_change_password")
+      .select("role, must_change_password, access_status")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !profile) {
-      setMessage("Your account profile is not set up yet.");
+    if (profileError) {
+      setMessage("We could not verify your account access. Please try again or contact support.");
+      return;
+    }
+
+    if (!profile) {
+      setMessage("Your login exists, but its WageFlow profile has not been set up yet.");
+      return;
+    }
+
+    const role = String(profile.role || "").trim().toLowerCase();
+    const accessStatus = String(profile.access_status || "active").trim().toLowerCase();
+    if (!["active", "approved"].includes(accessStatus)) {
+      await supabase.auth.signOut();
+      setMessage("This account is not active. Please contact WageFlow support.");
       return;
     }
 
@@ -50,14 +63,15 @@ export default function LoginPage() {
       return;
     }
 
-    if (profile.role === "master_admin") {
+    if (role === "master" || role === "master_admin") {
       router.push("/master");
-    } else if (profile.role === "employer") {
+    } else if (role === "employer") {
       router.push("/employer");
-    } else if (profile.role === "employee") {
+    } else if (role === "employee") {
       router.push("/employee");
     } else {
-      setMessage("Unknown user role.");
+      await supabase.auth.signOut();
+      setMessage("This account does not have a recognised WageFlow role.");
     }
   }
 
@@ -81,21 +95,13 @@ export default function LoginPage() {
             required
           />
 
-          <input
-            style={input}
-            type={showPassword ? "text" : "password"}
+          <PasswordField
+            inputStyle={input}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          
-          <button
-           type="button"
-           onClick={() => setShowPassword(!showPassword)}
-          >
-          {showPassword ? "Hide" : "Show"}
-          </button>
 
           <button type="submit" style={button}>
             Log In

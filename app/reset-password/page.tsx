@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { PasswordField } from "@/components/PasswordField";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -10,8 +11,6 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   function isStrongPassword(value: string) {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(
@@ -63,39 +62,19 @@ export default function ResetPasswordPage() {
         </p>
 
         <form onSubmit={handleUpdatePassword} style={form}>
-          <input
-            type={showPassword ? "text" : "password"}
+          <PasswordField
             placeholder="New password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={input}
+            inputStyle={input}
           />
 
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            style={toggleButton}
-          >
-            {showPassword ? "Hide" : "Show"}
-          </button>
-
-          <input
-            type={showConfirmPassword ? "text" : "password"}
+          <PasswordField
             placeholder="Confirm password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            style={input}
+            inputStyle={input}
           />
-
-          <button
-            type="button"
-            onClick={() =>
-              setShowConfirmPassword(!showConfirmPassword)
-            }
-            style={toggleButton}
-          >
-            {showConfirmPassword ? "Hide" : "Show"}
-          </button>
 
           <button type="submit" style={button}>
             Update Password
@@ -152,16 +131,6 @@ const input = {
   borderRadius: "8px",
   border: "1px solid #ddd",
   fontSize: "14px",
-};
-
-const toggleButton = {
-  background: "transparent",
-  border: "none",
-  color: "#444",
-  cursor: "pointer",
-  fontSize: "14px",
-  textAlign: "left" as const,
-  marginTop: "-8px",
 };
 
 const button = {
