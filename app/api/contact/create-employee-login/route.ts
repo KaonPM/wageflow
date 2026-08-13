@@ -26,12 +26,23 @@ export async function POST(req: Request) {
     let userId=existingUser?.id;
     if(!userId){const{data:userData,error:userError}=await supabaseAdmin.auth.admin.createUser({email,email_confirm:true});if(userError||!userData.user)return NextResponse.json({error:userError?.message||"Could not create employee account."},{status:500});userId=userData.user.id;}
 
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+      .from("profiles")
+      .select("role,business_id")
+      .eq("id", userId)
+      .maybeSingle();
+    if (existingProfileError) return NextResponse.json({ error: existingProfileError.message }, { status: 500 });
+    if (existingProfile && (String(existingProfile.role).toLowerCase() !== "employee" || existingProfile.business_id !== access.profile.business_id)) {
+      return NextResponse.json({ error: "This email address is already linked to another WageFlow account." }, { status: 409 });
+    }
+
     const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
       id: userId,
       email,
       role: "employee",
       business_id: access.profile.business_id,
       must_change_password: true,
+      access_status: "active",
     });
 
     if (profileError) {
@@ -41,12 +52,28 @@ export async function POST(req: Request) {
     const { error: employeeLinkError } = await supabaseAdmin.from("employees").update({ profile_id: userId }).eq("id", employeeId).eq("business_id", access.profile.business_id);
     if (employeeLinkError) return NextResponse.json({ error: employeeLinkError.message }, { status: 500 });
 
+    const { data: existingAccount, error: accountLookupError } = await supabaseAdmin
+      .from("employee_accounts")
+      .select("id,employee_id,auth_user_id")
+      .or(`employee_id.eq.${employeeId},auth_user_id.eq.${userId}`)
+      .maybeSingle();
+    if (accountLookupError) return NextResponse.json({ error: accountLookupError.message }, { status: 500 });
+
+    const accountResult = existingAccount
+      ? await supabaseAdmin.from("employee_accounts").update({ employee_id: employeeId, auth_user_id: userId, portal_enabled: true }).eq("id", existingAccount.id)
+      : await supabaseAdmin.from("employee_accounts").insert({ employee_id: employeeId, auth_user_id: userId, portal_enabled: true });
+    if (accountResult.error) return NextResponse.json({ error: accountResult.error.message }, { status: 500 });
+
     const redirectTo=`${new URL(req.url).origin}/reset-password`;
     const{data:linkData,error:linkError}=await supabaseAdmin.auth.admin.generateLink({type:"recovery",email,options:{redirectTo}});
     if(linkError||!linkData.properties?.hashed_token)return NextResponse.json({error:linkError?.message||"Could not create a secure setup link."},{status:500});
     const setupUrl = new URL("/reset-password", new URL(req.url).origin);
     setupUrl.searchParams.set("token_hash", linkData.properties.hashed_token);
     setupUrl.searchParams.set("type", "recovery");
+    if (!process.env.BREVO_API_KEY || !process.env.BREVO_FROM_EMAIL) {
+      return NextResponse.json({ error: "Employee email delivery is not configured." }, { status: 503 });
+    }
+
     const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {

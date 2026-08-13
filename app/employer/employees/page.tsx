@@ -167,9 +167,41 @@ export default function EmployerEmployeesPage() {
     };
   }
 
+  async function sendEmployeeSetupEmail(employeeId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Your session has expired. Please sign in again.");
+
+    const response = await fetch("/api/contact/create-employee-login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        email: form.email.trim(),
+        name: `${form.first_name} ${form.last_name}`.trim(),
+        employeeId,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.error || "The employee portal account could not be created.");
+    }
+    if (!result.notificationSent) {
+      throw new Error("The employee was saved, but no email provider accepted the setup email.");
+    }
+  }
+
   async function saveEmployee() {
     setSaving(true);
     setMessage("");
+
+    if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim()) {
+      setMessage("First name, last name and email address are required.");
+      setSaving(false);
+      return;
+    }
 
     if (editingId) {
       const { error } = await supabase
@@ -182,33 +214,6 @@ export default function EmployerEmployeesPage() {
         setSaving(false);
         return;
       }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setMessage("Your session has expired. Please sign in again."); setSaving(false); return; }
-      const employeeLoginResponse = await fetch("/api/contact/create-employee-login", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${session.access_token}`,
-  },
-  body: JSON.stringify({
-    email: form.email,
-    name: `${form.first_name} ${form.last_name}`.trim(),
-    employeeId: editingId,
-  }),
-});
-
-if (!employeeLoginResponse.ok) {
-  const loginError = await employeeLoginResponse.json();
-
-  setMessage(
-    loginError.error ||
-      "Employee was added, but login details could not be emailed."
-  );
-
-  setSaving(false);
-  return;
-}
 
       setMessage("Employee updated successfully.");
     } else {
@@ -223,7 +228,7 @@ if (!employeeLoginResponse.ok) {
       const { data: createdEmployee, error } = await supabase
         .from("employees")
         .insert({ ...buildPayload(businessId), employee_number: null })
-        .select("employee_number")
+        .select("id, employee_number")
         .single();
 
       if (error) {
@@ -232,11 +237,16 @@ if (!employeeLoginResponse.ok) {
         return;
       }
 
-      setMessage(
-        createdEmployee?.employee_number
-          ? `Employee added successfully. Employee number: ${createdEmployee.employee_number}`
-          : "Employee added successfully."
-      );
+      try {
+        await sendEmployeeSetupEmail(createdEmployee.id);
+        setMessage(
+          `Employee added successfully. Employee number: ${createdEmployee.employee_number}. Setup email sent.`
+        );
+      } catch (emailError) {
+        setMessage(
+          `${emailError instanceof Error ? emailError.message : "The setup email could not be sent."} Employee number: ${createdEmployee.employee_number}.`
+        );
+      }
     }
 
     setForm(emptyForm);
@@ -503,6 +513,7 @@ if (!employeeLoginResponse.ok) {
               <input
                 style={input}
                 type="email"
+                required
                 value={form.email}
                 onChange={(e) =>
                   setForm({ ...form, email: e.target.value })
