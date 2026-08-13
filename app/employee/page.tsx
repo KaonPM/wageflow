@@ -219,8 +219,8 @@ export default function EmployeeDashboard() {
   }
 
   return (
-    <main style={page}>
-      <div style={topActions}>
+    <main style={page} className="employee-dashboard-page">
+      <div style={topActions} className="employee-dashboard-actions">
         <Link href="/" style={topLink}>
           Home
         </Link>
@@ -230,10 +230,10 @@ export default function EmployeeDashboard() {
         </button>
       </div>
 
-      <div style={shell}>
-        <section style={heroCard}>
-          <div style={heroLayout}>
-            <div style={logoWrap}>
+      <div style={shell} className="employee-dashboard-shell">
+        <section style={heroCard} className="employee-dashboard-hero">
+          <div style={heroLayout} className="employee-dashboard-hero-layout">
+            <div style={logoWrap} className="employee-dashboard-logo-wrap">
               {data.logoUrl ? (
                 <img src={data.logoUrl} alt={data.employerName} style={logo} />
               ) : (
@@ -241,11 +241,11 @@ export default function EmployeeDashboard() {
               )}
             </div>
 
-            <div style={heroContent}>
-              <h1 style={businessName}>{data.employerName}</h1>
-              <h2 style={dashboardTitle}>Employee Dashboard</h2>
+            <div style={heroContent} className="employee-dashboard-hero-content">
+              <h1 style={businessName} className="employee-dashboard-business-name">{data.employerName}</h1>
+              <h2 style={dashboardTitle} className="employee-dashboard-title">Employee Dashboard</h2>
 
-              <p style={subtitle}>
+              <p style={subtitle} className="employee-dashboard-subtitle">
                 Welcome back, {data.employeeName}. Access your employee profile,
                 payslips, leave requests, overtime records, HR records and
                 disciplinary records from one organised workspace.
@@ -254,7 +254,7 @@ export default function EmployeeDashboard() {
           </div>
         </section>
 
-        <section style={grid}>
+        <section style={grid} className="employee-dashboard-grid">
           <DashboardCard
             eyebrow="My Details"
             title="Employee Profile"
