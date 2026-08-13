@@ -18,13 +18,19 @@ export async function POST(req: Request) {
 
     const { data: employee } = await supabaseAdmin.from("employees").select("id, business_id, profile_id").eq("id", employeeId).eq("business_id", access.profile.business_id).single();
     if (!employee) return NextResponse.json({ error: "Employee not found for this business." }, { status: 404 });
-    if (employee.profile_id) return NextResponse.json({ error: "This employee already has a login account." }, { status: 409 });
-
-    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
-    if (usersError) return NextResponse.json({ error: usersError.message }, { status: 500 });
-    const existingUser=usersData.users.find((user)=>user.email?.toLowerCase()===String(email).toLowerCase());
-    let userId=existingUser?.id;
-    if(!userId){const{data:userData,error:userError}=await supabaseAdmin.auth.admin.createUser({email,email_confirm:true});if(userError||!userData.user)return NextResponse.json({error:userError?.message||"Could not create employee account."},{status:500});userId=userData.user.id;}
+    let userId = employee.profile_id as string | null;
+    if (userId) {
+      const { data: linkedUser, error: linkedUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+      if (linkedUserError || !linkedUser.user || linkedUser.user.email?.toLowerCase() !== String(email).toLowerCase()) {
+        return NextResponse.json({ error: "The employee login link does not match this email address." }, { status: 409 });
+      }
+    } else {
+      const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+      if (usersError) return NextResponse.json({ error: usersError.message }, { status: 500 });
+      const existingUser=usersData.users.find((user)=>user.email?.toLowerCase()===String(email).toLowerCase());
+      userId=existingUser?.id || null;
+      if(!userId){const{data:userData,error:userError}=await supabaseAdmin.auth.admin.createUser({email,email_confirm:true});if(userError||!userData.user)return NextResponse.json({error:userError?.message||"Could not create employee account."},{status:500});userId=userData.user.id;}
+    }
 
     const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
       .from("profiles")

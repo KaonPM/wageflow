@@ -77,6 +77,7 @@ export default function EmployerEmployeesPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [sendingEmployeeId, setSendingEmployeeId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
@@ -167,7 +168,7 @@ export default function EmployerEmployeesPage() {
     };
   }
 
-  async function sendEmployeeSetupEmail(employeeId: string) {
+  async function sendEmployeeSetupEmail(employeeId: string, email: string, name: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error("Your session has expired. Please sign in again.");
 
@@ -178,8 +179,8 @@ export default function EmployerEmployeesPage() {
         Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        email: form.email.trim(),
-        name: `${form.first_name} ${form.last_name}`.trim(),
+        email: email.trim(),
+        name: name.trim(),
         employeeId,
       }),
     });
@@ -190,6 +191,26 @@ export default function EmployerEmployeesPage() {
     }
     if (!result.notificationSent) {
       throw new Error("The employee was saved, but no email provider accepted the setup email.");
+    }
+  }
+
+  async function resendEmployeeSetupEmail(employee: Employee) {
+    const email = employee.email?.trim() || "";
+    const name = `${employee.first_name || ""} ${employee.last_name || ""}`.trim();
+    if (!email || !name) {
+      setMessage("Add the employee's name and email address before sending a setup email.");
+      return;
+    }
+
+    setSendingEmployeeId(employee.id);
+    setMessage("");
+    try {
+      await sendEmployeeSetupEmail(employee.id, email, name);
+      setMessage(`Setup email sent to ${email}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "The setup email could not be sent.");
+    } finally {
+      setSendingEmployeeId(null);
     }
   }
 
@@ -238,7 +259,11 @@ export default function EmployerEmployeesPage() {
       }
 
       try {
-        await sendEmployeeSetupEmail(createdEmployee.id);
+        await sendEmployeeSetupEmail(
+          createdEmployee.id,
+          form.email,
+          `${form.first_name} ${form.last_name}`
+        );
         setMessage(
           `Employee added successfully. Employee number: ${createdEmployee.employee_number}. Setup email sent.`
         );
@@ -440,6 +465,13 @@ export default function EmployerEmployeesPage() {
                           onClick={() => editEmployee(employee)}
                         >
                           Edit
+                        </button>
+                        <button
+                          style={resendButton}
+                          onClick={() => resendEmployeeSetupEmail(employee)}
+                          disabled={sendingEmployeeId === employee.id || !employee.email}
+                        >
+                          {sendingEmployeeId === employee.id ? "Sending..." : "Resend Setup Email"}
                         </button>
                       </td>
                     </tr>
@@ -1040,4 +1072,15 @@ const td = {
 const muted = {
   color: "#64748b",
   fontSize: "13px",
+};
+
+const resendButton = {
+  background: "#ffffff",
+  color: "#0f766e",
+  border: "1px solid #0f766e",
+  borderRadius: "10px",
+  padding: "8px 12px",
+  marginLeft: "8px",
+  fontWeight: 800,
+  cursor: "pointer",
 };
