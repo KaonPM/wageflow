@@ -252,25 +252,25 @@ export default function EmployeeLeavePage() {
     business?.trading_name || business?.business_name || "Your Employer";
 
   return (
-    <main style={page}>
-      <div style={shell}>
-        <section style={pageHeader}>
+    <main className="employee-leave-page" style={page}>
+      <div className="employee-leave-shell" style={shell}>
+        <section className="employee-leave-header" style={pageHeader}>
           <div>
-            <h1 style={companyTitle}>{employerName}</h1>
+            <h1 className="employee-leave-company" style={companyTitle}>{employerName}</h1>
             <h2 style={pageTitle}>Manage Leave</h2>
             <p style={pageSubtitle}>
               Submit leave requests and track your leave request history.
             </p>
           </div>
 
-          <div style={headerActions}>
+          <div className="employee-leave-header-actions" style={headerActions}>
             <Link href="/employee" style={backDashboardButton}>
                ← Back to Dashboard
             </Link>
           </div>
         </section>
 
-        <section style={summaryGrid}>
+        <section className="employee-leave-summary" style={summaryGrid}>
           <div style={summaryCard}>
             <p style={summaryLabel}>Employee</p>
             <h2 style={summaryValue}>{employee.full_name || "Employee"}</h2>
@@ -300,8 +300,8 @@ export default function EmployeeLeavePage() {
           </div>
         </section>
 
-        <section style={layoutGrid}>
-          <form style={formCard} onSubmit={submitLeaveRequest}>
+        <section className="employee-leave-layout" style={layoutGrid}>
+          <form className="employee-leave-card" style={formCard} onSubmit={submitLeaveRequest}>
             <div style={cardHeader}>
               <div>
                 <h2 style={cardTitle}>New Leave Request</h2>
@@ -328,7 +328,7 @@ export default function EmployeeLeavePage() {
               </select>
             </label>
 
-            <div style={twoColumn}>
+            <div className="employee-leave-date-grid" style={twoColumn}>
               <label style={label}>
                 Start Date
                 <input
@@ -365,7 +365,7 @@ export default function EmployeeLeavePage() {
             </button>
           </form>
 
-          <section style={historyCard}>
+          <section className="employee-leave-card" style={historyCard}>
             <div style={cardHeader}>
               <div>
                 <h2 style={cardTitle}>Leave Request History</h2>
@@ -391,7 +391,7 @@ export default function EmployeeLeavePage() {
               <div style={requestList}>
                 {requests.map((request) => (
                   <article key={request.id} style={requestCard}>
-                    <div style={requestTop}>
+                    <div className="employee-leave-request-top" style={requestTop}>
                       <div>
                         <h3 style={requestTitle}>
                           {request.leave_type || "Leave request"}
@@ -421,7 +421,7 @@ export default function EmployeeLeavePage() {
                       </div>
                     ) : null}
 
-                    <div style={requestFooter}>
+                    <div className="employee-leave-request-footer" style={requestFooter}>
                       <span>Submitted {formatDate(request.created_at)}</span>
 
                       {request.status === "Pending" ? (

@@ -147,3 +147,18 @@ body {
   .employee-dashboard-logo-wrap { width: 100px !important; height: 100px !important; }
   .employee-dashboard-business-name { font-size: 36px !important; }
 }
+
+/* Employee leave responsive layout */
+.employee-leave-page, .employee-leave-page * { box-sizing: border-box; }
+.employee-leave-shell, .employee-leave-card { min-width: 0; }
+@media (max-width: 700px) {
+  .employee-leave-page { width: 100% !important; padding: 16px !important; overflow-x: hidden; }
+  .employee-leave-shell { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
+  .employee-leave-header { padding: 22px 18px !important; border-radius: 18px !important; }
+  .employee-leave-company { font-size: clamp(26px, 9vw, 34px) !important; overflow-wrap: anywhere; }
+  .employee-leave-header-actions, .employee-leave-header-actions a { width: 100%; }
+  .employee-leave-header-actions a { text-align: center; }
+  .employee-leave-summary, .employee-leave-layout, .employee-leave-date-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .employee-leave-card { width: 100% !important; padding: 18px !important; }
+  .employee-leave-request-top, .employee-leave-request-footer { align-items: flex-start !important; flex-wrap: wrap; }
+}
