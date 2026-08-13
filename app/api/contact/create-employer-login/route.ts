@@ -206,12 +206,18 @@ export async function POST(req: Request) {
 
     const redirectTo = `${new URL(req.url).origin}/reset-password`;
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({ type: "recovery", email, options: { redirectTo } });
-    if (linkError || !linkData.properties?.action_link) return NextResponse.json({ error: linkError?.message || "Could not create a secure setup link." }, { status: 500 });
+    if (linkError || !linkData.properties?.hashed_token) return NextResponse.json({ error: linkError?.message || "Could not create a secure setup link." }, { status: 500 });
+
+    // Send users through WageFlow so the reset page can verify the one-time
+    // recovery token before attempting to update the password.
+    const setupUrl = new URL("/reset-password", new URL(req.url).origin);
+    setupUrl.searchParams.set("token_hash", linkData.properties.hashed_token);
+    setupUrl.searchParams.set("type", "recovery");
 
     const emailResponse = await sendLoginEmail({
       to: email,
       name: businessName,
-      setupUrl: linkData.properties.action_link,
+      setupUrl: setupUrl.toString(),
     });
 
     if (emailResponse?.ok) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { PasswordField } from "@/components/PasswordField";
@@ -11,6 +11,68 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [sessionReady, setSessionReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function establishRecoverySession() {
+      setMessage("Verifying your secure password link...");
+
+      const params = new URLSearchParams(window.location.search);
+      const tokenHash = params.get("token_hash");
+      const code = params.get("code");
+
+      let authError: Error | null = null;
+
+      if (tokenHash) {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "recovery",
+        });
+        authError = error;
+      } else if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        authError = error;
+      } else if (window.location.hash) {
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+        const accessToken = hash.get("access_token");
+        const refreshToken = hash.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          authError = error;
+        }
+      }
+
+      if (!authError) {
+        const { data, error } = await supabase.auth.getSession();
+        authError = error;
+        if (data.session && active) {
+          window.history.replaceState({}, document.title, "/reset-password");
+          setSessionReady(true);
+          setMessage("");
+          return;
+        }
+      }
+
+      if (active) {
+        setSessionReady(false);
+        setMessage(
+          authError?.message ||
+            "This password link is invalid or has expired. Please request a new setup email."
+        );
+      }
+    }
+
+    void establishRecoverySession();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function isStrongPassword(value: string) {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(
@@ -20,6 +82,11 @@ export default function ResetPasswordPage() {
 
   async function handleUpdatePassword(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!sessionReady) {
+      setMessage("Please open a new password link from your email.");
+      return;
+    }
 
     if (!isStrongPassword(password)) {
       setMessage(
@@ -76,7 +143,7 @@ export default function ResetPasswordPage() {
             inputStyle={input}
           />
 
-          <button type="submit" style={button}>
+          <button type="submit" style={button} disabled={!sessionReady}>
             Update Password
           </button>
         </form>

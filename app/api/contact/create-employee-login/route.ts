@@ -43,7 +43,10 @@ export async function POST(req: Request) {
 
     const redirectTo=`${new URL(req.url).origin}/reset-password`;
     const{data:linkData,error:linkError}=await supabaseAdmin.auth.admin.generateLink({type:"recovery",email,options:{redirectTo}});
-    if(linkError||!linkData.properties?.action_link)return NextResponse.json({error:linkError?.message||"Could not create a secure setup link."},{status:500});
+    if(linkError||!linkData.properties?.hashed_token)return NextResponse.json({error:linkError?.message||"Could not create a secure setup link."},{status:500});
+    const setupUrl = new URL("/reset-password", new URL(req.url).origin);
+    setupUrl.searchParams.set("token_hash", linkData.properties.hashed_token);
+    setupUrl.searchParams.set("type", "recovery");
     const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
@@ -64,7 +67,7 @@ export async function POST(req: Request) {
             <p>Your WageFlow employee account has been activated.</p>
 
             <p>Your login email is <strong>${email}</strong>.</p>
-            <p><a href="${linkData.properties.action_link}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Set your secure password</a></p>
+            <p><a href="${setupUrl.toString()}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Set your secure password</a></p>
             <p>This one-time security link expires. Ask your employer to resend it if necessary.</p>
 
             <p>
