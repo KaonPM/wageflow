@@ -220,9 +220,11 @@ if (!employeeLoginResponse.ok) {
         return;
       }
 
-      const { error } = await supabase
+      const { data: createdEmployee, error } = await supabase
         .from("employees")
-        .insert(buildPayload(businessId));
+        .insert({ ...buildPayload(businessId), employee_number: null })
+        .select("employee_number")
+        .single();
 
       if (error) {
         setMessage(error.message);
@@ -230,7 +232,11 @@ if (!employeeLoginResponse.ok) {
         return;
       }
 
-      setMessage("Employee added successfully.");
+      setMessage(
+        createdEmployee?.employee_number
+          ? `Employee added successfully. Employee number: ${createdEmployee.employee_number}`
+          : "Employee added successfully."
+      );
     }
 
     setForm(emptyForm);
@@ -464,13 +470,12 @@ if (!employeeLoginResponse.ok) {
               />
             </Field>
 
-            <Field label="Employee Number">
+            <Field label="Employee Number (generated automatically)">
               <input
                 style={input}
                 value={form.employee_number}
-                onChange={(e) =>
-                  setForm({ ...form, employee_number: e.target.value })
-                }
+                placeholder={editingId ? "Employee number" : "Assigned when employee is saved"}
+                readOnly
               />
             </Field>
 
