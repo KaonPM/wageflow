@@ -126,30 +126,43 @@ export default function HRApprovalsPage() {
       return;
     }
 
+    if (selectedRequest.status !== "Pending") {
+      showAppMessage("Only pending requests can be approved or declined.");
+      return;
+    }
+    if (status === "Declined" && !employerNote.trim()) {
+      showAppMessage("Enter a reason before declining the request.");
+      return;
+    }
+
     setSaving(true);
-
-    const { error } = await supabase
-      .from("approval_requests")
-      .update({
-        status,
-        employer_note: employerNote,
-        approved_by: "Employer admin",
-        approved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", selectedRequest.id);
-
-    if (error) {
-      showAppMessage(`Decision was not saved: ${error.message}`);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      showAppMessage("Your session has expired. Please sign in again.");
       setSaving(false);
       return;
     }
 
-    await loadPageData();
+    try {
+      const response = await fetch("/api/approval-requests/decision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ requestId: selectedRequest.id, status, employerNote }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showAppMessage(result.error || "Decision was not saved.");
+        return;
+      }
 
-    setSaving(false);
-    setSelectedRequest(null);
-    showAppMessage(`Request ${status.toLowerCase()} successfully.`);
+      await loadPageData();
+      setSelectedRequest(null);
+      showAppMessage(`Request ${status.toLowerCase()} successfully.`);
+    } catch {
+      showAppMessage("Decision was not saved. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function requestSummary(request: ApprovalRequest) {
@@ -399,7 +412,7 @@ export default function HRApprovalsPage() {
             <button
               style={styles.approveButton}
               onClick={() => saveDecision("Approved")}
-              disabled={saving}
+              disabled={saving || selectedRequest.status !== "Pending"}
             >
               {saving ? "Saving..." : "Approve Request"}
             </button>
@@ -407,7 +420,7 @@ export default function HRApprovalsPage() {
             <button
               style={styles.declineButton}
               onClick={() => saveDecision("Declined")}
-              disabled={saving}
+              disabled={saving || selectedRequest.status !== "Pending"}
             >
               {saving ? "Saving..." : "Decline Request"}
             </button>

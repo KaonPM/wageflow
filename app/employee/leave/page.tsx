@@ -217,7 +217,8 @@ export default function EmployeeLeavePage() {
         status: "Cancelled",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", request.id);
+      .eq("id", request.id)
+      .eq("status", "Pending");
 
     if (error) {
       showAppMessage(`Request could not be cancelled: ${error.message}`);
