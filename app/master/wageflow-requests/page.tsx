@@ -77,17 +77,18 @@ export default function WageFlowRequestsPage() {
       }),
     });
 
-    if (!loginResponse.ok) {
-      const loginError = await loginResponse.json();
+    const loginResult = await loginResponse.json().catch(() => ({}));
+    if (!loginResponse.ok || loginResult.notificationSent !== true) {
 
       showAppMessage(
-        loginError.error ||
+        loginResult.error ||
           "The business was created, but the employer login email could not be sent."
       );
 
       return false;
     }
 
+    showAppMessage(loginResult.message || "Employer setup email accepted for delivery.");
     return true;
   }
 
@@ -111,7 +112,7 @@ export default function WageFlowRequestsPage() {
     const approved = await runMasterAction("finalize_approval", request.id);
     if (approved.error) { showAppMessage(approved.error); return; }
 
-    showAppMessage("Employer approved and login email sent successfully.");
+    showAppMessage("Employer approved and setup email accepted for delivery.");
     fetchRequests();
   }
 

@@ -178,14 +178,14 @@ export default function ManageBusinessPage() {
 
     setResendingEmail(false);
 
-    if (!response.ok) {
+    if (!response.ok || result.notificationSent !== true) {
       showAppMessage(result.error || "Failed to send setup email.");
       return;
     }
 
     showAppMessage(
       result.message ||
-        "Employer setup email sent successfully."
+        "Employer setup email accepted for delivery."
     );
   } catch (error) {
     console.error(error);

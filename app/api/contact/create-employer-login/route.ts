@@ -11,6 +11,7 @@ async function sendLoginEmail({
   name: string;
   setupUrl: string;
 }) {
+  if (!process.env.BREVO_API_KEY || !process.env.BREVO_FROM_EMAIL) return null;
   return fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
@@ -26,12 +27,12 @@ async function sendLoginEmail({
       subject: "Your WageFlow employer account has been approved",
       htmlContent: `
         <div style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #111827;">
-          <p>Hi ${name},</p>
+          <p>Hi ${escapeHtml(name)},</p>
 
           <p>Your WageFlow employer account has been approved and created successfully.</p>
 
-          <p>Your login email is <strong>${to}</strong>.</p>
-          <p><a href="${setupUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Set your secure password</a></p>
+          <p>Your login email is <strong>${escapeHtml(to)}</strong>.</p>
+          <p><a href="${escapeHtml(setupUrl)}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Set your secure password</a></p>
           <p>This one-time security link expires. Resending a setup link does not change your current password.</p>
 
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
@@ -61,6 +62,10 @@ async function sendLoginEmail({
       `,
     }),
   });
+}
+
+function escapeHtml(value: string) {
+  return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character] || character);
 }
 
 export async function POST(req: Request) {
@@ -161,6 +166,7 @@ export async function POST(req: Request) {
         id: userId,
         email,
         role: "employer",
+        access_status: "active",
         business_id: existingProfile?.business_id || businessId,
         must_change_password: true,
       });
@@ -208,9 +214,23 @@ export async function POST(req: Request) {
       setupUrl: linkData.properties.action_link,
     });
 
-    let notificationSent=emailResponse.ok;
-    if(!notificationSent){const url=process.env.NEXT_PUBLIC_SUPABASE_URL;const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;if(url&&anon){const{error}=await createClient(url,anon).auth.resetPasswordForEmail(email,{redirectTo});notificationSent=!error;if(error)console.error("Supabase employer setup email failed",error.message);}}
-    return NextResponse.json({ success: true, notificationSent });
+    if (emailResponse?.ok) {
+      return NextResponse.json({ success: true, notificationSent: true, notificationProvider: "brevo", message: "Employer setup email accepted by Brevo." });
+    }
+
+    if (emailResponse && !emailResponse.ok) {
+      console.error("Brevo employer setup email rejected", { status: emailResponse.status, statusText: emailResponse.statusText });
+    }
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && anon) {
+      const { error } = await createClient(url, anon).auth.resetPasswordForEmail(email, { redirectTo });
+      if (!error) return NextResponse.json({ success: true, notificationSent: true, notificationProvider: "supabase", message: "Employer setup email queued through Supabase Auth." });
+      console.error("Supabase employer setup email failed", error.message);
+    }
+
+    return NextResponse.json({ error: "The employer account was created, but no email provider accepted the setup email. Check the verified Brevo sender and resend from the business page." }, { status: 502 });
   } catch (error: unknown) {
     console.error("CREATE EMPLOYER LOGIN ERROR:", error);
 
