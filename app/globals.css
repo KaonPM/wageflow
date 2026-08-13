@@ -56,6 +56,14 @@ body {
     margin-left: -11%;
   }
 }
+
+.employer-business-bar { position: sticky; top: 0; z-index: 50; min-height: 64px; display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 10px 32px; border-bottom: 1px solid #dce6ee; background: rgba(255,255,255,.97); box-shadow: 0 5px 18px rgba(15,23,42,.06); font-family: Arial, sans-serif; }
+.employer-business-bar > div { display: grid; gap: 3px; margin-right: auto; }
+.employer-business-bar strong { color: #0f4f49; font-size: 13px; }
+.employer-business-bar span { color: #64748b; font-size: 11px; }
+.employer-business-bar select { min-width: 240px; max-width: 360px; padding: 10px 36px 10px 12px; border: 1px solid #b8ccc9; border-radius: 10px; background: #fff; color: #123c3a; font-weight: 800; }
+.employer-business-bar .employer-business-error { color: #b91c1c; font-weight: 700; }
+@media (max-width: 640px) { .employer-business-bar { align-items: stretch; flex-direction: column; gap: 8px; padding: 10px 16px; } .employer-business-bar > div { margin-right: 0; } .employer-business-bar select { width: 100%; max-width: none; } }
 /* Shared resilient application states */
 .app-state-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f4f8fb; font-family: Arial, sans-serif; color: #0f172a; }
 .app-state-card { width: min(100%, 520px); padding: 32px; border: 1px solid #e2e8f0; border-radius: 20px; background: #fff; box-shadow: 0 18px 50px rgba(15, 23, 42, .10); text-align: center; }

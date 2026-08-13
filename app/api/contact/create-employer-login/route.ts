@@ -149,13 +149,19 @@ export async function POST(req: Request) {
       userId = authData.user.id;
     }
 
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("business_id")
+      .eq("id", userId)
+      .maybeSingle();
+
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .upsert({
         id: userId,
         email,
         role: "employer",
-        business_id: businessId,
+        business_id: existingProfile?.business_id || businessId,
         must_change_password: true,
       });
 
@@ -180,6 +186,16 @@ export async function POST(req: Request) {
         { error: businessUpdateError.message },
         { status: 500 }
       );
+    }
+
+
+    const { error: membershipError } = await supabaseAdmin
+      .from("employer_business_memberships")
+      .upsert({ employer_id: userId, business_id: businessId, membership_role: "owner", is_active: true }, { onConflict: "employer_id,business_id" });
+
+    if (membershipError) {
+      console.error("SUPABASE BUSINESS MEMBERSHIP ERROR:", membershipError);
+      return NextResponse.json({ error: "The employer business membership could not be created." }, { status: 500 });
     }
 
     const redirectTo = `${new URL(req.url).origin}/reset-password`;
