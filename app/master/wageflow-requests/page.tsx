@@ -48,11 +48,16 @@ export default function WageFlowRequestsPage() {
     setLoading(false);
   }
 
-  function getMonthlyFee(packageName: string | null) {
-    if (!packageName) return 149;
-    if (packageName.includes("Growth")) return 249;
-    if (packageName.includes("Elite")) return 499;
-    return 149;
+  async function runMasterAction(action: "prepare_approval" | "finalize_approval" | "reject", requestId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { error: "Your session has expired. Please sign in again." };
+    const response = await fetch("/api/setup-requests", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action, requestId }),
+    });
+    const result = await response.json().catch(() => ({}));
+    return response.ok ? result : { error: result.error || "The setup request could not be updated." };
   }
 
   async function createEmployerLogin(request: Request, businessId: string) {
@@ -86,23 +91,6 @@ export default function WageFlowRequestsPage() {
     return true;
   }
 
-  async function markRequestApproved(id: string) {
-    const { error } = await supabase
-      .from("wageflow_setup_requests")
-      .update({
-        status: "Approved",
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-
-    if (error) {
-      showAppMessage(error.message);
-      return false;
-    }
-
-    return true;
-  }
-
   async function approveRequest(request: Request) {
     const confirmed = window.confirm(
       `Approve setup request for ${request.business_name}?`
@@ -110,106 +98,27 @@ export default function WageFlowRequestsPage() {
 
     if (!confirmed) return;
 
-    const { data: existingBusiness, error: checkError } = await supabase
-      .from("businesses")
-      .select("id")
-      .eq("source_request_id", request.id)
-      .maybeSingle();
-
-    if (checkError) {
-      showAppMessage(checkError.message);
+    const prepared = await runMasterAction("prepare_approval", request.id);
+    if (prepared.error || !prepared.businessId) {
+      showAppMessage(prepared.error || "Business onboarding could not be prepared.");
       return;
     }
 
-    let businessId = existingBusiness?.id;
-
-    if (!businessId) {
-      const { data: newBusiness, error: businessError } = await supabase
-        .from("businesses")
-        .insert({
-          business_name: request.business_name,
-          email: request.email,
-          phone: request.phone,
-          status: "Active",
-          source_request_id: request.id,
-          selected_package: request.selected_package,
-          number_of_employees: request.number_of_employees,
-        })
-        .select()
-        .single();
-
-      if (businessError || !newBusiness) {
-        showAppMessage(businessError?.message || "Failed to create business.");
-        return;
-      }
-
-      businessId = newBusiness.id;
-    }
-
-    const { error: settingsError } = await supabase
-      .from("business_settings")
-      .upsert(
-        {
-          business_id: businessId,
-          primary_color: "#0f766e",
-          secondary_color: "#d4af37",
-          paye_enabled: true,
-          uif_enabled: true,
-          pension_enabled: false,
-          medical_aid_enabled: false,
-          show_leave_balances: true,
-          default_payment_method: "Bank Transfer",
-        },
-        { onConflict: "business_id" }
-      );
-
-    if (settingsError) {
-      showAppMessage(settingsError.message);
-      return;
-    }
-
-    const { error: subscriptionError } = await supabase
-      .from("subscriptions")
-      .upsert(
-        {
-          business_id: businessId,
-          plan_name: request.selected_package || "Starter",
-          monthly_fee: getMonthlyFee(request.selected_package),
-          setup_fee: 499,
-          setup_paid: false,
-          subscription_status: "active",
-        },
-        { onConflict: "business_id" }
-      );
-
-    if (subscriptionError) {
-      showAppMessage(subscriptionError.message);
-      return;
-    }
-
-    const loginCreated = await createEmployerLogin(request, String(businessId));
+    const loginCreated = await createEmployerLogin(request, String(prepared.businessId));
 
     if (!loginCreated) return;
 
-    const approved = await markRequestApproved(request.id);
-
-    if (!approved) return;
+    const approved = await runMasterAction("finalize_approval", request.id);
+    if (approved.error) { showAppMessage(approved.error); return; }
 
     showAppMessage("Employer approved and login email sent successfully.");
     fetchRequests();
   }
 
   async function rejectRequest(id: string) {
-    const { error } = await supabase
-      .from("wageflow_setup_requests")
-      .update({
-        status: "Rejected",
-        rejected_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-
-    if (error) {
-      showAppMessage(error.message);
+    const result = await runMasterAction("reject", id);
+    if (result.error) {
+      showAppMessage(result.error);
       return;
     }
 
