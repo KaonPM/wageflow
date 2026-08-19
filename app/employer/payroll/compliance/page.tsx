@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
 import { validateUifDeclaration } from "@/app/lib/compliance/uif/validator";
@@ -48,6 +48,7 @@ export default function ComplianceSummaryPage() {
   const [validating, setValidating] = useState(false);
   const [preview, setPreview] = useState<"emp201" | "ui19" | null>(null);
   const [ui19PreviewEmployees, setUi19PreviewEmployees] = useState<ComplianceEmployee[]>([]);
+  const previewRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const today = new Date();
@@ -58,6 +59,10 @@ export default function ComplianceSummaryPage() {
     setPayrollMonth(currentMonth);
     initialisePage(currentMonth);
   }, []);
+
+  useEffect(() => {
+    if (preview) previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [preview]);
 
   async function getEmployerBusiness(): Promise<Business | null> {
     const {
@@ -128,7 +133,10 @@ export default function ComplianceSummaryPage() {
   }
 
   async function validateUif(generateUi19 = false) {
-    if (!businessId || !business || !payrollRun) return;
+    if (!businessId || !business || !payrollRun) {
+      setMessage("The business or payroll month is still loading. Refresh the page and try again.");
+      return;
+    }
     setValidating(true);
     setMessage("");
     const [employeesResult, payslipsResult] = await Promise.all([
@@ -147,6 +155,7 @@ export default function ComplianceSummaryPage() {
       const issues = validateUifDeclaration(business, employees);
       setUifIssues(issues);
       if (generateUi19 && issues.length === 0) openUi19(employees);
+      else if (!generateUi19 && issues.length === 0) setMessage("UIF data is complete. You can now generate the UI-19.");
     }
     setValidating(false);
   }
@@ -179,7 +188,10 @@ export default function ComplianceSummaryPage() {
   }
 
   function openUi19(employees: ComplianceEmployee[]) {
-    if (!business || !payrollRun) return;
+    if (!business || !payrollRun) {
+      setMessage("The business or payroll month is still loading. Refresh the page and try again.");
+      return;
+    }
     setUi19PreviewEmployees(employees);
     setPreview("ui19");
     return;
@@ -197,7 +209,10 @@ export default function ComplianceSummaryPage() {
   }
 
   function openEmp201PreparationReport() {
-    if (!business || !payrollRun) return;
+    if (!business || !payrollRun) {
+      setMessage("The business or payroll month is still loading. Refresh the page and try again.");
+      return;
+    }
     setPreview("emp201");
     return;
     if (!payrollRun || !business) return;
@@ -284,12 +299,6 @@ export default function ComplianceSummaryPage() {
       </section>
 
       {message && <div style={notice}>{message}</div>}
-
-      {preview && payrollRun && business && <section id="compliance-printable" style={previewCard}>
-        <div style={toolbar}><div><p style={previewEyebrow}>{preview === "emp201" ? "SARS preparation" : "UIF preparation"}</p><h2 style={sectionTitle}>{preview === "emp201" ? "EMP201 Preparation Report" : "UI-19 - Employer's Declaration of Employees"}</h2><p style={smallText}>Prepared from WageFlow payroll records for employer review.</p></div><div style={documentActions}><button style={documentSecondaryButton} onClick={() => setPreview(null)}>Back to Compliance Summary</button><button style={documentPrimaryButton} onClick={() => window.print()}>Print / Save PDF</button></div></div>
-        {preview === "emp201" ? <div style={breakdown}><ComplianceRow label="Payroll month" value={payrollRun.payroll_month} /><ComplianceRow label="PAYE reference" value={business.paye_reference || "Not recorded"} /><ComplianceRow label="UIF reference" value={business.uif_reference || "Not recorded"} /><ComplianceRow label="Employees processed" value={String(payrollRun.employee_count || 0)} /><ComplianceRow label="Gross payroll" value={money(payrollRun.total_gross_pay)} /><ComplianceRow label="PAYE" value={money(payrollRun.total_paye)} /><ComplianceRow label="UIF employee" value={money(payrollRun.total_uif_employee)} /><ComplianceRow label="UIF employer" value={money(payrollRun.total_uif_employer)} /><ComplianceRow label="Total UIF" value={money(payrollRun.total_uif)} /><ComplianceRow label="Total statutory liability" value={money(payrollRun.sars_payable)} strong /></div> : <div style={ui19TableWrap}><div style={ui19EmployerGrid}><Info label="UIF reference" value={business.uif_reference || "-"} /><Info label="PAYE reference" value={business.paye_reference || "-"} /><Info label="Employer" value={business.trading_name || business.registered_name || business.business_name || "-"} /><Info label="Payroll month" value={payrollRun.payroll_month} /></div><table style={ui19Table}><thead><tr><th style={ui19Th}>Surname</th><th style={ui19Th}>Initials</th><th style={ui19Th}>ID / Passport</th><th style={ui19Th}>Gross remuneration</th><th style={ui19Th}>Hours</th><th style={ui19Th}>Start date</th><th style={ui19Th}>End date</th><th style={ui19Th}>Contributor</th></tr></thead><tbody>{ui19PreviewEmployees.map((employee) => <tr key={employee.id}><td style={ui19Td}>{employee.last_name || "-"}</td><td style={ui19Td}>{(employee.first_name || "").split(/\s+/).filter(Boolean).map((name) => `${name[0]}.`).join(" ")}</td><td style={ui19Td}>{employee.id_number || employee.passport_number || "-"}</td><td style={ui19Td}>{money(employee.monthly_gross_remuneration)}</td><td style={ui19Td}>{employee.monthly_hours_worked ?? "-"}</td><td style={ui19Td}>{employee.start_date || "-"}</td><td style={ui19Td}>{employee.end_date || "-"}</td><td style={ui19Td}>{(employee.uif_contributor ?? employee.uif_registered) ? "Yes" : "No"}</td></tr>)}</tbody></table></div>}
-        <p style={previewNote}>WageFlow prepares this document from payroll records. The employer must review it and is responsible for any submission.</p>
-      </section>}
 
       {loading ? (
         <section style={card}>
@@ -384,6 +393,12 @@ export default function ComplianceSummaryPage() {
             </div>
             {uifIssues.length > 0 && <div style={issuesBox}><strong>{uifIssues.filter((issue) => issue.severity === "blocking").length} employee or employer detail(s) require information before a UIF declaration can be generated.</strong>{uifIssues.map((issue) => <p key={`${issue.code}-${issue.employeeId || "business"}`} style={issueText}>{issue.code} – {issue.message}{issue.field === "hours_worked" && <button style={inlineButton} onClick={() => recordHoursWorked(issue)}>Record hours</button>}</p>)}{uifIssues.some((issue) => !issue.employeeId) && <Link href="/employer/settings" style={issueLink}>Open Employer Settings to add the business UIF reference</Link>}{uifIssues.some((issue) => issue.employeeId) && <Link href="/employer/employees" style={issueLink}>Open employee records to correct employee details</Link>}</div>}
           </section>
+
+          {preview && business && <section ref={previewRef} id="compliance-printable" style={previewCard}>
+            <div style={toolbar}><div><p style={previewEyebrow}>{preview === "emp201" ? "SARS preparation" : "UIF preparation"}</p><h2 style={sectionTitle}>{preview === "emp201" ? "EMP201 Preparation Report" : "UI-19 - Employer's Declaration of Employees"}</h2><p style={smallText}>Prepared from WageFlow payroll records for employer review.</p></div><div style={documentActions}><button style={documentSecondaryButton} onClick={() => setPreview(null)}>Back to Compliance Summary</button><button style={documentPrimaryButton} onClick={() => window.print()}>Print / Save PDF</button></div></div>
+            {preview === "emp201" ? <div style={breakdown}><ComplianceRow label="Payroll month" value={payrollRun.payroll_month} /><ComplianceRow label="PAYE reference" value={business.paye_reference || "Not recorded"} /><ComplianceRow label="UIF reference" value={business.uif_reference || "Not recorded"} /><ComplianceRow label="Employees processed" value={String(payrollRun.employee_count || 0)} /><ComplianceRow label="Gross payroll" value={money(payrollRun.total_gross_pay)} /><ComplianceRow label="PAYE" value={money(payrollRun.total_paye)} /><ComplianceRow label="UIF employee" value={money(payrollRun.total_uif_employee)} /><ComplianceRow label="UIF employer" value={money(payrollRun.total_uif_employer)} /><ComplianceRow label="Total UIF" value={money(payrollRun.total_uif)} /><ComplianceRow label="Total statutory liability" value={money(payrollRun.sars_payable)} strong /></div> : <div style={ui19TableWrap}><div style={ui19EmployerGrid}><Info label="UIF reference" value={business.uif_reference || "-"} /><Info label="PAYE reference" value={business.paye_reference || "-"} /><Info label="Employer" value={business.trading_name || business.registered_name || business.business_name || "-"} /><Info label="Payroll month" value={payrollRun.payroll_month} /></div><table style={ui19Table}><thead><tr><th style={ui19Th}>Surname</th><th style={ui19Th}>Initials</th><th style={ui19Th}>ID / Passport</th><th style={ui19Th}>Gross remuneration</th><th style={ui19Th}>Hours</th><th style={ui19Th}>Start date</th><th style={ui19Th}>End date</th><th style={ui19Th}>Contributor</th></tr></thead><tbody>{ui19PreviewEmployees.map((employee) => <tr key={employee.id}><td style={ui19Td}>{employee.last_name || "-"}</td><td style={ui19Td}>{(employee.first_name || "").split(/\s+/).filter(Boolean).map((name) => `${name[0]}.`).join(" ")}</td><td style={ui19Td}>{employee.id_number || employee.passport_number || "-"}</td><td style={ui19Td}>{money(employee.monthly_gross_remuneration)}</td><td style={ui19Td}>{employee.monthly_hours_worked ?? "-"}</td><td style={ui19Td}>{employee.start_date || "-"}</td><td style={ui19Td}>{employee.end_date || "-"}</td><td style={ui19Td}>{(employee.uif_contributor ?? employee.uif_registered) ? "Yes" : "No"}</td></tr>)}</tbody></table></div>}
+            <p style={previewNote}>WageFlow prepares this document from payroll records. The employer must review it and is responsible for any submission.</p>
+          </section>}
 
           <section style={disclaimerBox}>
             <strong>Important:</strong> WageFlow helps you estimate and organise
