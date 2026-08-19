@@ -46,6 +46,8 @@ export default function ComplianceSummaryPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [uifIssues, setUifIssues] = useState<ComplianceIssue[]>([]);
   const [validating, setValidating] = useState(false);
+  const [preview, setPreview] = useState<"emp201" | "ui19" | null>(null);
+  const [ui19PreviewEmployees, setUi19PreviewEmployees] = useState<ComplianceEmployee[]>([]);
 
   useEffect(() => {
     const today = new Date();
@@ -178,6 +180,10 @@ export default function ComplianceSummaryPage() {
 
   function openUi19(employees: ComplianceEmployee[]) {
     if (!business || !payrollRun) return;
+    setUi19PreviewEmployees(employees);
+    setPreview("ui19");
+    return;
+    if (!business || !payrollRun) return;
     const escape = (value: string) => value.replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" }[character] || character));
     const date = (value?: string | null) => value ? escape(value) : "";
     const rows = employees.map((employee) => {
@@ -185,14 +191,19 @@ export default function ComplianceSummaryPage() {
       const contributor = (employee.uif_contributor ?? employee.uif_registered) ? "Yes" : "No";
       return `<tr><td>${escape(employee.last_name || "")}</td><td>${escape(initials)}</td><td>${escape(employee.id_number || employee.passport_number || "")}</td><td>${Number(employee.monthly_gross_remuneration || 0).toFixed(2)}</td><td>${Number(employee.monthly_hours_worked || 0).toFixed(2)}</td><td>${date(employee.start_date)}</td><td>${date(employee.end_date)}</td><td>${escape(employee.termination_reason || "")}</td><td>${contributor}</td><td>${escape(employee.uif_non_contributor_reason || "")}</td></tr>`;
     }).join("");
+    // @ts-expect-error Legacy popup fallback is intentionally unreachable while inline preview is active.
     const html = `<!doctype html><html><head><title>UI-19 Employer Declaration</title><style>body{font-family:Arial,sans-serif;color:#111;margin:26px;font-size:11px}h1{font-size:18px;margin:0}h2{font-size:13px;margin:20px 0 8px;border-bottom:1px solid #222;padding-bottom:4px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.meta p{margin:0}table{width:100%;border-collapse:collapse;margin-top:8px;font-size:9px}th,td{border:1px solid #555;padding:5px;text-align:left;vertical-align:top}th{background:#eee}.note{margin-top:18px;padding:10px;background:#fff7ed;line-height:1.45}.sign{margin-top:42px;display:flex;justify-content:space-between;gap:30px}.line{border-top:1px solid #111;padding-top:5px;min-width:220px}@media print{button{display:none}body{margin:12mm}}</style></head><body><button onclick="window.print()">Print / Save PDF</button><h1>UI-19 - Employer's Declaration of Employees</h1><p>Prepared from WageFlow payroll records for employer review. The employer must verify all information before signing or submitting.</p><h2>1. Employer details</h2><div class="meta"><p><strong>UIF reference:</strong> ${escape(business.uif_reference || "")}</p><p><strong>PAYE reference:</strong> ${escape(business.paye_reference || "")}</p><p><strong>Trading / registered name:</strong> ${escape(business.trading_name || business.registered_name || business.business_name || "")}</p><p><strong>Company registration:</strong> ${escape(business.registration_number || "")}</p><p><strong>Physical address:</strong> ${escape(business.address || "")}</p><p><strong>Postal address:</strong> ${escape(business.postal_address || business.address || "")}</p><p><strong>Worksite address:</strong> ${escape(business.worksite_address || business.address || "")}</p><p><strong>Authorised person:</strong> ${escape(business.authorised_person || "")}</p><p><strong>Phone / email:</strong> ${escape([business.phone, business.email].filter(Boolean).join(" / "))}</p><p><strong>Payroll month:</strong> ${escape(payrollRun.payroll_month)}</p></div><h2>2. Employee details</h2><table><thead><tr><th>Surname</th><th>Initials</th><th>ID / Passport</th><th>Gross remuneration</th><th>Hours worked</th><th>Start date</th><th>End date</th><th>Termination reason</th><th>Contributor</th><th>Non-contributor reason</th></tr></thead><tbody>${rows}</tbody></table><div class="note"><strong>Employer declaration:</strong> I confirm that the information has been reviewed and is correct to the best of my knowledge. WageFlow prepares this document from payroll records and does not submit it on the employer's behalf.</div><div class="sign"><div class="line">Employer / authorised representative signature</div><div class="line">Date</div></div></body></html>`;
     openPrintableDocument(html, "Allow pop-ups to generate the UI-19.");
   }
 
   function openEmp201PreparationReport() {
+    if (!business || !payrollRun) return;
+    setPreview("emp201");
+    return;
     if (!payrollRun || !business) return;
     const escape = (value: string) => value.replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" }[character] || character));
     const row = (label: string, value: string) => `<tr><td>${escape(label)}</td><td>${escape(value)}</td></tr>`;
+    // @ts-expect-error Legacy popup fallback is intentionally unreachable while inline preview is active.
     const html = `<!doctype html><html><head><title>EMP201 Preparation Report</title><style>body{font-family:Arial,sans-serif;color:#0f172a;margin:42px;max-width:780px}h1{color:#0f766e}table{width:100%;border-collapse:collapse;margin:22px 0}td{padding:11px;border-bottom:1px solid #e2e8f0}td:last-child{text-align:right;font-weight:700}.note{background:#fff7ed;padding:15px;border-radius:10px;line-height:1.55}@media print{button{display:none}}</style></head><body><button onclick="window.print()">Print / Save PDF</button><h1>EMP201 Preparation Report</h1><p>${escape(business.registered_name || business.business_name || businessName)}</p><p>Payroll month: ${escape(payrollRun.payroll_month)} · Generated: ${new Date().toLocaleDateString()}</p><table>${row("PAYE reference", business.paye_reference || "Not recorded")}${row("UIF reference", business.uif_reference || "Not recorded")}${row("Employees processed", String(payrollRun.employee_count || 0))}${row("Gross payroll", money(payrollRun.total_gross_pay))}${row("PAYE", money(payrollRun.total_paye))}${row("UIF employee", money(payrollRun.total_uif_employee))}${row("UIF employer", money(payrollRun.total_uif_employer))}${row("Total UIF", money(payrollRun.total_uif))}${row("Total statutory liability", money(payrollRun.sars_payable))}</table><p class="note"><strong>Important:</strong> This report is prepared from WageFlow payroll records to assist the employer with completing the applicable SARS employer declaration. WageFlow does not submit this return on behalf of the employer.</p></body></html>`;
     openPrintableDocument(html, "Allow pop-ups to open the EMP201 Preparation Report.");
   }
@@ -273,6 +284,12 @@ export default function ComplianceSummaryPage() {
       </section>
 
       {message && <div style={notice}>{message}</div>}
+
+      {preview && payrollRun && business && <section id="compliance-printable" style={previewCard}>
+        <div style={toolbar}><div><p style={previewEyebrow}>{preview === "emp201" ? "SARS preparation" : "UIF preparation"}</p><h2 style={sectionTitle}>{preview === "emp201" ? "EMP201 Preparation Report" : "UI-19 - Employer's Declaration of Employees"}</h2><p style={smallText}>Prepared from WageFlow payroll records for employer review.</p></div><div style={documentActions}><button style={documentSecondaryButton} onClick={() => setPreview(null)}>Back to Compliance Summary</button><button style={documentPrimaryButton} onClick={() => window.print()}>Print / Save PDF</button></div></div>
+        {preview === "emp201" ? <div style={breakdown}><ComplianceRow label="Payroll month" value={payrollRun.payroll_month} /><ComplianceRow label="PAYE reference" value={business.paye_reference || "Not recorded"} /><ComplianceRow label="UIF reference" value={business.uif_reference || "Not recorded"} /><ComplianceRow label="Employees processed" value={String(payrollRun.employee_count || 0)} /><ComplianceRow label="Gross payroll" value={money(payrollRun.total_gross_pay)} /><ComplianceRow label="PAYE" value={money(payrollRun.total_paye)} /><ComplianceRow label="UIF employee" value={money(payrollRun.total_uif_employee)} /><ComplianceRow label="UIF employer" value={money(payrollRun.total_uif_employer)} /><ComplianceRow label="Total UIF" value={money(payrollRun.total_uif)} /><ComplianceRow label="Total statutory liability" value={money(payrollRun.sars_payable)} strong /></div> : <div style={ui19TableWrap}><div style={ui19EmployerGrid}><Info label="UIF reference" value={business.uif_reference || "-"} /><Info label="PAYE reference" value={business.paye_reference || "-"} /><Info label="Employer" value={business.trading_name || business.registered_name || business.business_name || "-"} /><Info label="Payroll month" value={payrollRun.payroll_month} /></div><table style={ui19Table}><thead><tr><th style={ui19Th}>Surname</th><th style={ui19Th}>Initials</th><th style={ui19Th}>ID / Passport</th><th style={ui19Th}>Gross remuneration</th><th style={ui19Th}>Hours</th><th style={ui19Th}>Start date</th><th style={ui19Th}>End date</th><th style={ui19Th}>Contributor</th></tr></thead><tbody>{ui19PreviewEmployees.map((employee) => <tr key={employee.id}><td style={ui19Td}>{employee.last_name || "-"}</td><td style={ui19Td}>{(employee.first_name || "").split(/\s+/).filter(Boolean).map((name) => `${name[0]}.`).join(" ")}</td><td style={ui19Td}>{employee.id_number || employee.passport_number || "-"}</td><td style={ui19Td}>{money(employee.monthly_gross_remuneration)}</td><td style={ui19Td}>{employee.monthly_hours_worked ?? "-"}</td><td style={ui19Td}>{employee.start_date || "-"}</td><td style={ui19Td}>{employee.end_date || "-"}</td><td style={ui19Td}>{(employee.uif_contributor ?? employee.uif_registered) ? "Yes" : "No"}</td></tr>)}</tbody></table></div>}
+        <p style={previewNote}>WageFlow prepares this document from payroll records. The employer must review it and is responsible for any submission.</p>
+      </section>}
 
       {loading ? (
         <section style={card}>
@@ -365,7 +382,7 @@ export default function ComplianceSummaryPage() {
                 <div style={documentActions}><button style={documentSecondaryButton} onClick={downloadMonthlyComplianceCsv}>Download CSV</button></div>
               </article>
             </div>
-            {uifIssues.length > 0 && <div style={issuesBox}><strong>{uifIssues.filter((issue) => issue.severity === "blocking").length} employees or employer details require information before a UIF declaration can be generated.</strong>{uifIssues.map((issue) => <p key={`${issue.code}-${issue.employeeId || "business"}`} style={issueText}>{issue.code} – {issue.message}{issue.field === "hours_worked" && <button style={inlineButton} onClick={() => recordHoursWorked(issue)}>Record hours</button>}</p>)}<Link href="/employer/employees" style={issueLink}>Open employee records to correct employee details</Link></div>}
+            {uifIssues.length > 0 && <div style={issuesBox}><strong>{uifIssues.filter((issue) => issue.severity === "blocking").length} employee or employer detail(s) require information before a UIF declaration can be generated.</strong>{uifIssues.map((issue) => <p key={`${issue.code}-${issue.employeeId || "business"}`} style={issueText}>{issue.code} – {issue.message}{issue.field === "hours_worked" && <button style={inlineButton} onClick={() => recordHoursWorked(issue)}>Record hours</button>}</p>)}{uifIssues.some((issue) => !issue.employeeId) && <Link href="/employer/settings" style={issueLink}>Open Employer Settings to add the business UIF reference</Link>}{uifIssues.some((issue) => issue.employeeId) && <Link href="/employer/employees" style={issueLink}>Open employee records to correct employee details</Link>}</div>}
           </section>
 
           <section style={disclaimerBox}>
@@ -412,6 +429,10 @@ function ComplianceRow({
       <strong style={strong ? rowStrong : undefined}>{value}</strong>
     </div>
   );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return <div style={ui19Info}><span style={ui19InfoLabel}>{label}</span><strong>{value}</strong></div>;
 }
 
 const page = {
@@ -618,6 +639,17 @@ const disclaimerBox = {
   fontSize: "13px",
   lineHeight: 1.6,
 };
+
+const previewCard = { ...card, border: "2px solid #99f6e4" };
+const previewEyebrow = { margin: "0 0 6px", color: "#0f766e", fontSize: "11px", fontWeight: 900, letterSpacing: ".08em", textTransform: "uppercase" as const };
+const previewNote = { margin: "18px 0 0", padding: "12px", borderRadius: "10px", background: "#fff7ed", color: "#9a3412", fontSize: "13px", lineHeight: 1.5 };
+const ui19EmployerGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginTop: "18px" };
+const ui19Info = { display: "grid", gap: "4px", padding: "11px", border: "1px solid #e2e8f0", borderRadius: "10px", fontSize: "13px" };
+const ui19InfoLabel = { color: "#64748b", fontSize: "11px", fontWeight: 800, textTransform: "uppercase" as const };
+const ui19TableWrap = { overflowX: "auto" as const };
+const ui19Table = { width: "100%", minWidth: "760px", marginTop: "18px", borderCollapse: "collapse" as const, fontSize: "12px" };
+const ui19Th = { padding: "9px", border: "1px solid #cbd5e1", background: "#f8fafc", textAlign: "left" as const };
+const ui19Td = { padding: "9px", border: "1px solid #e2e8f0", verticalAlign: "top" as const };
 
 const documentGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "14px", marginTop: "18px" };
 const documentCard = { minHeight: "230px", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "grid", gridTemplateRows: "auto 1fr auto", gap: "14px" };
