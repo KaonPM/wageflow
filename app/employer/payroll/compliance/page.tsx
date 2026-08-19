@@ -351,17 +351,17 @@ export default function ComplianceSummaryPage() {
               <article style={documentCard}>
                 <h3 style={documentTitle}>EMP201 Preparation Report</h3>
                 <p style={smallText}>A payroll working document for employer review. Print it or save it as a PDF from the print dialog.</p>
-                <button style={button} onClick={openEmp201PreparationReport}>View / Print / Save PDF</button>
+                <div style={documentActions}><button style={documentPrimaryButton} onClick={openEmp201PreparationReport}>View / Print / Save PDF</button></div>
               </article>
               <article style={documentCard}>
                 <h3 style={documentTitle}>UIF UI-19 &amp; declaration</h3>
                 <p style={smallText}>{uifIssues.length ? `${uifIssues.filter((issue) => issue.severity === "blocking").length} detail(s) need to be completed first.` : "Generate a UIF declaration from this payroll month's information."}</p>
-                <div style={buttonRow}><button style={outlineButton} onClick={() => validateUif()} disabled={validating}>{validating ? "Validating..." : uifIssues.length ? `Review ${uifIssues.length} Issue(s)` : "Validate UIF Data"}</button><button style={button} onClick={() => validateUif(true)} disabled={validating}>Generate UI-19</button></div>
+                <div style={documentActions}><button style={documentSecondaryButton} onClick={() => validateUif()} disabled={validating}>{validating ? "Validating..." : uifIssues.length ? `Review ${uifIssues.length} Issue(s)` : "Validate UIF Data"}</button><button style={documentPrimaryButton} onClick={() => validateUif(true)} disabled={validating}>Generate UI-19</button></div>
               </article>
               <article style={documentCard}>
                 <h3 style={documentTitle}>Monthly Compliance CSV</h3>
                 <p style={smallText}>Download the month’s PAYE, UIF, gross-pay, and total-payable figures for your own records or adviser.</p>
-                <button style={outlineButton} onClick={downloadMonthlyComplianceCsv}>Download CSV</button>
+                <div style={documentActions}><button style={documentSecondaryButton} onClick={downloadMonthlyComplianceCsv}>Download CSV</button></div>
               </article>
             </div>
             {uifIssues.length > 0 && <div style={issuesBox}><strong>{uifIssues.filter((issue) => issue.severity === "blocking").length} employees or employer details require information before a UIF declaration can be generated.</strong>{uifIssues.map((issue) => <p key={`${issue.code}-${issue.employeeId || "business"}`} style={issueText}>{issue.code} – {issue.message}{issue.field === "hours_worked" && <button style={inlineButton} onClick={() => recordHoursWorked(issue)}>Record hours</button>}</p>)}<Link href="/employer/employees" style={issueLink}>Open employee records to correct employee details</Link></div>}
@@ -619,8 +619,12 @@ const disclaimerBox = {
 };
 
 const documentGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "14px", marginTop: "18px" };
-const documentCard = { border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "grid", gap: "14px", alignContent: "start" };
-const documentTitle = { margin: 0, color: "#0f172a", fontSize: "16px" };
+const documentCard = { minHeight: "230px", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "grid", gridTemplateRows: "auto 1fr auto", gap: "14px" };
+const documentTitle = { margin: 0, color: "#0f172a", fontSize: "17px", lineHeight: 1.3 };
+const documentActions = { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" as const };
+const documentButtonBase = { borderRadius: "9px", padding: "10px 14px", fontSize: "14px", lineHeight: 1.2, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" as const };
+const documentPrimaryButton = { ...documentButtonBase, border: "1px solid #0f766e", background: "#0f766e", color: "#ffffff" };
+const documentSecondaryButton = { ...documentButtonBase, border: "1px solid #0f766e", background: "#ffffff", color: "#0f766e" };
 const issuesBox = { marginTop: "18px", background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: "12px", padding: "16px" };
 const issueText = { margin: "8px 0 0", fontSize: "13px" };
 const issueLink = { display: "inline-block", marginTop: "12px", color: "#0f766e", fontWeight: 800, fontSize: "13px" };
