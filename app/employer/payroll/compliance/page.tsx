@@ -247,18 +247,6 @@ export default function ComplianceSummaryPage() {
               value={money(payrollRun.total_gross_pay)}
             />
 
-            <SummaryCard label="Estimated PAYE" value={money(payrollRun.total_paye)} />
-
-            <SummaryCard
-              label="Estimated UIF Employee"
-              value={money(payrollRun.total_uif_employee)}
-            />
-
-            <SummaryCard
-              label="Estimated UIF Employer"
-              value={money(payrollRun.total_uif_employer)}
-            />
-
             <SummaryCard
               label="Total Compliance Payable"
               value={money(payrollRun.sars_payable)}
