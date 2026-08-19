@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
+import { validateUifDeclaration } from "@/app/lib/compliance/uif/validator";
+import type { ComplianceEmployee, ComplianceIssue } from "@/app/lib/compliance/types";
 
 type Business = {
   id: string;
@@ -10,6 +12,11 @@ type Business = {
   trading_name?: string | null;
   registered_name?: string | null;
   name?: string | null;
+  paye_reference?: string | null;
+  uif_reference?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
 };
 
 type PayrollRun = {
@@ -32,6 +39,9 @@ export default function ComplianceSummaryPage() {
   const [payrollRun, setPayrollRun] = useState<PayrollRun | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [uifIssues, setUifIssues] = useState<ComplianceIssue[]>([]);
+  const [validating, setValidating] = useState(false);
 
   useEffect(() => {
     const today = new Date();
@@ -80,6 +90,7 @@ export default function ComplianceSummaryPage() {
     }
 
     setBusinessId(business.id);
+    setBusiness(business);
     setBusinessName(
       business.trading_name ||
         business.business_name ||
@@ -134,6 +145,36 @@ export default function ComplianceSummaryPage() {
     });
 
     setMessage("Compliance status updated.");
+  }
+
+  async function validateUif() {
+    if (!businessId || !business) return;
+    setValidating(true);
+    setMessage("");
+    const { data, error } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("business_id", businessId)
+      .order("employee_number", { ascending: true });
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setUifIssues(validateUifDeclaration(business, (data || []) as ComplianceEmployee[]));
+    }
+    setValidating(false);
+  }
+
+  function openEmp201PreparationReport() {
+    if (!payrollRun || !business) return;
+    const report = window.open("", "_blank", "noopener,noreferrer");
+    if (!report) {
+      setMessage("Allow pop-ups to open the EMP201 Preparation Report.");
+      return;
+    }
+    const escape = (value: string) => value.replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" }[character] || character));
+    const row = (label: string, value: string) => `<tr><td>${escape(label)}</td><td>${escape(value)}</td></tr>`;
+    report.document.write(`<!doctype html><html><head><title>EMP201 Preparation Report</title><style>body{font-family:Arial,sans-serif;color:#0f172a;margin:42px;max-width:780px}h1{color:#0f766e}table{width:100%;border-collapse:collapse;margin:22px 0}td{padding:11px;border-bottom:1px solid #e2e8f0}td:last-child{text-align:right;font-weight:700}.note{background:#fff7ed;padding:15px;border-radius:10px;line-height:1.55}@media print{button{display:none}}</style></head><body><button onclick="window.print()">Print / Save PDF</button><h1>EMP201 Preparation Report</h1><p>${escape(business.registered_name || business.business_name || businessName)}</p><p>Payroll month: ${escape(payrollRun.payroll_month)} · Generated: ${new Date().toLocaleDateString()}</p><table>${row("PAYE reference", business.paye_reference || "Not recorded")}${row("UIF reference", business.uif_reference || "Not recorded")}${row("Employees processed", String(payrollRun.employee_count || 0))}${row("Gross payroll", money(payrollRun.total_gross_pay))}${row("PAYE", money(payrollRun.total_paye))}${row("UIF employee", money(payrollRun.total_uif_employee))}${row("UIF employer", money(payrollRun.total_uif_employer))}${row("Total UIF", money(payrollRun.total_uif))}${row("Total statutory liability", money(payrollRun.sars_payable))}</table><p class="note"><strong>Important:</strong> This report is prepared from WageFlow payroll records to assist the employer with completing the applicable SARS employer declaration. WageFlow does not submit this return on behalf of the employer.</p></body></html>`);
+    report.document.close();
   }
 
   function money(value: number | null | undefined) {
@@ -276,6 +317,33 @@ export default function ComplianceSummaryPage() {
                 Mark as Submitted Manually
               </button>
             </div>
+          </section>
+
+          <section style={card}>
+            <div style={toolbar}>
+              <div>
+                <h2 style={sectionTitle}>Compliance Documents &amp; Exports</h2>
+                <p style={smallText}>Prepare working documents from this payroll month. Statutory electronic files remain unavailable until their official specifications are verified.</p>
+              </div>
+              <Link href="/employer/payroll/compliance/sars-reconciliation" style={outlineLink}>SARS Reconciliation</Link>
+            </div>
+            <div style={documentGrid}>
+              <article style={documentCard}>
+                <h3 style={documentTitle}>EMP201 Preparation Report</h3>
+                <p style={smallText}>A payroll working document for employer review. Print it or save it as a PDF from the print dialog.</p>
+                <button style={button} onClick={openEmp201PreparationReport}>View / Print / Save PDF</button>
+              </article>
+              <article style={documentCard}>
+                <h3 style={documentTitle}>UIF UI-19 &amp; declaration</h3>
+                <p style={smallText}>{uifIssues.length ? `${uifIssues.filter((issue) => issue.severity === "blocking").length} blocking issue(s) require attention.` : "Validate employer and employee details before a UIF document can be generated."}</p>
+                <button style={outlineButton} onClick={validateUif} disabled={validating}>{validating ? "Validating..." : uifIssues.length ? `Review ${uifIssues.length} Issue(s)` : "Validate UIF Data"}</button>
+              </article>
+              <article style={documentCard}>
+                <h3 style={documentTitle}>UIF electronic / uFiling file</h3>
+                <p style={smallText}>Unavailable: the official record layout and mapping version have not yet been verified.</p>
+              </article>
+            </div>
+            {uifIssues.length > 0 && <div style={issuesBox}><strong>{uifIssues.filter((issue) => issue.severity === "blocking").length} employees or employer details require information before a UIF declaration can be generated.</strong>{uifIssues.map((issue) => <p key={`${issue.code}-${issue.employeeId || "business"}`} style={issueText}>{issue.code} – {issue.message}</p>)}<Link href="/employer/employees" style={issueLink}>Open employee records to correct issues</Link></div>}
           </section>
 
           <section style={disclaimerBox}>
@@ -539,3 +607,11 @@ const disclaimerBox = {
   fontSize: "13px",
   lineHeight: 1.6,
 };
+
+const outlineLink = { ...outlineButton, textDecoration: "none", display: "inline-block" };
+const documentGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "14px", marginTop: "18px" };
+const documentCard = { border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "grid", gap: "14px", alignContent: "start" };
+const documentTitle = { margin: 0, color: "#0f172a", fontSize: "16px" };
+const issuesBox = { marginTop: "18px", background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: "12px", padding: "16px" };
+const issueText = { margin: "8px 0 0", fontSize: "13px" };
+const issueLink = { display: "inline-block", marginTop: "12px", color: "#0f766e", fontWeight: 800, fontSize: "13px" };
