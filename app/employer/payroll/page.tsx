@@ -58,6 +58,7 @@ export default function PayrollPage() {
   const [basicPay, setBasicPay] = useState(0);
   const [bonus, setBonus] = useState(0);
   const [overtimePay, setOvertimePay] = useState(0);
+  const [hoursWorked, setHoursWorked] = useState(0);
   const [otherDeductions, setOtherDeductions] = useState(0);
   const [ageCategory, setAgeCategory] = useState("under65");
   const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
@@ -538,6 +539,7 @@ export default function PayrollPage() {
           basic_pay: basicPay,
           bonus,
           overtime_pay: overtimePay,
+          hours_worked: hoursWorked || null,
           gross_pay: calculations.grossPay,
           taxable_income: calculations.grossPay,
           uif_employee: calculations.employeeUif,
@@ -903,6 +905,16 @@ export default function PayrollPage() {
               type="number"
               value={overtimePay}
               onChange={(e) => setOvertimePay(Number(e.target.value || 0))}
+            />
+
+            <label style={label}>Hours Worked This Month</label>
+            <input
+              style={input}
+              type="number"
+              min="0"
+              step="0.25"
+              value={hoursWorked || ""}
+              onChange={(e) => setHoursWorked(Number(e.target.value || 0))}
             />
 
             <label style={label}>Other Deductions</label>

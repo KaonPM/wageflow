@@ -28,6 +28,12 @@ type Employee = {
   account_type: string | null;
   tax_number: string | null;
   uif_number: string | null;
+  id_number: string | null;
+  passport_number: string | null;
+  end_date: string | null;
+  termination_reason: string | null;
+  uif_contributor: boolean | null;
+  uif_non_contributor_reason: string | null;
   employment_status: string | null;
   start_date: string | null;
   leave_balance: number | null;
@@ -59,6 +65,12 @@ const emptyForm = {
   account_type: "Savings",
   tax_number: "",
   uif_number: "",
+  id_number: "",
+  passport_number: "",
+  end_date: "",
+  termination_reason: "",
+  uif_contributor: true,
+  uif_non_contributor_reason: "",
   employment_status: "active",
   start_date: "",
   leave_balance: "0",
@@ -159,6 +171,12 @@ export default function EmployerEmployeesPage() {
       account_type: form.payment_method === "Cash" ? "" : form.account_type,
       tax_number: form.tax_number,
       uif_number: form.uif_number,
+      id_number: form.id_number,
+      passport_number: form.passport_number,
+      end_date: form.end_date || null,
+      termination_reason: form.termination_reason,
+      uif_contributor: form.uif_contributor,
+      uif_non_contributor_reason: form.uif_non_contributor_reason,
       employment_status: form.employment_status,
       start_date: form.start_date || null,
       leave_balance: Number(form.leave_balance || 0),
@@ -307,6 +325,12 @@ export default function EmployerEmployeesPage() {
       account_type: employee.account_type || "Savings",
       tax_number: employee.tax_number || "",
       uif_number: employee.uif_number || "",
+      id_number: employee.id_number || "",
+      passport_number: employee.passport_number || "",
+      end_date: employee.end_date || "",
+      termination_reason: employee.termination_reason || "",
+      uif_contributor: employee.uif_contributor ?? true,
+      uif_non_contributor_reason: employee.uif_non_contributor_reason || "",
       employment_status: employee.employment_status || "active",
       start_date: employee.start_date || "",
       leave_balance: String(employee.leave_balance || 0),
@@ -729,6 +753,25 @@ export default function EmployerEmployeesPage() {
               />
             </Field>
 
+            <Field label="SA ID Number">
+              <input style={input} value={form.id_number} onChange={(e) => setForm({ ...form, id_number: e.target.value })} />
+            </Field>
+
+            <Field label="Passport Number (if no SA ID)">
+              <input style={input} value={form.passport_number} onChange={(e) => setForm({ ...form, passport_number: e.target.value })} />
+            </Field>
+
+            <Field label="UIF Contributor">
+              <select style={input} value={form.uif_contributor ? "yes" : "no"} onChange={(e) => setForm({ ...form, uif_contributor: e.target.value === "yes" })}>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </Field>
+
+            {!form.uif_contributor && <Field label="UIF Non-Contributor Reason">
+              <input style={input} value={form.uif_non_contributor_reason} onChange={(e) => setForm({ ...form, uif_non_contributor_reason: e.target.value })} />
+            </Field>}
+
             <Field label="Employment Start Date">
               <input
                 style={input}
@@ -739,6 +782,14 @@ export default function EmployerEmployeesPage() {
                 }
               />
             </Field>
+
+            <Field label="Employment End Date (if applicable)">
+              <input style={input} type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+            </Field>
+
+            {form.end_date && <Field label="Termination Reason / Code">
+              <input style={input} value={form.termination_reason} onChange={(e) => setForm({ ...form, termination_reason: e.target.value })} />
+            </Field>}
 
             <Field label="Available Leave Days">
               <input

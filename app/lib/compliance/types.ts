@@ -14,13 +14,15 @@ export type ComplianceEmployee = {
   last_name?: string | null;
   id_number?: string | null;
   passport_number?: string | null;
-  date_of_birth?: string | null;
   start_date?: string | null;
   end_date?: string | null;
   termination_reason?: string | null;
   tax_number?: string | null;
   uif_registered?: boolean | null;
   uif_contributor?: boolean | null;
+  uif_non_contributor_reason?: string | null;
+  monthly_hours_worked?: number | null;
+  monthly_gross_remuneration?: number | null;
 };
 
 export type ComplianceBusiness = {
@@ -33,13 +35,3 @@ export type ComplianceBusiness = {
   email?: string | null;
   sdl_applicable?: boolean | null;
 };
-
-export const UIF_DECLARATION_SPECIFICATION = {
-  version: "UNVERIFIED_MAPPING",
-  exportEnabled: false,
-} as const;
-
-export const SARS_BRS_SPECIFICATION = {
-  version: "UNVERIFIED_MAPPING",
-  exportEnabled: false,
-} as const;

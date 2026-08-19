@@ -17,6 +17,10 @@ type Business = {
   address?: string | null;
   phone?: string | null;
   email?: string | null;
+  postal_address?: string | null;
+  worksite_address?: string | null;
+  authorised_person?: string | null;
+  registration_number?: string | null;
 };
 
 type PayrollRun = {
@@ -121,47 +125,73 @@ export default function ComplianceSummaryPage() {
     setPayrollRun(data || null);
   }
 
-  async function updateStatus(status: string) {
-    if (!payrollRun?.id) return;
-
-    setMessage("Updating compliance status...");
-
-    const { error } = await supabase
-      .from("payroll_runs")
-      .update({
-        status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", payrollRun.id);
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
-    setPayrollRun({
-      ...payrollRun,
-      status,
-    });
-
-    setMessage("Compliance status updated.");
-  }
-
-  async function validateUif() {
-    if (!businessId || !business) return;
+  async function validateUif(generateUi19 = false) {
+    if (!businessId || !business || !payrollRun) return;
     setValidating(true);
     setMessage("");
-    const { data, error } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("business_id", businessId)
-      .order("employee_number", { ascending: true });
+    const [employeesResult, payslipsResult] = await Promise.all([
+      supabase.from("employees").select("*").eq("business_id", businessId).order("employee_number", { ascending: true }),
+      supabase.from("payslips").select("*").eq("payroll_run_id", payrollRun.id),
+    ]);
+    const error = employeesResult.error || payslipsResult.error;
     if (error) {
       setMessage(error.message);
     } else {
-      setUifIssues(validateUifDeclaration(business, (data || []) as ComplianceEmployee[]));
+      const payslipsByEmployee = new Map((payslipsResult.data || []).map((payslip) => [payslip.employee_id, payslip]));
+      const employees = (employeesResult.data || []).filter((employee) => payslipsByEmployee.has(employee.id)).map((employee) => {
+        const payslip = payslipsByEmployee.get(employee.id);
+        return { ...employee, monthly_hours_worked: payslip?.hours_worked == null ? null : Number(payslip.hours_worked), monthly_gross_remuneration: payslip?.gross_pay == null ? null : Number(payslip.gross_pay) };
+      }) as ComplianceEmployee[];
+      const issues = validateUifDeclaration(business, employees);
+      setUifIssues(issues);
+      if (generateUi19 && issues.length === 0) openUi19(employees);
     }
     setValidating(false);
+  }
+
+  async function recordHoursWorked(issue: ComplianceIssue) {
+    if (!payrollRun?.id || !issue.employeeId) return;
+    const entered = window.prompt(`Hours worked for ${issue.employeeNumber || "this employee"} during ${payrollRun.payroll_month}:`);
+    if (entered === null) return;
+    const hours = Number(entered);
+    if (!Number.isFinite(hours) || hours < 0) {
+      setMessage("Enter a valid number of hours (zero or more).");
+      return;
+    }
+    setValidating(true);
+    const { data: payslip, error: lookupError } = await supabase
+      .from("payslips")
+      .select("id")
+      .eq("payroll_run_id", payrollRun.id)
+      .eq("employee_id", issue.employeeId)
+      .maybeSingle();
+    if (lookupError || !payslip) {
+      setMessage(lookupError?.message || "Payslip not found for this employee and payroll month.");
+      setValidating(false);
+      return;
+    }
+    const { error } = await supabase.from("payslips").update({ hours_worked: hours }).eq("id", payslip.id);
+    if (error) setMessage(error.message);
+    else await validateUif();
+    setValidating(false);
+  }
+
+  function openUi19(employees: ComplianceEmployee[]) {
+    if (!business || !payrollRun) return;
+    const report = window.open("", "_blank", "noopener,noreferrer");
+    if (!report) {
+      setMessage("Allow pop-ups to generate the UI-19.");
+      return;
+    }
+    const escape = (value: string) => value.replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" }[character] || character));
+    const date = (value?: string | null) => value ? escape(value) : "";
+    const rows = employees.map((employee) => {
+      const initials = (employee.first_name || "").split(/\s+/).filter(Boolean).map((name) => `${name[0]}.`).join(" ");
+      const contributor = (employee.uif_contributor ?? employee.uif_registered) ? "Yes" : "No";
+      return `<tr><td>${escape(employee.last_name || "")}</td><td>${escape(initials)}</td><td>${escape(employee.id_number || employee.passport_number || "")}</td><td>${Number(employee.monthly_gross_remuneration || 0).toFixed(2)}</td><td>${Number(employee.monthly_hours_worked || 0).toFixed(2)}</td><td>${date(employee.start_date)}</td><td>${date(employee.end_date)}</td><td>${escape(employee.termination_reason || "")}</td><td>${contributor}</td><td>${escape(employee.uif_non_contributor_reason || "")}</td></tr>`;
+    }).join("");
+    report.document.write(`<!doctype html><html><head><title>UI-19 Employer Declaration</title><style>body{font-family:Arial,sans-serif;color:#111;margin:26px;font-size:11px}h1{font-size:18px;margin:0}h2{font-size:13px;margin:20px 0 8px;border-bottom:1px solid #222;padding-bottom:4px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.meta p{margin:0}table{width:100%;border-collapse:collapse;margin-top:8px;font-size:9px}th,td{border:1px solid #555;padding:5px;text-align:left;vertical-align:top}th{background:#eee}.note{margin-top:18px;padding:10px;background:#fff7ed;line-height:1.45}.sign{margin-top:42px;display:flex;justify-content:space-between;gap:30px}.line{border-top:1px solid #111;padding-top:5px;min-width:220px}@media print{button{display:none}body{margin:12mm}}</style></head><body><button onclick="window.print()">Print / Save PDF</button><h1>UI-19 - Employer's Declaration of Employees</h1><p>Prepared from WageFlow payroll records for employer review. The employer must verify all information before signing or submitting.</p><h2>1. Employer details</h2><div class="meta"><p><strong>UIF reference:</strong> ${escape(business.uif_reference || "")}</p><p><strong>PAYE reference:</strong> ${escape(business.paye_reference || "")}</p><p><strong>Trading / registered name:</strong> ${escape(business.trading_name || business.registered_name || business.business_name || "")}</p><p><strong>Company registration:</strong> ${escape(business.registration_number || "")}</p><p><strong>Physical address:</strong> ${escape(business.address || "")}</p><p><strong>Postal address:</strong> ${escape(business.postal_address || business.address || "")}</p><p><strong>Worksite address:</strong> ${escape(business.worksite_address || business.address || "")}</p><p><strong>Authorised person:</strong> ${escape(business.authorised_person || "")}</p><p><strong>Phone / email:</strong> ${escape([business.phone, business.email].filter(Boolean).join(" / "))}</p><p><strong>Payroll month:</strong> ${escape(payrollRun.payroll_month)}</p></div><h2>2. Employee details</h2><table><thead><tr><th>Surname</th><th>Initials</th><th>ID / Passport</th><th>Gross remuneration</th><th>Hours worked</th><th>Start date</th><th>End date</th><th>Termination reason</th><th>Contributor</th><th>Non-contributor reason</th></tr></thead><tbody>${rows}</tbody></table><div class="note"><strong>Employer declaration:</strong> I confirm that the information has been reviewed and is correct to the best of my knowledge. WageFlow prepares this document from payroll records and does not submit it on the employer's behalf.</div><div class="sign"><div class="line">Employer / authorised representative signature</div><div class="line">Date</div></div></body></html>`);
+    report.document.close();
   }
 
   function openEmp201PreparationReport() {
@@ -175,6 +205,27 @@ export default function ComplianceSummaryPage() {
     const row = (label: string, value: string) => `<tr><td>${escape(label)}</td><td>${escape(value)}</td></tr>`;
     report.document.write(`<!doctype html><html><head><title>EMP201 Preparation Report</title><style>body{font-family:Arial,sans-serif;color:#0f172a;margin:42px;max-width:780px}h1{color:#0f766e}table{width:100%;border-collapse:collapse;margin:22px 0}td{padding:11px;border-bottom:1px solid #e2e8f0}td:last-child{text-align:right;font-weight:700}.note{background:#fff7ed;padding:15px;border-radius:10px;line-height:1.55}@media print{button{display:none}}</style></head><body><button onclick="window.print()">Print / Save PDF</button><h1>EMP201 Preparation Report</h1><p>${escape(business.registered_name || business.business_name || businessName)}</p><p>Payroll month: ${escape(payrollRun.payroll_month)} · Generated: ${new Date().toLocaleDateString()}</p><table>${row("PAYE reference", business.paye_reference || "Not recorded")}${row("UIF reference", business.uif_reference || "Not recorded")}${row("Employees processed", String(payrollRun.employee_count || 0))}${row("Gross payroll", money(payrollRun.total_gross_pay))}${row("PAYE", money(payrollRun.total_paye))}${row("UIF employee", money(payrollRun.total_uif_employee))}${row("UIF employer", money(payrollRun.total_uif_employer))}${row("Total UIF", money(payrollRun.total_uif))}${row("Total statutory liability", money(payrollRun.sars_payable))}</table><p class="note"><strong>Important:</strong> This report is prepared from WageFlow payroll records to assist the employer with completing the applicable SARS employer declaration. WageFlow does not submit this return on behalf of the employer.</p></body></html>`);
     report.document.close();
+  }
+
+  function downloadMonthlyComplianceCsv() {
+    if (!payrollRun) return;
+    const lines = [
+      ["Payroll month", payrollRun.payroll_month],
+      ["Employees processed", String(payrollRun.employee_count || 0)],
+      ["Gross payroll", String(Number(payrollRun.total_gross_pay || 0).toFixed(2))],
+      ["PAYE", String(Number(payrollRun.total_paye || 0).toFixed(2))],
+      ["UIF employee", String(Number(payrollRun.total_uif_employee || 0).toFixed(2))],
+      ["UIF employer", String(Number(payrollRun.total_uif_employer || 0).toFixed(2))],
+      ["Total UIF", String(Number(payrollRun.total_uif || 0).toFixed(2))],
+      ["Total compliance payable", String(Number(payrollRun.sars_payable || 0).toFixed(2))],
+    ];
+    const csv = lines.map((line) => line.map((value) => `"${value.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `wageflow-compliance-${payrollRun.payroll_month}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   function money(value: number | null | undefined) {
@@ -264,9 +315,6 @@ export default function ComplianceSummaryPage() {
                 </p>
               </div>
 
-              <span style={statusBadge}>
-                {payrollRun.status || "generated"}
-              </span>
             </div>
 
             <div style={breakdown}>
@@ -290,30 +338,14 @@ export default function ComplianceSummaryPage() {
               />
             </div>
 
-            <div style={buttonRow}>
-              <button
-                style={outlineButton}
-                onClick={() => updateStatus("reviewed")}
-              >
-                Mark as Reviewed
-              </button>
-
-              <button
-                style={button}
-                onClick={() => updateStatus("submitted_manually")}
-              >
-                Mark as Submitted Manually
-              </button>
-            </div>
           </section>
 
           <section style={card}>
             <div style={toolbar}>
               <div>
                 <h2 style={sectionTitle}>Compliance Documents &amp; Exports</h2>
-                <p style={smallText}>Prepare working documents from this payroll month. Statutory electronic files remain unavailable until their official specifications are verified.</p>
+                <p style={smallText}>Download the payroll information and documents you need for this month.</p>
               </div>
-              <Link href="/employer/payroll/compliance/sars-reconciliation" style={outlineLink}>SARS Reconciliation</Link>
             </div>
             <div style={documentGrid}>
               <article style={documentCard}>
@@ -323,15 +355,16 @@ export default function ComplianceSummaryPage() {
               </article>
               <article style={documentCard}>
                 <h3 style={documentTitle}>UIF UI-19 &amp; declaration</h3>
-                <p style={smallText}>{uifIssues.length ? `${uifIssues.filter((issue) => issue.severity === "blocking").length} blocking issue(s) require attention.` : "Validate employer and employee details before a UIF document can be generated."}</p>
-                <button style={outlineButton} onClick={validateUif} disabled={validating}>{validating ? "Validating..." : uifIssues.length ? `Review ${uifIssues.length} Issue(s)` : "Validate UIF Data"}</button>
+                <p style={smallText}>{uifIssues.length ? `${uifIssues.filter((issue) => issue.severity === "blocking").length} detail(s) need to be completed first.` : "Generate a UIF declaration from this payroll month's information."}</p>
+                <div style={buttonRow}><button style={outlineButton} onClick={() => validateUif()} disabled={validating}>{validating ? "Validating..." : uifIssues.length ? `Review ${uifIssues.length} Issue(s)` : "Validate UIF Data"}</button><button style={button} onClick={() => validateUif(true)} disabled={validating}>Generate UI-19</button></div>
               </article>
               <article style={documentCard}>
-                <h3 style={documentTitle}>UIF electronic / uFiling file</h3>
-                <p style={smallText}>Unavailable: the official record layout and mapping version have not yet been verified.</p>
+                <h3 style={documentTitle}>Monthly Compliance CSV</h3>
+                <p style={smallText}>Download the month’s PAYE, UIF, gross-pay, and total-payable figures for your own records or adviser.</p>
+                <button style={outlineButton} onClick={downloadMonthlyComplianceCsv}>Download CSV</button>
               </article>
             </div>
-            {uifIssues.length > 0 && <div style={issuesBox}><strong>{uifIssues.filter((issue) => issue.severity === "blocking").length} employees or employer details require information before a UIF declaration can be generated.</strong>{uifIssues.map((issue) => <p key={`${issue.code}-${issue.employeeId || "business"}`} style={issueText}>{issue.code} – {issue.message}</p>)}<Link href="/employer/employees" style={issueLink}>Open employee records to correct issues</Link></div>}
+            {uifIssues.length > 0 && <div style={issuesBox}><strong>{uifIssues.filter((issue) => issue.severity === "blocking").length} employees or employer details require information before a UIF declaration can be generated.</strong>{uifIssues.map((issue) => <p key={`${issue.code}-${issue.employeeId || "business"}`} style={issueText}>{issue.code} – {issue.message}{issue.field === "hours_worked" && <button style={inlineButton} onClick={() => recordHoursWorked(issue)}>Record hours</button>}</p>)}<Link href="/employer/employees" style={issueLink}>Open employee records to correct employee details</Link></div>}
           </section>
 
           <section style={disclaimerBox}>
@@ -529,17 +562,6 @@ const summaryValue = {
   fontSize: "22px",
 };
 
-const statusBadge = {
-  background: "#f8fafc",
-  color: "#0f766e",
-  border: "1px solid #dbeafe",
-  borderRadius: "999px",
-  padding: "7px 12px",
-  fontSize: "12px",
-  fontWeight: 800,
-  textTransform: "capitalize" as const,
-};
-
 const breakdown = {
   marginTop: "18px",
   borderTop: "1px solid #e2e8f0",
@@ -596,10 +618,10 @@ const disclaimerBox = {
   lineHeight: 1.6,
 };
 
-const outlineLink = { ...outlineButton, textDecoration: "none", display: "inline-block" };
 const documentGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "14px", marginTop: "18px" };
 const documentCard = { border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "grid", gap: "14px", alignContent: "start" };
 const documentTitle = { margin: 0, color: "#0f172a", fontSize: "16px" };
 const issuesBox = { marginTop: "18px", background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: "12px", padding: "16px" };
 const issueText = { margin: "8px 0 0", fontSize: "13px" };
 const issueLink = { display: "inline-block", marginTop: "12px", color: "#0f766e", fontWeight: 800, fontSize: "13px" };
+const inlineButton = { marginLeft: "10px", border: "1px solid #0f766e", borderRadius: "7px", background: "#fff", color: "#0f766e", padding: "4px 8px", fontWeight: 800, cursor: "pointer", fontSize: "12px" };

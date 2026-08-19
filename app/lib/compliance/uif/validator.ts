@@ -13,13 +13,16 @@ export function validateUifDeclaration(
   for (const employee of employees) {
     const ref = employee.employee_number || "Employee";
     const add = (code: string, message: string, field: string) => issues.push({ code, severity: "blocking", employeeId: employee.id, employeeNumber: employee.employee_number, message: `${ref} – ${message}`, field });
-    if (!employee.uif_contributor && employee.uif_contributor !== false && employee.uif_registered == null) add("UIF004", "UIF contributor status missing", "uif_contributor");
+    const contributor = employee.uif_contributor ?? employee.uif_registered;
+    if (contributor == null) add("UIF004", "UIF contributor status missing", "uif_contributor");
+    if (contributor === false && !employee.uif_non_contributor_reason?.trim()) add("UIF011", "non-contributor reason required", "uif_non_contributor_reason");
     if (!employee.first_name?.trim()) add("UIF005", "first name missing", "first_name");
     if (!employee.last_name?.trim()) add("UIF006", "surname missing", "last_name");
     if (!employee.id_number?.trim() && !employee.passport_number?.trim()) add("UIF007", "ID/passport information incomplete", "id_number");
-    if (!employee.date_of_birth?.trim()) add("UIF008", "date of birth missing", "date_of_birth");
     if (!employee.start_date?.trim()) add("UIF009", "employment start date missing", "start_date");
     if (employee.end_date?.trim() && !employee.termination_reason?.trim()) add("UIF010", "termination reason required", "termination_reason");
+    if (employee.monthly_hours_worked == null || employee.monthly_hours_worked < 0) add("UIF012", "hours worked for this payroll month missing", "hours_worked");
+    if (employee.monthly_gross_remuneration == null) add("UIF013", "gross remuneration for this payroll month missing", "gross_pay");
   }
   return issues;
 }
