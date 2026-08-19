@@ -23,6 +23,8 @@ export type ComplianceEmployee = {
   uif_non_contributor_reason?: string | null;
   monthly_hours_worked?: number | null;
   monthly_gross_remuneration?: number | null;
+  monthly_uif_employee?: number | null;
+  monthly_uif_employer?: number | null;
 };
 
 export type ComplianceBusiness = {
