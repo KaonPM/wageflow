@@ -591,10 +591,43 @@ export default function PayrollPage() {
       activeBusinessId,
     });
 
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await fetch("/api/notifications/payslip-ready", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ payslipId: payslipData.id }),
+      });
+    }
+
     await fetchSalaryReceipts(activeBusinessId);
 
     setMessage("Payslip generated successfully and linked to payroll run.");
     setSaving(false);
+  }
+
+  async function sendPayrollReminder() {
+    if (!payrollMonth) {
+      setMessage("Choose a payroll month before sending a reminder.");
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setMessage("Your session has expired. Please sign in again.");
+      return;
+    }
+    setMessage("Sending payroll reminder...");
+    const response = await fetch("/api/notifications/payroll-reminder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ payrollMonth }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(result.error || "Payroll reminder could not be sent.");
+      return;
+    }
+    setMessage(result.pushConfigured ? `Payroll reminder sent to ${result.recipients} employee portal user(s).` : "Payroll reminder is ready, but OneSignal has not been configured yet.");
   }
 
   return (
@@ -651,6 +684,10 @@ export default function PayrollPage() {
             Review estimated PAYE, UIF and EMP201-ready monthly totals.
           </span>
         </Link>
+        <button type="button" style={actionCard} onClick={sendPayrollReminder}>
+          <strong style={actionTitle}>Send Payroll Reminder</strong>
+          <span style={actionText}>Remind employees to submit outstanding leave or overtime information.</span>
+        </button>
       </section>
 
       <section style={registerCard}>

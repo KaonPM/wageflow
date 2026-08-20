@@ -190,6 +190,7 @@ export default function WageFlowLandingPage() {
           <li>Downloadable payslips</li>
           <li>Basic employee record keeping</li>
           <li>Employer dashboard access</li>
+          <li>Payslip-ready email and push notifications</li>
         </ul>
       </div>
 
@@ -205,9 +206,10 @@ export default function WageFlowLandingPage() {
         <ul style={compactList}>
           <li>Everything in Starter</li>
           <li>Expanded employee capacity</li>
-          <li>Payslip history tracking</li>
-          <li>Reports and summaries</li>
-          <li>Staff record organisation</li>
+          <li>Leave, overtime and approval workflows</li>
+          <li>Reports, payroll history and compliance tools</li>
+          <li>HR documents, notes and disciplinary records</li>
+          <li>All team push notifications and reminders</li>
         </ul>
       </div>
 

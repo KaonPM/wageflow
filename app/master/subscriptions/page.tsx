@@ -9,7 +9,7 @@ type Subscription = { id:string; business_id:string|null; plan_name:string|null;
 type Business = { id:string; business_name:string; status:string|null };
 type BillingRow = Subscription & { businessName:string; businessStatus:string|null };
 const PAGE_SIZE=8;
-const plans=["Starter","Pro"];
+const plans=["Starter","Growth"];
 const statuses=["active","trial","pending","suspended","cancelled"];
 
 export default function MasterSubscriptionsPage(){

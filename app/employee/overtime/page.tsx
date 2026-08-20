@@ -145,18 +145,20 @@ export default function EmployeeOvertimePage() {
 
     setSaving(true);
 
-    const { error } = await supabase.from("approval_requests").insert({
-      business_id: employee.business_id,
-      employee_id: employee.id,
-      request_type: "Overtime request",
-      overtime_date: overtimeDate,
-      overtime_hours: Number(hours.toFixed(2)),
-      employee_note: note || null,
-      status: "Pending",
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      showAppMessage("Your session has expired. Please sign in again.");
+      setSaving(false);
+      return;
+    }
+    const response = await fetch("/api/approval-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ requestType: "Overtime request", overtimeDate, overtimeHours: Number(hours.toFixed(2)), note }),
     });
-
-    if (error) {
-      showAppMessage(`Overtime request failed: ${error.message}`);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showAppMessage(`Overtime request failed: ${result.error || "Please try again."}`);
       setSaving(false);
       return;
     }

@@ -172,24 +172,20 @@ export default function EmployeeLeavePage() {
 
     setSaving(true);
 
-    const { error } = await supabase.from("approval_requests").insert({
-      business_id: employee.business_id,
-      employee_id: employee.id,
-      request_type: "Leave request",
-      leave_type: leaveType,
-      start_date: startDate,
-      end_date: endDate,
-      reason: reason || null,
-      employee_note: reason || null,
-      employer_note: null,
-      status: "Pending",
-      approved_by: null,
-      approved_at: null,
-      updated_at: new Date().toISOString(),
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      showAppMessage("Your session has expired. Please sign in again.");
+      setSaving(false);
+      return;
+    }
+    const response = await fetch("/api/approval-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ requestType: "Leave request", leaveType, startDate, endDate, note: reason }),
     });
-
-    if (error) {
-      showAppMessage(`Leave request was not submitted: ${error.message}`);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showAppMessage(`Leave request was not submitted: ${result.error || "Please try again."}`);
       setSaving(false);
       return;
     }

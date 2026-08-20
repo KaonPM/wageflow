@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import AppMessageHost from "@/components/AppMessageHost";
+import { OneSignalIdentity } from "@/components/OneSignalIdentity";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -72,6 +73,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <AppMessageHost />
+        <OneSignalIdentity />
       </body>
     </html>
   );
