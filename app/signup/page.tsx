@@ -13,7 +13,7 @@ export default function SetupRequestPage() {
     email: "",
     phone: "",
     employeeCount: "",
-    plan: "Starter - R149/month",
+    plan: "Starter - R199/month",
     message: "",
     website: "",
   });
@@ -65,7 +65,7 @@ export default function SetupRequestPage() {
       email: "",
       phone: "",
       employeeCount: "",
-      plan: "Starter - R149/month",
+      plan: "Starter - R199/month",
       message: "",
       website: "",
     });
@@ -165,8 +165,8 @@ export default function SetupRequestPage() {
             }
             required
           >
-            <option>Starter - R149/month</option>
-            <option>Growth - R249/month</option>
+            <option>Starter - R199/month</option>
+            <option>Growth - R299/month</option>
           </select>
 
           <textarea
@@ -179,7 +179,7 @@ export default function SetupRequestPage() {
           />
 
           <div style={setupNotice}>
-            <strong>Once-off setup fee: R499</strong>
+            <strong>Once-off setup fee: R249</strong>
             <br />
             Setup includes business profile setup, employer account setup,
             company logo upload for payslip watermark, initial employee

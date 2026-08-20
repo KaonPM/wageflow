@@ -179,7 +179,7 @@ export default function WageFlowLandingPage() {
         <h3 style={compactPlanName}>WageFlow Starter</h3>
 
         <p style={compactPrice}>
-          R149 <span style={compactSmall}>per month</span>
+          R199 <span style={compactSmall}>per month</span>
         </p>
 
         <p style={compactRange}>1 to 10 employees</p>
@@ -197,7 +197,7 @@ export default function WageFlowLandingPage() {
         <h3 style={compactPlanName}>WageFlow Pro</h3>
 
         <p style={compactPrice}>
-          R249 <span style={compactSmall}>per month</span>
+          R299 <span style={compactSmall}>per month</span>
         </p>
 
         <p style={compactRange}>11 to 20 employees</p>
@@ -215,7 +215,7 @@ export default function WageFlowLandingPage() {
         <h3 style={compactPlanName}>Setup Fee</h3>
 
         <p style={compactPrice}>
-          R499 <span style={compactSmall}>once-off</span>
+          R249 <span style={compactSmall}>once-off</span>
         </p>
 
         <p style={setupIncludesTitle}>Setup includes:</p>

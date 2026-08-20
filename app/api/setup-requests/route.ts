@@ -100,7 +100,7 @@ export async function PATCH(request: Request) {
     business_id: businessId,
     plan_name: setupRequest.selected_package || "Starter",
     monthly_fee: monthlyFee(setupRequest.selected_package),
-    setup_fee: 499,
+    setup_fee: 249,
     setup_paid: false,
     subscription_status: "active",
   }, { onConflict: "business_id" });
@@ -110,7 +110,7 @@ export async function PATCH(request: Request) {
 }
 
 function monthlyFee(packageName: string | null) {
-  if (packageName?.includes("Growth")) return 249;
+  if (packageName?.includes("Growth")) return 299;
   if (packageName?.includes("Elite")) return 499;
-  return 149;
+  return 199;
 }
