@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
+import { NotificationControl } from "@/components/NotificationControl";
 
 type BusinessOption = { id: string; business_name: string | null; trading_name: string | null; membershipRole: string };
 
@@ -52,6 +53,7 @@ export function EmployerBusinessSwitcher() {
     {businesses.length > 0 && <select aria-label="Active business" value={activeBusinessId} disabled={switching} onChange={(event) => switchBusiness(event.target.value)}>
       {businesses.map((business) => <option key={business.id} value={business.id}>{business.trading_name || business.business_name || "Unnamed business"}</option>)}
     </select>}
+    <NotificationControl />
     {message && <span className="employer-business-error">{message}</span>}
   </div>;
 }

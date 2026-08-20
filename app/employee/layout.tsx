@@ -1,2 +1,2 @@
-import type { ReactNode } from "react"; import { RoleGuard } from "@/components/RoleGuard"; import { PlanAccessGate } from "@/components/PlanAccessGate";
-export default function EmployeeLayout({children}:{children:ReactNode}){return <RoleGuard allowedRoles={["employee"]}><PlanAccessGate>{children}</PlanAccessGate></RoleGuard>}
+import type { ReactNode } from "react"; import { RoleGuard } from "@/components/RoleGuard"; import { PlanAccessGate } from "@/components/PlanAccessGate"; import { NotificationControl } from "@/components/NotificationControl";
+export default function EmployeeLayout({children}:{children:ReactNode}){return <RoleGuard allowedRoles={["employee"]}><div className="employee-utility-bar"><NotificationControl /></div><PlanAccessGate>{children}</PlanAccessGate></RoleGuard>}

@@ -47,7 +47,7 @@ export default function AppMessageHost() {
   if (!notice) return null;
 
   return (
-    <div style={wrapper} role="status" aria-live="polite">
+    <div className="app-message-host" style={wrapper} role="status" aria-live="polite">
       <div style={{ ...messageBox, ...messageTone(notice.type) }}>
         <span>{notice.message}</span>
         <button
