@@ -85,7 +85,7 @@ const statsGrid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190p
 const statCard={display:"grid",gap:7,padding:19,border:"1px solid #dfe7ed",borderRadius:16,background:"#fff",boxShadow:"0 8px 24px rgba(15,23,42,.04)"};
 const statLabel={color:"#64748b",fontSize:11,fontWeight:900,textTransform:"uppercase" as const};const statValue={color:"#0b6158",fontSize:27};const statNote={color:"#94a3b8",fontSize:12};
 const sectionHeader={display:"flex",justifyContent:"space-between",marginBottom:14};const sectionTitle={margin:"0 0 5px",fontSize:20};const sectionText={margin:0,color:"#64748b",fontSize:13};
-const grid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:16};const cardLink={textDecoration:"none",color:"inherit"};
-const card={height:"100%",boxSizing:"border-box" as const,padding:21,border:"1px solid #dfe7ed",borderRadius:17,background:"#fff",boxShadow:"0 10px 28px rgba(15,23,42,.045)"};
+const grid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:16};const cardLink={textDecoration:"none",color:"inherit",display:"block",height:"100%"};
+const card={height:"100%",boxSizing:"border-box" as const,padding:21,border:"1px solid #dfe7ed",borderRadius:17,background:"#fff",boxShadow:"0 10px 28px rgba(15,23,42,.045)",display:"flex",flexDirection:"column" as const};
 const tagStyle={display:"inline-block",marginBottom:25,padding:"6px 10px",borderRadius:999,background:"#fff7ed",color:"#b45309",fontSize:11,fontWeight:900,textTransform:"uppercase" as const};
-const cardTitle={margin:"0 0 9px",fontSize:19};const cardText={minHeight:64,margin:"0 0 18px",color:"#64748b",lineHeight:1.55,fontSize:13};const openLink={color:"#0f766e",fontSize:13,fontWeight:900};
+const cardTitle={margin:"0 0 9px",fontSize:19};const cardText={minHeight:64,margin:"0 0 18px",color:"#64748b",lineHeight:1.55,fontSize:13};const openLink={color:"#0f766e",fontSize:13,fontWeight:900,marginTop:"auto"};

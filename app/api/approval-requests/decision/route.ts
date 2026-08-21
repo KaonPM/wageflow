@@ -52,8 +52,8 @@ export async function POST(request: Request) {
   }
 
   const { data: account } = await access.admin.from("employee_accounts").select("auth_user_id").eq("employee_id", approval.employee_id).eq("portal_enabled", true).maybeSingle();
-  if (account?.auth_user_id) await createPortalTask(access.admin, { businessId: access.profile.business_id, recipientUserId: account.auth_user_id, recipientRole: "employee", title: "Request updated", message: `Your ${String(approval.request_type || "approval").toLowerCase()} was ${status.toLowerCase()}.`, href: "/employee/notifications", taskType: "approval_decision" });
-  await sendOneSignalPush({ externalIds: account?.auth_user_id ? [account.auth_user_id] : [], title: "Request updated", message: `Your ${String(approval.request_type || "approval").toLowerCase()} was ${status.toLowerCase()}.`, url: `${new URL(request.url).origin}/employee/notifications` });
+  if (account?.auth_user_id) await createPortalTask(access.admin, { businessId: access.profile.business_id, recipientUserId: account.auth_user_id, recipientRole: "employee", title: "Request updated", message: `Your ${String(approval.request_type || "approval").toLowerCase()} was ${status.toLowerCase()}.`, href: "/employee/tasks", taskType: "approval_decision" });
+  await sendOneSignalPush({ externalIds: account?.auth_user_id ? [account.auth_user_id] : [], title: "Request updated", message: `Your ${String(approval.request_type || "approval").toLowerCase()} was ${status.toLowerCase()}.`, url: `${new URL(request.url).origin}/employee/tasks` });
 
   return NextResponse.json({ success: true, result: data });
 }

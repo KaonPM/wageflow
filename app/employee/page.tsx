@@ -499,10 +499,14 @@ const grid: CSSProperties = {
 const link: CSSProperties = {
   textDecoration: "none",
   color: "inherit",
+  display: "block",
+  height: "100%",
 };
 
 const card: CSSProperties = {
   minHeight: "220px",
+  height: "100%",
+  boxSizing: "border-box",
   padding: "24px",
   border: "1px solid #e5e7eb",
   borderRadius: "24px",
