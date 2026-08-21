@@ -162,7 +162,7 @@ export default function MasterBusinessesPage() {
                     </p>
 
                     <p style={smallText}>
-                      Package: {business.selected_package || "Not set"} •
+                      Package: {formatPackage(business.selected_package)} •
                       Employees: {business.number_of_employees || 0}
                     </p>
                   </div>
@@ -185,6 +185,18 @@ export default function MasterBusinessesPage() {
       </section>
     </main>
   );
+}
+
+function formatPackage(selectedPackage: string | null) {
+  const value = (selectedPackage || "").trim();
+  const normalized = value.toLowerCase();
+  if (normalized.startsWith("starter")) return "Starter — R199/month";
+  if (normalized.startsWith("growth")) return "Growth — R299/month";
+  if (normalized.startsWith("pilot")) return "Pilot — no charge";
+  if (normalized.startsWith("daily bloom")) return "Daily Bloom — no charge";
+  if (normalized.startsWith("edu bloom")) return "Edu Bloom — no charge";
+  if (normalized.startsWith("demo")) return "Demo — no charge";
+  return value || "Not set";
 }
 
 const page = {
