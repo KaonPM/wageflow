@@ -13,6 +13,9 @@ type Employee = {
   phone: string | null;
   status?: string | null;
   employment_status?: string | null;
+  end_date?: string | null;
+  termination_reason?: string | null;
+  notes?: string | null;
 };
 
 type Business = {
@@ -21,6 +24,11 @@ type Business = {
   trading_name?: string | null;
   registered_name?: string | null;
   name?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  registration_number?: string | null;
+  logo_url?: string | null;
 };
 
 type PayslipReportRow = {
@@ -67,6 +75,7 @@ const reportTypesByCategory: Record<string, { value: string; label: string }[]> 
     employee: [
       { value: "employee_master_list", label: "Employee Master List" },
       { value: "employee_contact_report", label: "Employee Contact Report" },
+      { value: "employee_exit_report", label: "Employee Exit Report" },
     ],
     compliance: [
       { value: "uif_report", label: "UIF Report" },
@@ -87,6 +96,7 @@ const reportTypesByCategory: Record<string, { value: string; label: string }[]> 
 
 export default function EmployerReportsPage() {
   const [businessName, setBusinessName] = useState("Employer");
+  const [businessDetails, setBusinessDetails] = useState<Business | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payslips, setPayslips] = useState<PayslipReportRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,6 +149,7 @@ export default function EmployerReportsPage() {
         business.name ||
         "Employer"
     );
+    setBusinessDetails(business);
 
     await Promise.all([fetchEmployees(business.id), fetchPayslips(business.id)]);
 
@@ -181,7 +192,7 @@ export default function EmployerReportsPage() {
     const { data, error } = await supabase
       .from("employees")
       .select(
-        "id, full_name, first_name, last_name, email, phone, status, employment_status"
+        "id, full_name, first_name, last_name, email, phone, status, employment_status, end_date, termination_reason, notes"
       )
       .eq("business_id", activeBusinessId)
       .order("first_name", { ascending: true });
@@ -351,8 +362,6 @@ export default function EmployerReportsPage() {
         return false;
       }
 
-      if (statusFilter === "all") return true;
-
       const employeeStatus = (
         employee.status ||
         employee.employment_status ||
@@ -361,9 +370,70 @@ export default function EmployerReportsPage() {
         .trim()
         .toLowerCase();
 
+      if (reportType === "employee_exit_report") {
+        return employeeStatus === "terminated" && employeeMatchesExitPeriod(employee);
+      }
+
+      if (statusFilter === "all") return true;
+
       return employeeStatus === statusFilter;
     });
-  }, [employees, employeeFilter, statusFilter]);
+  }, [
+    employees,
+    employeeFilter,
+    statusFilter,
+    reportType,
+    periodType,
+    monthFilter,
+    quarterFilter,
+    halfYearFilter,
+    yearFilter,
+    startDateFilter,
+    endDateFilter,
+  ]);
+
+  function employeeMatchesExitPeriod(employee: Employee) {
+    if (periodType === "all") return true;
+
+    const dateSource = employee.end_date ? new Date(employee.end_date) : null;
+
+    if (!dateSource || Number.isNaN(dateSource.getTime())) return false;
+
+    const rowYear = dateSource.getFullYear();
+    const rowMonth = dateSource.getMonth() + 1;
+
+    if (periodType === "monthly") {
+      if (!monthFilter) return true;
+      const [selectedYear, selectedMonth] = monthFilter.split("-").map(Number);
+      return rowYear === selectedYear && rowMonth === selectedMonth;
+    }
+
+    if (periodType === "quarterly") {
+      return (
+        String(rowYear) === yearFilter &&
+        Math.ceil(rowMonth / 3) === Number(quarterFilter)
+      );
+    }
+
+    if (periodType === "half_year") {
+      return (
+        String(rowYear) === yearFilter &&
+        (rowMonth <= 6 ? 1 : 2) === Number(halfYearFilter)
+      );
+    }
+
+    if (periodType === "yearly") return String(rowYear) === yearFilter;
+
+    if (periodType === "custom") {
+      if (!startDateFilter || !endDateFilter) return true;
+      const startDate = new Date(startDateFilter);
+      const endDate = new Date(endDateFilter);
+      endDate.setHours(23, 59, 59, 999);
+      return dateSource >= startDate && dateSource <= endDate;
+    }
+
+    return true;
+  }
 
   function getReportTitle() {
     const category = reportCategories.find(
@@ -379,13 +449,35 @@ export default function EmployerReportsPage() {
 
   function getCsvRows() {
     if (reportCategory === "employee") {
+      if (reportType === "employee_exit_report") {
+        return [
+          [
+            "Employee",
+            "Exit Type",
+            "Exit Reason",
+            "Final Working Date",
+            "Final Payment Date",
+            "Resignation Notice Served",
+          ],
+          ...employeeReportRows.map((employee) => [
+            getEmployeeName(employee.id),
+            getExitType(employee),
+            getExitReason(employee),
+            formatDate(employee.end_date),
+            getFinalPaymentDate(employee),
+            getNoticeServed(employee),
+          ]),
+        ];
+      }
+
       return [
-        ["Employee", "Email", "Phone", "Status"],
+        ["Employee", "Email", "Phone", "Status", "Final Working Date"],
         ...employeeReportRows.map((employee) => [
           getEmployeeName(employee.id),
           employee.email || "",
           employee.phone || "",
           formatStatus(employee.status || employee.employment_status || "active"),
+          formatDate(employee.end_date),
         ]),
       ];
     }
@@ -510,14 +602,35 @@ export default function EmployerReportsPage() {
     }
 
     const title = getReportTitle();
+    const logoUrl = businessDetails?.logo_url?.trim();
+    const companyDetails = [
+      businessDetails?.address,
+      businessDetails?.phone,
+      businessDetails?.email,
+      businessDetails?.registration_number
+        ? `Registration no. ${businessDetails.registration_number}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const logoMarkup = logoUrl
+      ? `<img class="company-logo" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(
+          businessName
+        )} logo" />`
+      : `<div class="logo-fallback">${escapeHtml(
+          businessName.slice(0, 2).toUpperCase()
+        )}</div>`;
+    const watermarkMarkup = logoUrl
+      ? `<img src="${escapeHtml(logoUrl)}" alt="" />`
+      : `<span>${escapeHtml(businessName)}</span>`;
 
     const tableRows = rows
       .map((row, index) => {
         const cells = row
           .map((cell) =>
             index === 0
-              ? `<th>${String(cell ?? "")}</th>`
-              : `<td>${String(cell ?? "")}</td>`
+              ? `<th>${escapeHtml(String(cell ?? ""))}</th>`
+              : `<td>${escapeHtml(String(cell ?? ""))}</td>`
           )
           .join("");
 
@@ -531,20 +644,90 @@ export default function EmployerReportsPage() {
         <head>
           <title>${title}</title>
           <style>
+            @page { margin: 15mm; }
+
             body {
               font-family: Arial, sans-serif;
-              padding: 32px;
+              padding: 0;
               color: #0f172a;
+            }
+
+            .watermark {
+              position: fixed;
+              inset: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              opacity: 0.055;
+              pointer-events: none;
+              z-index: 0;
+              transform: rotate(-28deg);
+            }
+
+            .watermark img {
+              max-width: 380px;
+              max-height: 260px;
+              object-fit: contain;
+            }
+
+            .watermark span {
+              color: #0f766e;
+              font-size: 48px;
+              font-weight: 800;
+              text-align: center;
+            }
+
+            .report-content { position: relative; z-index: 1; }
+
+            .company-header {
+              display: flex;
+              align-items: center;
+              gap: 14px;
+              padding-bottom: 16px;
+              border-bottom: 2px solid #0f766e;
+              margin-bottom: 22px;
+            }
+
+            .company-logo, .logo-fallback {
+              width: 58px;
+              height: 58px;
+              object-fit: contain;
+              flex: 0 0 auto;
+            }
+
+            .logo-fallback {
+              display: grid;
+              place-items: center;
+              border-radius: 12px;
+              background: #ecfdf5;
+              color: #0f766e;
+              font-weight: 800;
+            }
+
+            .company-name {
+              margin: 0 0 3px;
+              color: #0f172a;
+              font-size: 17px;
+              font-weight: 800;
+            }
+
+            .company-details {
+              margin: 0;
+              color: #64748b;
+              font-size: 10px;
+              line-height: 1.5;
             }
 
             h1 {
               color: #0f766e;
-              margin: 0 0 6px;
+              margin: 0 0 8px;
+              font-size: 22px;
             }
 
             p {
               color: #475569;
               margin: 0 0 8px;
+              font-size: 11px;
             }
 
             table {
@@ -552,6 +735,9 @@ export default function EmployerReportsPage() {
               border-collapse: collapse;
               margin-top: 24px;
             }
+
+            thead { display: table-header-group; }
+            tr { break-inside: avoid; }
 
             th {
               background: #f8fafc;
@@ -571,15 +757,23 @@ export default function EmployerReportsPage() {
         </head>
 
         <body>
-          <h1>${title}</h1>
-          <p><strong>Company:</strong> ${businessName}</p>
-          <p><strong>Generated:</strong> ${new Date().toLocaleDateString(
-            "en-ZA"
-          )}</p>
-
-          <table>
-            ${tableRows}
-          </table>
+          <div class="watermark">${watermarkMarkup}</div>
+          <main class="report-content">
+            <header class="company-header">
+              ${logoMarkup}
+              <div>
+                <p class="company-name">${escapeHtml(businessName)}</p>
+                <p class="company-details">${escapeHtml(companyDetails || "Company details not captured")}</p>
+              </div>
+            </header>
+            <h1>${escapeHtml(title)}</h1>
+            <p><strong>Generated:</strong> ${escapeHtml(
+              new Date().toLocaleDateString("en-ZA")
+            )}</p>
+            <table>
+              ${tableRows}
+            </table>
+          </main>
         </body>
       </html>
     `;
@@ -629,6 +823,7 @@ export default function EmployerReportsPage() {
   }
 
   const isEmployeeReport = reportCategory === "employee";
+  const isExitReport = reportType === "employee_exit_report";
 
   return (
     <main style={page}>
@@ -740,6 +935,7 @@ export default function EmployerReportsPage() {
                 <>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
+                  <option value="terminated">Terminated</option>
                 </>
               ) : (
                 <>
@@ -751,7 +947,7 @@ export default function EmployerReportsPage() {
             </select>
           </div>
 
-          {!isEmployeeReport && (
+          {(!isEmployeeReport || isExitReport) && (
             <>
               <div>
                 <label style={label}>Period Type</label>
@@ -774,7 +970,9 @@ export default function EmployerReportsPage() {
                   <label style={label}>
                     {reportType === "salary_receipt_confirmations"
                       ? "Confirmation Month"
-                      : "Payroll Month"}
+                      : isExitReport
+                        ? "Exit Month"
+                        : "Payroll Month"}
                   </label>
 
                   <input
@@ -856,8 +1054,10 @@ export default function EmployerReportsPage() {
                 <>
                   <div>
                     <label style={label}>
-                      {reportType === "salary_receipt_confirmations"
-                        ? "Confirmation Start Date"
+                    {reportType === "salary_receipt_confirmations"
+                      ? "Confirmation Start Date"
+                      : isExitReport
+                        ? "Exit Start Date"
                         : "Start Date"}
                     </label>
 
@@ -871,8 +1071,10 @@ export default function EmployerReportsPage() {
 
                   <div>
                     <label style={label}>
-                      {reportType === "salary_receipt_confirmations"
-                        ? "Confirmation End Date"
+                    {reportType === "salary_receipt_confirmations"
+                      ? "Confirmation End Date"
+                      : isExitReport
+                        ? "Exit End Date"
                         : "End Date"}
                     </label>
 
@@ -912,6 +1114,7 @@ export default function EmployerReportsPage() {
             <EmployeeReportTable
               rows={employeeReportRows}
               getEmployeeName={getEmployeeName}
+              reportType={reportType}
             />
           ) : reportType === "payroll_summary" ||
             reportType === "uif_report" ||
@@ -1090,9 +1293,11 @@ function EmployeePaymentHistoryTable({
 function EmployeeReportTable({
   rows,
   getEmployeeName,
+  reportType,
 }: {
   rows: Employee[];
   getEmployeeName: (employeeId: string) => string;
+  reportType: string;
 }) {
   if (rows.length === 0) {
     return <p style={mutedText}>No employee records match the selected filters.</p>;
@@ -1102,31 +1307,94 @@ function EmployeeReportTable({
     <div style={tableWrap}>
       <table style={table}>
         <thead>
-          <tr>
-            <th style={th}>Employee</th>
-            <th style={th}>Email</th>
-            <th style={th}>Phone</th>
-            <th style={th}>Status</th>
-          </tr>
+          {reportType === "employee_exit_report" ? (
+            <tr>
+              <th style={th}>Employee</th>
+              <th style={th}>Exit Type</th>
+              <th style={th}>Exit Reason</th>
+              <th style={th}>Final Working Date</th>
+              <th style={th}>Final Payment Date</th>
+              <th style={th}>Resignation Notice Served</th>
+            </tr>
+          ) : (
+            <tr>
+              <th style={th}>Employee</th>
+              <th style={th}>Email</th>
+              <th style={th}>Phone</th>
+              <th style={th}>Status</th>
+              <th style={th}>Final Working Date</th>
+            </tr>
+          )}
         </thead>
 
         <tbody>
-          {rows.map((employee) => (
-            <tr key={employee.id}>
-              <td style={td}>{getEmployeeName(employee.id)}</td>
-              <td style={td}>{employee.email || "Not captured"}</td>
-              <td style={td}>{employee.phone || "Not captured"}</td>
-              <td style={td}>
-                {formatStatus(
-                  employee.status || employee.employment_status || "active"
-                )}
-              </td>
-            </tr>
-          ))}
+          {rows.map((employee) =>
+            reportType === "employee_exit_report" ? (
+              <tr key={employee.id}>
+                <td style={td}>{getEmployeeName(employee.id)}</td>
+                <td style={td}>{getExitType(employee)}</td>
+                <td style={td}>{getExitReason(employee)}</td>
+                <td style={td}>{formatDate(employee.end_date)}</td>
+                <td style={td}>{getFinalPaymentDate(employee)}</td>
+                <td style={td}>{getNoticeServed(employee)}</td>
+              </tr>
+            ) : (
+              <tr key={employee.id}>
+                <td style={td}>{getEmployeeName(employee.id)}</td>
+                <td style={td}>{employee.email || "Not captured"}</td>
+                <td style={td}>{employee.phone || "Not captured"}</td>
+                <td style={td}>
+                  {formatStatus(
+                    employee.status || employee.employment_status || "active"
+                  )}
+                </td>
+                <td style={td}>{formatDate(employee.end_date)}</td>
+              </tr>
+            )
+          )}
         </tbody>
       </table>
     </div>
   );
+}
+
+function getExitType(employee: Employee) {
+  const storedType = employee.notes?.match(/(?:^|\n)Exit type:\s*([^\n]+)/i)?.[1];
+  if (storedType) return storedType.trim();
+
+  const prefix = employee.termination_reason?.split(":")[0]?.trim();
+  return prefix || "Not recorded";
+}
+
+function getExitReason(employee: Employee) {
+  const reason = employee.termination_reason?.trim();
+  if (!reason) return "Not recorded";
+
+  const separatorIndex = reason.indexOf(":");
+  return separatorIndex >= 0 ? reason.slice(separatorIndex + 1).trim() : reason;
+}
+
+function getFinalPaymentDate(employee: Employee) {
+  const storedDate = employee.notes?.match(
+    /(?:^|\n)Final payment date:\s*([^\n]+)/i
+  )?.[1];
+  return storedDate ? formatDate(storedDate.trim()) : "Not recorded";
+}
+
+function getNoticeServed(employee: Employee) {
+  const notice = employee.notes?.match(
+    /(?:^|\n)Notice served:\s*([^\n]+)/i
+  )?.[1];
+  return notice ? notice.trim() : "Not applicable";
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function getBadgeStyle(status: string) {
@@ -1156,8 +1424,8 @@ function formatStatus(value: string) {
 
 const page = {
   minHeight: "100vh",
-  padding: "38px",
-  fontFamily: "Arial, sans-serif",
+  padding: "28px clamp(16px, 3vw, 42px)",
+  fontFamily: "inherit",
   background: "#f4f8fb",
   color: "#0f172a",
 };
@@ -1172,7 +1440,7 @@ const header = {
 };
 
 const title = {
-  fontSize: "34px",
+  fontSize: "clamp(26px, 3vw, 30px)",
   color: "#0f766e",
   margin: "0 0 6px",
   fontWeight: 900,
@@ -1205,8 +1473,8 @@ const backButton = {
 const panel = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
-  padding: "24px",
-  borderRadius: "20px",
+  padding: "20px",
+  borderRadius: "16px",
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
   marginBottom: "20px",
 };
@@ -1221,7 +1489,7 @@ const panelHeader = {
 };
 
 const sectionTitle = {
-  fontSize: "22px",
+  fontSize: "20px",
   margin: 0,
   color: "#0f172a",
 };

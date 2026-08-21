@@ -96,6 +96,14 @@ export default function EmployerEmployeesPage() {
   const [sendingEmployeeId, setSendingEmployeeId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [leavePolicy, setLeavePolicy] = useState<LeavePolicy | null>(null);
+  const [terminatingEmployee, setTerminatingEmployee] = useState<Employee | null>(null);
+  const [terminationDate, setTerminationDate] = useState("");
+  const [terminationReason, setTerminationReason] = useState("");
+  const [exitType, setExitType] = useState("Dismissal");
+  const [noticeServed, setNoticeServed] = useState("");
+  const [noticeNote, setNoticeNote] = useState("");
+  const [finalPaymentDate, setFinalPaymentDate] = useState("");
+  const [terminationConfirmed, setTerminationConfirmed] = useState(false);
   const pageSize = 10;
 
   useEffect(() => {
@@ -242,6 +250,21 @@ export default function EmployerEmployeesPage() {
     } finally {
       setSendingEmployeeId(null);
     }
+  }
+
+  async function terminateEmployee() {
+    if (!terminatingEmployee || !terminationDate || !terminationReason.trim() || !terminationConfirmed) {
+      setMessage("Enter the final working date and reason, then confirm the termination.");
+      return;
+    }
+    setSaving(true); setMessage("");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setMessage("Your session has expired. Please sign in again."); setSaving(false); return; }
+    const response = await fetch("/api/employees/terminate", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ employeeId: terminatingEmployee.id, endDate: terminationDate, reason: terminationReason, finalPaymentDate, exitType, noticeServed, noticeNote }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) { setMessage(result.error || "Termination could not be saved."); setSaving(false); return; }
+    setMessage("Employee marked as terminated and employee portal access disabled. Generate the Dismissal Notice and complete final payroll next.");
+    setTerminatingEmployee(null); setTerminationDate(""); setTerminationReason(""); setFinalPaymentDate(""); setExitType("Dismissal"); setNoticeServed(""); setNoticeNote(""); setTerminationConfirmed(false); await fetchEmployees(); setSaving(false);
   }
 
   async function saveEmployee() {
@@ -515,6 +538,7 @@ export default function EmployerEmployeesPage() {
                         >
                           {sendingEmployeeId === employee.id ? "Sending..." : "Resend Setup Email"}
                         </button>
+                        {employee.employment_status !== "terminated" && <button style={terminateButton} onClick={() => { setTerminatingEmployee(employee); setTerminationDate(""); setTerminationReason(""); setFinalPaymentDate(""); setExitType("Dismissal"); setNoticeServed(""); setNoticeNote(""); setTerminationConfirmed(false); }}>Process Exit</button>}
                       </td>
                     </tr>
                   ))}
@@ -526,6 +550,19 @@ export default function EmployerEmployeesPage() {
           </>
         )}
       </section>
+
+      {terminatingEmployee && <section style={terminationCard}>
+        <div style={toolbar}><div><h2 style={sectionTitle}>Process Exit: {terminatingEmployee.first_name} {terminatingEmployee.last_name}</h2><p style={muted}>This marks the employee terminated and disables their employee portal access. Review the facts and process before confirming.</p></div><button style={secondaryButton} onClick={() => setTerminatingEmployee(null)}>Cancel</button></div>
+        <div style={formGrid}>
+          <Field label="Exit Type"><select style={input} value={exitType} onChange={(e) => setExitType(e.target.value)}><option>Dismissal</option><option>Resignation</option><option>Abscondment</option><option>Retrenchment</option><option>End of Fixed-Term Contract</option><option>Mutual Separation</option><option>Other</option></select></Field>
+          <Field label="Final Working Date"><input style={input} type="date" value={terminationDate} onChange={(e) => setTerminationDate(e.target.value)} /></Field>
+          <Field label="Final Payment Date"><input style={input} type="date" value={finalPaymentDate} onChange={(e) => setFinalPaymentDate(e.target.value)} /></Field>
+        </div>
+        {exitType === "Resignation" && <div style={formGrid}><Field label="Was resignation notice served?"><select style={input} value={noticeServed} onChange={(e) => setNoticeServed(e.target.value)}><option value="">Select</option><option>Yes</option><option>No</option></select></Field><Field label="Notice details"><input style={input} value={noticeNote} onChange={(e) => setNoticeNote(e.target.value)} placeholder="Notice period, waiver or shortfall" /></Field></div>}
+        <Field label="Termination Reason"><textarea style={textarea} value={terminationReason} onChange={(e) => setTerminationReason(e.target.value)} placeholder="Record the factual reason and applicable process." /></Field>
+        <label style={checkboxRow}><input type="checkbox" checked={terminationConfirmed} onChange={(e) => setTerminationConfirmed(e.target.checked)} /> I confirm the termination details are correct and authorised.</label>
+        <div style={actionRow}><button style={terminateButton} disabled={saving} onClick={terminateEmployee}>{saving ? "Terminating..." : "Confirm termination"}</button><Link href={`/employer/hr/documents`} style={secondaryButton}>Generate Dismissal Notice</Link><Link href="/employer/payroll" style={secondaryButton}>Complete Final Payroll</Link></div>
+      </section>}
 
       {showForm && (
         <section style={card}>
@@ -1152,4 +1189,29 @@ const resendButton = {
   marginLeft: "8px",
   fontWeight: 800,
   cursor: "pointer",
+};
+
+const terminateButton = {
+  background: "#fff1f2",
+  color: "#be123c",
+  border: "1px solid #fda4af",
+  borderRadius: "10px",
+  padding: "8px 12px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const terminationCard = {
+  background: "#fffafa",
+  border: "1px solid #fecdd3",
+  borderRadius: "16px",
+  padding: "22px",
+  marginBottom: "22px",
+};
+
+const actionRow = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap" as const,
+  alignItems: "center",
 };

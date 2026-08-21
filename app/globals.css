@@ -149,20 +149,20 @@ main [style*="box-shadow"] { box-shadow: 0 8px 22px rgba(15, 23, 42, .045) !impo
 @media (max-width: 700px) {
   .employee-dashboard-page { padding: 68px 16px 24px !important; }
   .employee-dashboard-actions { top: 20px !important; right: 18px !important; }
-  .employee-dashboard-hero { padding: 24px 20px !important; border-radius: 22px !important; margin-bottom: 20px !important; }
-  .employee-dashboard-hero-layout { grid-template-columns: 1fr !important; gap: 18px !important; align-items: start !important; }
-  .employee-dashboard-logo-wrap { width: 92px !important; height: 92px !important; border-radius: 20px !important; }
+  .employee-dashboard-hero { padding: 8px 0 20px !important; border-radius: 0 !important; margin-bottom: 20px !important; }
+  .employee-dashboard-hero-layout { grid-template-columns: 56px minmax(0, 1fr) !important; gap: 12px !important; align-items: center !important; }
+  .employee-dashboard-logo-wrap { width: 56px !important; height: 56px !important; border-radius: 12px !important; }
   .employee-dashboard-business-name { font-size: clamp(28px, 9vw, 38px) !important; overflow-wrap: anywhere; }
-  .employee-dashboard-title { margin-top: 8px !important; font-size: 22px !important; }
-  .employee-dashboard-subtitle { margin-top: 14px !important; font-size: 15px !important; line-height: 1.55 !important; }
+  .employee-dashboard-title { margin-top: 3px !important; font-size: 17px !important; }
+  .employee-dashboard-subtitle { margin-top: 6px !important; font-size: 13px !important; line-height: 1.45 !important; }
   .employee-dashboard-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 16px !important; }
   .employee-dashboard-grid > a > div { min-height: 0 !important; padding: 20px !important; border-radius: 20px !important; }
 }
 
 @media (min-width: 701px) and (max-width: 900px) {
-  .employee-dashboard-hero-layout { grid-template-columns: 100px minmax(0, 1fr) !important; }
-  .employee-dashboard-logo-wrap { width: 100px !important; height: 100px !important; }
-  .employee-dashboard-business-name { font-size: 36px !important; }
+  .employee-dashboard-hero-layout { grid-template-columns: 72px minmax(0, 1fr) !important; }
+  .employee-dashboard-logo-wrap { width: 72px !important; height: 72px !important; }
+  .employee-dashboard-business-name { font-size: 30px !important; }
 }
 
 /* Employee leave responsive layout */

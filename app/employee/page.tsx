@@ -420,43 +420,40 @@ const retryButton: CSSProperties = {
 };
 
 const heroCard: CSSProperties = {
-  padding: "52px 32px",
-  borderRadius: "28px",
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  marginBottom: "34px",
-  boxShadow: "0 18px 45px rgba(15, 23, 42, 0.07)",
+  padding: "12px 0 24px",
+  marginBottom: "24px",
+  borderBottom: "1px solid #dce6ee",
 };
 
 const heroLayout: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "120px 1fr",
-  gap: "28px",
+  gridTemplateColumns: "72px 1fr",
+  gap: "16px",
   alignItems: "center",
 };
 
 const logoWrap: CSSProperties = {
-  width: "120px",
-  height: "120px",
-  borderRadius: "28px",
+  width: "72px",
+  height: "72px",
+  borderRadius: "14px",
   background: "#ffffff",
   border: "1px solid #e5e7eb",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   overflow: "hidden",
-  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.06)",
+  boxShadow: "0 5px 14px rgba(15, 23, 42, 0.04)",
 };
 
 const logo: CSSProperties = {
   width: "100%",
   height: "100%",
   objectFit: "contain",
-  padding: "10px",
+  padding: "6px",
 };
 
 const logoInitial: CSSProperties = {
-  fontSize: "42px",
+  fontSize: "28px",
   fontWeight: 800,
   color: "#0f766e",
 };
@@ -467,7 +464,7 @@ const heroContent: CSSProperties = {
 
 const businessName: CSSProperties = {
   margin: 0,
-  fontSize: "42px",
+  fontSize: "30px",
   lineHeight: 1.1,
   fontWeight: 800,
   color: "#0f766e",
@@ -475,18 +472,18 @@ const businessName: CSSProperties = {
 };
 
 const dashboardTitle: CSSProperties = {
-  margin: "12px 0 0",
-  fontSize: "26px",
+  margin: "4px 0 0",
+  fontSize: "18px",
   lineHeight: 1.2,
   fontWeight: 800,
   color: "#111827",
 };
 
 const subtitle: CSSProperties = {
-  maxWidth: "850px",
-  fontSize: "16px",
-  lineHeight: 1.65,
-  margin: "18px 0 0",
+  maxWidth: "760px",
+  fontSize: "14px",
+  lineHeight: 1.55,
+  margin: "8px 0 0",
   color: "#5f6f82",
 };
 
