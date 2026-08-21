@@ -239,6 +239,22 @@ export default function EmployerDashboard() {
 
       {message && <div style={notice}>{message}</div>}
 
+      <section style={overviewBox}>
+        <div style={overviewHeader}>
+          <h2 style={overviewTitle}>Workforce Summary</h2>
+          <button style={refreshButton} onClick={loadDashboard} disabled={loading}>
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        <div style={overviewGrid}>
+          <OverviewCard label="Employees" value={String(totalEmployees)} />
+          <OverviewCard label="On Leave" value={String(employeesOnLeave)} />
+          <OverviewCard label="Terminated" value={String(employeesTerminated)} />
+          <Link href="/employer/hr/approvals" style={todoCard}><span style={overviewValue}>{String(pendingApprovals)}</span><p style={overviewLabel}>Pending approvals</p></Link>
+        </div>
+      </section>
+
       <section style={moduleGrid}>
         <DashboardCard
           title="Employees"
@@ -289,24 +305,6 @@ export default function EmployerDashboard() {
         />}
       </section>
 
-      <section style={overviewBox}>
-        <div style={overviewHeader}>
-          <div>
-            <h2 style={overviewTitle}>Workforce Summary</h2>
-          </div>
-
-          <button style={refreshButton} onClick={loadDashboard} disabled={loading}>
-            {loading ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
-
-        <div style={overviewGrid}>
-          <OverviewCard label="Total Employees" value={String(totalEmployees)} />
-          <OverviewCard label="On Leave" value={String(employeesOnLeave)} />
-          <OverviewCard label="Terminated" value={String(employeesTerminated)} />
-          <Link href="/employer/hr/approvals" style={todoCard}><span style={overviewValue}>{String(pendingApprovals)}</span><p style={overviewLabel}>To do: approvals</p><small style={todoHint}>Review pending leave and overtime requests</small></Link>
-        </div>
-      </section>
     </main>
   );
 }
@@ -587,8 +585,9 @@ const openPill = {
 const overviewBox = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
-  borderRadius: "22px",
-  padding: "24px",
+  borderRadius: "14px",
+  padding: "14px 16px",
+  marginBottom: "18px",
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.05)",
 };
 
@@ -597,7 +596,7 @@ const overviewHeader = {
   justifyContent: "space-between",
   alignItems: "center",
   gap: "16px",
-  marginBottom: "18px",
+  marginBottom: "10px",
 };
 
 const overviewEyebrow = {
@@ -611,7 +610,7 @@ const overviewEyebrow = {
 
 const overviewTitle = {
   color: "#0f172a",
-  fontSize: "22px",
+  fontSize: "18px",
   margin: 0,
   fontWeight: 900,
 };
@@ -620,38 +619,37 @@ const refreshButton = {
   background: "#ecfeff",
   color: "#0f766e",
   border: "1px solid #99f6e4",
-  padding: "9px 14px",
-  borderRadius: "12px",
+  padding: "7px 11px",
+  borderRadius: "9px",
   cursor: "pointer",
   fontWeight: 800,
 };
 
 const overviewGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-  gap: "16px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))",
+  gap: "10px",
 };
 
 const overviewCard = {
   background: "#f8fafc",
   border: "1px solid #e2e8f0",
-  borderRadius: "18px",
-  padding: "18px",
+  borderRadius: "11px",
+  padding: "10px 12px",
 };
 
 const overviewValue = {
   display: "block",
   color: "#0f766e",
-  fontSize: "30px",
+  fontSize: "22px",
   fontWeight: 900,
 };
 
 const overviewLabel = {
-  margin: "8px 0 0",
+  margin: "3px 0 0",
   color: "#64748b",
-  fontSize: "14px",
+  fontSize: "12px",
   fontWeight: 700,
 };
 
 const todoCard = { ...overviewCard, textDecoration: "none", display: "block", border: "1px solid #99f6e4" };
-const todoHint = { color: "#64748b", fontSize: "12px", lineHeight: 1.4 };
