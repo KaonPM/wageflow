@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export function isBillablePlan(plan: string | null | undefined) {
+  return ["starter", "growth"].includes(String(plan || "").trim().toLowerCase());
+}
+
 export function isGrowthPlan(plan: string | null | undefined) {
   return /growth|pro|elite/i.test(plan || "");
 }

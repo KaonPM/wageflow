@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, requireRole } from "../_lib/authorization";
+import { issueStatement } from "../_lib/billing";
 import { checkRateLimit, isSameOrigin } from "../_lib/rateLimit";
 
 type Payload = { ownerName?: string; businessName?: string; email?: string; phone?: string; employeeCount?: string | number; plan?: string; message?: string; accepted?: boolean; acceptedAt?: string; website?: string };
@@ -95,16 +96,23 @@ export async function PATCH(request: Request) {
     default_payment_method: "Bank Transfer",
   }, { onConflict: "business_id" });
   if (settingsError) return NextResponse.json({ error: settingsError.message }, { status: 500 });
+  if (!businessId) return NextResponse.json({ error: "Business could not be created." }, { status: 500 });
 
-  const { error: subscriptionError } = await access.admin.from("subscriptions").upsert({
+  const { data: subscription, error: subscriptionError } = await access.admin.from("subscriptions").upsert({
     business_id: businessId,
     plan_name: setupRequest.selected_package || "Starter",
     monthly_fee: monthlyFee(setupRequest.selected_package),
     setup_fee: setupFee(setupRequest.selected_package),
     setup_paid: false,
     subscription_status: "active",
-  }, { onConflict: "business_id" });
+  }, { onConflict: "business_id" }).select("id,plan_name,setup_fee").single();
   if (subscriptionError) return NextResponse.json({ error: subscriptionError.message }, { status: 500 });
+
+  try {
+    await issueStatement(access.admin, { subscriptionId: subscription.id, businessId, businessName: setupRequest.business_name, email: setupRequest.email, planName: subscription.plan_name, amount: Number(subscription.setup_fee || 0), statementType: "setup", statementMonth: new Date().toISOString().slice(0, 7) + "-01" });
+  } catch (error) {
+    console.error("Setup statement issue failed", error instanceof Error ? error.message : "Unknown error");
+  }
 
   return NextResponse.json({ success: true, businessId });
 }
