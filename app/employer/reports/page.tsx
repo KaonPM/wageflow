@@ -853,6 +853,9 @@ export default function EmployerReportsPage() {
           </div>
 
           <div style={buttonRow}>
+            <Link href="/employer/report-schedules" style={scheduleLink}>
+              Schedule reports
+            </Link>
             <button style={outlineButton} onClick={printExtractedReport}>
               Print / Save PDF
             </button>
@@ -1610,4 +1613,11 @@ const messageStyle = {
   marginTop: "14px",
   color: "#155e75",
   fontWeight: 700,
+};
+
+const scheduleLink = {
+  ...outlineButton,
+  textDecoration: "none",
+  display: "inline-flex",
+  alignItems: "center",
 };

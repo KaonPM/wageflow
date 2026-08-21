@@ -298,6 +298,20 @@ export default function EmployeeDashboard() {
             description="View shared HR records, leave records, employment notes and records linked to your profile."
             href="/employee/hr-records"
           />
+
+          <DashboardCard
+            eyebrow="Policies"
+            title="Policies & Acknowledgements"
+            description="Read workplace policies shared with you and confirm that you have received and understood them."
+            href="/employee/policies"
+          />
+
+          <DashboardCard
+            eyebrow="Security"
+            title="Security Settings"
+            description="Update your password, set up two-factor authentication and manage signed-in sessions."
+            href="/security"
+          />
         </section>
       </div>
     </main>

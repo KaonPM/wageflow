@@ -46,6 +46,13 @@ export default function EmployerHRPage() {
           href="/employer/hr/notes"
           tag="Notes"
         />
+
+        <ModuleCard
+          title="Policies & Acknowledgements"
+          description="Share workplace policies, request employee acknowledgement and monitor outstanding confirmations."
+          href="/employer/hr/policies"
+          tag="Employee Communication"
+        />
       </section>
     </main>
   );

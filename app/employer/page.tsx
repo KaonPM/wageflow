@@ -14,6 +14,7 @@ type Business = {
   name?: string | null;
   logo_url?: string | null;
   status?: string | null;
+  default_payment_day?: number | null;
 };
 
 type Employee = {
@@ -34,6 +35,7 @@ export default function EmployerDashboard() {
   const [message, setMessage] = useState("");
   const [role, setRole] = useState("");
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [missingDocuments, setMissingDocuments] = useState(0);
 
   useEffect(() => {
     loadDashboard();
@@ -168,6 +170,14 @@ export default function EmployerDashboard() {
     }
 
     setEmployees(data || []);
+    const employeeIds = (data || []).map((employee) => employee.id);
+    if (employeeIds.length > 0) {
+      const { data: documents } = await supabase.from("employee_documents").select("employee_id").in("employee_id", employeeIds);
+      const employeesWithDocuments = new Set((documents || []).map((document) => document.employee_id));
+      setMissingDocuments((data || []).filter((employee) => !["terminated", "inactive"].includes(String(employee.status || employee.employment_status || "active").toLowerCase()) && !employeesWithDocuments.has(employee.id)).length);
+    } else {
+      setMissingDocuments(0);
+    }
     const { count } = await supabase.from("approval_requests").select("id", { count: "exact", head: true }).eq("business_id", businessRecord.id).eq("status", "Pending");
     setPendingApprovals(count || 0);
     setLoading(false);
@@ -206,6 +216,15 @@ export default function EmployerDashboard() {
       return status === "terminated";
     }).length;
   }, [employees]);
+
+  const nextPayrollDate = useMemo(() => {
+    const paymentDay = Math.min(Math.max(Number(business?.default_payment_day || 0), 1), 28);
+    if (!business?.default_payment_day) return "Not set";
+    const today = new Date();
+    const candidate = new Date(today.getFullYear(), today.getMonth(), paymentDay);
+    if (candidate < new Date(today.getFullYear(), today.getMonth(), today.getDate())) candidate.setMonth(candidate.getMonth() + 1);
+    return candidate.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
+  }, [business?.default_payment_day]);
 
   return (
     <main style={page}>
@@ -251,6 +270,8 @@ export default function EmployerDashboard() {
           <OverviewCard label="Employees" value={String(totalEmployees)} />
           <OverviewCard label="On Leave" value={String(employeesOnLeave)} />
           <OverviewCard label="Terminated" value={String(employeesTerminated)} />
+          <OverviewCard label="Next payroll date" value={nextPayrollDate} />
+          <Link href="/employer/hr/documents" style={todoCard}><span style={overviewValue}>{String(missingDocuments)}</span><p style={overviewLabel}>Employees missing documents</p></Link>
           <Link href="/employer/hr/approvals" style={todoCard}><span style={overviewValue}>{String(pendingApprovals)}</span><p style={overviewLabel}>Pending approvals</p></Link>
         </div>
       </section>
@@ -303,6 +324,7 @@ export default function EmployerDashboard() {
           href="/employer/admins"
           tag="Owner Controls"
         />}
+        <DashboardCard title="Security Settings" description="Update your password, add two-factor authentication and sign out of other sessions." href="/security" tag="Account Security" />
       </section>
 
     </main>
