@@ -263,6 +263,15 @@ export default function EmployeeDashboard() {
           />
 
           <DashboardCard
+            eyebrow="My Details"
+            title="Request Profile Change"
+            description="Request changes to contact, emergency-contact or banking details. Banking changes require bank confirmation."
+            href="/employee/profile/change-requests"
+          />
+
+          <DashboardCard eyebrow="Updates" title="Tasks & Notifications" description="View payslip, approval and employer updates in one place." href="/employee/tasks" />
+
+          <DashboardCard
             eyebrow="Payroll"
             title="My Payslips"
             description="View issued payslips, payment dates, net pay, payment method and PDF copies when available."

@@ -288,6 +288,9 @@ export default function EmployerEmployeesPage() {
         return;
       }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) await fetch("/api/employee-onboarding-task", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ employeeId: createdEmployee.id }) });
+
       try {
         await sendEmployeeSetupEmail(
           createdEmployee.id,

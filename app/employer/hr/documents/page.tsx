@@ -47,6 +47,7 @@ type BusinessProfile = {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  registration_number?: string | null;
   [key: string]: unknown;
 };
 
@@ -84,6 +85,11 @@ export default function EmployeeDocumentsPage() {
 
   const [letterEmployeeId, setLetterEmployeeId] = useState("");
   const [letterType, setLetterType] = useState("Confirmation of Employment");
+
+  const [warningLevel, setWarningLevel] = useState("Written warning");
+  const [warningReason, setWarningReason] = useState("");
+  const [warningRequiredAction, setWarningRequiredAction] = useState("");
+  const [warningReviewDate, setWarningReviewDate] = useState("");
 
   const [dismissalType, setDismissalType] = useState("Dismissal with notice");
   const [noticeDate, setNoticeDate] = useState("");
@@ -238,6 +244,19 @@ export default function EmployeeDocumentsPage() {
     setContractSuggestions(null);
   }
 
+  function businessDetails() {
+    return [
+      businessProfile?.address,
+      businessProfile?.phone,
+      businessProfile?.email,
+      businessProfile?.registration_number
+        ? `Registration no. ${businessProfile.registration_number}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
+  }
+
   async function extractContractDetails() {
     if (!employeeId || !file || documentCategory !== "Contract") {
       setMessage("Select an employee, choose Contract, and attach a PDF or DOCX file first.");
@@ -322,6 +341,26 @@ export default function EmployeeDocumentsPage() {
             p {
               font-size: 14px;
               line-height: 1.8;
+            }
+
+            .letter-watermark {
+              position: fixed;
+              inset: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #0f766e;
+              font-size: 46px;
+              font-weight: 800;
+              opacity: 0.07;
+              transform: rotate(-32deg);
+              pointer-events: none;
+              z-index: 0;
+            }
+
+            .letter-content {
+              position: relative;
+              z-index: 1;
             }
           </style>
         </head>
@@ -452,6 +491,7 @@ export default function EmployeeDocumentsPage() {
             .sheet {
               max-width: 760px;
               margin: 0 auto;
+              position: relative;
             }
 
             .header {
@@ -484,6 +524,23 @@ export default function EmployeeDocumentsPage() {
               white-space: pre-wrap;
               font-size: 14px;
               line-height: 1.8;
+              position: relative;
+              z-index: 1;
+            }
+
+            .watermark {
+              position: fixed;
+              inset: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #0f766e;
+              font-size: 46px;
+              font-weight: 800;
+              opacity: 0.07;
+              transform: rotate(-32deg);
+              pointer-events: none;
+              z-index: 0;
             }
 
             @page {
@@ -495,6 +552,7 @@ export default function EmployeeDocumentsPage() {
 
         <body>
           <div class="sheet">
+            <div class="watermark">${escapeHtml(businessName())}</div>
             <div class="header">
               ${
                 businessLogo()
@@ -503,7 +561,10 @@ export default function EmployeeDocumentsPage() {
                     )}" alt="Company logo" />`
                   : ""
               }
-
+              <div>
+                <h2>${escapeHtml(businessName())}</h2>
+                <div class="contact">${escapeHtml(businessDetails())}</div>
+              </div>
             </div>
 
             <div class="content">${escapeHtml(document.notes || "")}</div>
@@ -592,10 +653,10 @@ export default function EmployeeDocumentsPage() {
       <section style={card}>
         <div style={cardHeader}>
           <div>
-            <h2 style={sectionTitleNoMargin}>Document Upload</h2>
+            <h2 style={sectionTitleNoMargin}>Supporting Document Upload</h2>
 
             <p style={smallText}>
-              Keep the form closed until you need to add a new document.
+              Upload source records such as contracts, identity documents, proof of address and certificates. HR letters are generated below.
             </p>
           </div>
 
@@ -606,7 +667,7 @@ export default function EmployeeDocumentsPage() {
               setShowUploadForm((current) => !current);
             }}
           >
-            {showUploadForm ? "Close Form" : "+ Upload Document"}
+            {showUploadForm ? "Close Form" : "+ Upload Supporting Document"}
           </button>
         </div>
 
@@ -654,10 +715,6 @@ export default function EmployeeDocumentsPage() {
                   <option>ID Document</option>
                   <option>Proof of Address</option>
                   <option>Certificate</option>
-                  <option>Warning</option>
-                  <option>Disciplinary Record</option>
-                  <option>Confirmation of Employment</option>
-                  <option>Dismissal Notice</option>
                   <option>Other</option>
                 </select>
               </div>
@@ -850,8 +907,7 @@ export default function EmployeeDocumentsPage() {
                 </h3>
 
                 <p style={smallText}>
-                  Employee and business details are pulled automatically where
-                  available.
+                  WageFlow generates branded Warning, Confirmation of Employment and Dismissal Notice letters. Review before issuing or saving.
                 </p>
               </div>
 
@@ -872,6 +928,7 @@ export default function EmployeeDocumentsPage() {
                   value={letterType}
                   onChange={(e) => setLetterType(e.target.value)}
                 >
+                  <option>Warning</option>
                   <option>Confirmation of Employment</option>
                   <option>Dismissal Notice</option>
                 </select>
@@ -973,23 +1030,78 @@ export default function EmployeeDocumentsPage() {
               </>
             )}
 
-            <div style={letterPreview} ref={letterPrintRef}>
-              <div style={letterHeader}>
-                {businessLogo() && (
-                  <img
-                    src={businessLogo()}
-                    alt="Company logo"
-                    style={letterLogo}
-                  />
-                )}
+            {letterType === "Warning" && (
+              <>
+                <div style={grid}>
+                  <div>
+                    <label style={label}>Warning Level</label>
 
-                <div>
+                    <select
+                      style={input}
+                      value={warningLevel}
+                      onChange={(e) => setWarningLevel(e.target.value)}
+                    >
+                      <option>Verbal warning</option>
+                      <option>Written warning</option>
+                      <option>Final written warning</option>
+                    </select>
+                  </div>
 
-                  <p style={letterDate}>
-                    Date: {new Date().toLocaleDateString("en-ZA")}
-                  </p>
+                  <div>
+                    <label style={label}>Review Date</label>
+
+                    <input
+                      style={input}
+                      type="date"
+                      value={warningReviewDate}
+                      onChange={(e) => setWarningReviewDate(e.target.value)}
+                    />
+                  </div>
                 </div>
+
+                <label style={label}>Reason for Warning</label>
+
+                <textarea
+                  style={textarea}
+                  value={warningReason}
+                  onChange={(e) => setWarningReason(e.target.value)}
+                  placeholder="State the factual conduct or performance concern."
+                />
+
+                <label style={label}>Required Improvement or Action</label>
+
+                <textarea
+                  style={textarea}
+                  value={warningRequiredAction}
+                  onChange={(e) => setWarningRequiredAction(e.target.value)}
+                  placeholder="Describe the improvement expected and any next steps."
+                />
+              </>
+            )}
+
+            <div style={letterPreview} ref={letterPrintRef}>
+              <div className="letter-watermark" style={letterWatermark}>
+                {businessName()}
               </div>
+
+              <div className="letter-content" style={letterContent}>
+                <div style={letterHeader}>
+                  {businessLogo() && (
+                    <img
+                      src={businessLogo()}
+                      alt="Company logo"
+                      style={letterLogo}
+                    />
+                  )}
+
+                  <div>
+                    <strong style={letterBusinessName}>{businessName()}</strong>
+                    {businessDetails() && <p style={letterBusinessDetails}>{businessDetails()}</p>}
+                    <p style={letterDate}>
+                      Date: {new Date().toLocaleDateString("en-ZA")}
+                    </p>
+                  </div>
+                </div>
 
               {letterType === "Confirmation of Employment" ? (
                 <div style={letterBody}>
@@ -1022,6 +1134,34 @@ export default function EmployeeDocumentsPage() {
 
                   <p>
                     This letter is issued upon request for confirmation purposes.
+                  </p>
+                </div>
+              ) : letterType === "Warning" ? (
+                <div style={letterBody}>
+                  <p>Dear {employeeName(letterEmployeeId)},</p>
+
+                  <p>
+                    This letter records a <strong>{warningLevel.toLowerCase()}</strong> issued by <strong>{businessName()}</strong>.
+                  </p>
+
+                  <p>
+                    Reason for warning:
+                    <br />
+                    <strong>{warningReason || "-"}</strong>
+                  </p>
+
+                  <p>
+                    Required improvement or action:
+                    <br />
+                    <strong>{warningRequiredAction || "-"}</strong>
+                  </p>
+
+                  <p>
+                    Review date: <strong>{warningReviewDate || "-"}</strong>
+                  </p>
+
+                  <p style={disclaimer}>
+                    This document is a template. Confirm that the facts, process and wording comply with company policy and applicable labour law before issuing it.
                   </p>
                 </div>
               ) : (
@@ -1093,6 +1233,7 @@ export default function EmployeeDocumentsPage() {
                   <br />
                   {businessName()}
                 </p>
+              </div>
               </div>
             </div>
 
@@ -1493,6 +1634,29 @@ const letterPreview: CSSProperties = {
   borderRadius: "16px",
   padding: "24px",
   margin: "18px 0",
+  position: "relative",
+  overflow: "hidden",
+};
+
+const letterWatermark: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#0f766e",
+  fontSize: "42px",
+  fontWeight: 800,
+  opacity: 0.07,
+  transform: "rotate(-32deg)",
+  pointerEvents: "none",
+  textAlign: "center",
+  padding: "24px",
+};
+
+const letterContent: CSSProperties = {
+  position: "relative",
+  zIndex: 1,
 };
 
 const letterHeader: CSSProperties = {
@@ -1538,6 +1702,18 @@ const disclaimer: CSSProperties = {
   color: "#9a3412",
   borderRadius: "12px",
   padding: "12px",
+  fontSize: "12px",
+  lineHeight: 1.5,
+};
+
+const letterBusinessName: CSSProperties = {
+  color: "#0f172a",
+  fontSize: "18px",
+};
+
+const letterBusinessDetails: CSSProperties = {
+  margin: "5px 0 0",
+  color: "#64748b",
   fontSize: "12px",
   lineHeight: 1.5,
 };

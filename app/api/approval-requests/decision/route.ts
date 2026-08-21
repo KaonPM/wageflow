@@ -11,8 +11,11 @@ type DecisionPayload = {
 };
 
 export async function POST(request: Request) {
-  const access = await requireRole(request, ["employer"]);
+  const access = await requireRole(request, ["employer", "employer_admin"]);
   if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
+  const isEmployerAdmin = String(access.profile.role).toLowerCase() === "employer_admin";
+  const permissions = Array.isArray(access.profile.admin_permissions) ? access.profile.admin_permissions.map(String) : [];
+  if (isEmployerAdmin && !permissions.includes("hr")) return NextResponse.json({ error: "Your employer administrator account has not been granted HR approval access." }, { status: 403 });
   if (!access.profile.business_id) return NextResponse.json({ error: "Business profile not found." }, { status: 400 });
   if (!await hasGrowthSubscription(access.admin, access.profile.business_id)) return NextResponse.json({ error: "Approval decisions are available on the Growth plan." }, { status: 403 });
 

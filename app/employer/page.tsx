@@ -274,6 +274,13 @@ export default function EmployerDashboard() {
           href="/employer/settings"
           tag="Business Setup"
         />
+        <DashboardCard
+          title="Change Requests"
+          description="Review employee contact, emergency-contact and banking changes before they update payroll records."
+          href="/employer/change-requests"
+          tag="Employer Approval"
+        />
+        <DashboardCard title="Tasks & Notifications" description="Review your pending workflow tasks and team updates." href="/employer/tasks" tag="Work Queue" />
         {role === "employer" && <DashboardCard
           title="Employer Admins"
           description="Invite trusted administrators and choose the workspaces they may access."
