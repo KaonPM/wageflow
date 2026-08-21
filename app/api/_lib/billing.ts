@@ -53,6 +53,25 @@ export async function markStatementPaidAndEmail(admin: SupabaseClient, statement
   return { emailed: delivery.ok, reason: delivery.ok ? undefined : delivery.error };
 }
 
+export async function resendStatementEmail(admin: SupabaseClient, statementId: string) {
+  const { data: statement, error } = await admin.from("subscription_statements").select("id,subscription_id,business_id,statement_type,statement_month,amount,paid_at").eq("id", statementId).maybeSingle();
+  if (error || !statement) throw new Error(error?.message || "Statement not found.");
+  if (!statement.paid_at) throw new Error("Record the payment before resending this statement.");
+  const [{ data: subscription, error: subscriptionError }, { data: business, error: businessError }] = await Promise.all([
+    admin.from("subscriptions").select("plan_name").eq("id", statement.subscription_id).maybeSingle(),
+    admin.from("businesses").select("business_name,email").eq("id", statement.business_id).maybeSingle(),
+  ]);
+  if (subscriptionError || businessError || !subscription || !business) throw new Error(subscriptionError?.message || businessError?.message || "Billing details could not be loaded.");
+  if (!business.email) throw new Error("The business has no billing email address.");
+  const delivery = await sendStatementEmail({ subscriptionId: statement.subscription_id, businessId: statement.business_id, businessName: business.business_name, email: business.email, planName: subscription.plan_name, amount: Number(statement.amount), statementType: statement.statement_type as "setup" | "monthly", statementMonth: statement.statement_month });
+  const { error: updateError } = await admin.from("subscription_statements").update(delivery.ok
+    ? { status: "emailed", emailed_at: new Date().toISOString(), email_error: null }
+    : { status: "email_failed", email_error: delivery.error.slice(0, 500) }
+  ).eq("id", statement.id);
+  if (updateError) throw new Error(updateError.message);
+  return { emailed: delivery.ok, reason: delivery.ok ? undefined : delivery.error };
+}
+
 async function sendStatementEmail(statement: Statement) {
   const apiKey = process.env.BREVO_API_KEY;
   const fromEmail = process.env.BREVO_FROM_EMAIL;

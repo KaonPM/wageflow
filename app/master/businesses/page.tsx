@@ -113,7 +113,7 @@ export default function MasterBusinessesPage() {
           </p>
         </div>
 
-        <button onClick={fetchBusinesses} style={refreshButton}>Refresh</button>
+        <div style={headerActions}><Link href="/master" style={backButton}>← Back to overview</Link><button onClick={fetchBusinesses} style={refreshButton}>Refresh</button></div>
       </div>
 
       <section style={toolbar}>
@@ -308,6 +308,9 @@ const manageButton = {
 const muted = {
   color: "#64748b",
 };
+
+const headerActions = { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" as const };
+const backButton = { border: "1px solid #0f766e", borderRadius: 12, padding: "10px 14px", color: "#0f766e", fontWeight: 800, fontSize: 13, textDecoration: "none" };
 
 const filterSelect = {
   minWidth: 190,
