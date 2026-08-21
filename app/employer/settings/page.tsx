@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ChangeEvent, ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
@@ -86,6 +86,7 @@ export default function EmployerSettingsPage() {
   const [employerId, setEmployerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -175,6 +176,55 @@ export default function EmployerSettingsPage() {
       ...prev,
       [field]: !prev[field],
     }));
+  }
+
+  async function handleLogoUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+    if (!businessId) {
+      setMessage("Save your business details before uploading a logo.");
+      return;
+    }
+    if (!new Set(["image/jpeg", "image/png", "image/webp"]).has(file.type)) {
+      setMessage("Choose a PNG, JPG or WebP logo.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage("The logo must be 2 MB or smaller.");
+      return;
+    }
+
+    setUploadingLogo(true);
+    setMessage("");
+    const extension = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "") || "png";
+    const path = `${businessId}/${crypto.randomUUID()}.${extension.toLowerCase()}`;
+    const { error: uploadError } = await supabase.storage
+      .from("business-logos")
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+
+    if (uploadError) {
+      setMessage(uploadError.message);
+      setUploadingLogo(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from("business-logos").getPublicUrl(path);
+    const logoUrl = data.publicUrl;
+    const { error: updateError } = await supabase
+      .from("businesses")
+      .update({ logo_url: logoUrl })
+      .eq("id", businessId);
+
+    if (updateError) {
+      await supabase.storage.from("business-logos").remove([path]);
+      setMessage(updateError.message);
+    } else {
+      setSettings((current) => ({ ...current, logoUrl }));
+      setMessage("Logo uploaded successfully.");
+    }
+    setUploadingLogo(false);
   }
 
   async function handleSave() {
@@ -366,15 +416,16 @@ export default function EmployerSettingsPage() {
                 />
               </Field>
 
-              <Field label="Logo URL">
+              <Field label="Business Logo">
                 <input
                   style={input}
-                  placeholder="/wageflow-logo.png or hosted logo URL"
-                  value={settings.logoUrl}
-                  onChange={(e) =>
-                    setSettings({ ...settings, logoUrl: e.target.value })
-                  }
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleLogoUpload}
+                  disabled={uploadingLogo || !businessId}
                 />
+                <p style={helperText}>PNG, JPG or WebP, up to 2 MB. The logo appears on payslips and is not offered as a download.</p>
+                {settings.logoUrl && <img src={settings.logoUrl} alt="Business logo preview" style={logoPreview} />}
               </Field>
 
               <div style={colourGrid}>
@@ -823,4 +874,22 @@ const saveButton = {
   padding: "12px 20px",
   fontWeight: 800,
   cursor: "pointer",
+};
+
+const helperText = {
+  margin: "7px 0 0",
+  color: "#64748b",
+  fontSize: "12px",
+  lineHeight: 1.45,
+};
+
+const logoPreview = {
+  display: "block",
+  maxWidth: "180px",
+  maxHeight: "70px",
+  objectFit: "contain" as const,
+  marginTop: "12px",
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  padding: "6px",
 };
