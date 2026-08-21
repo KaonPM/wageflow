@@ -79,6 +79,10 @@ const emptyForm = {
   notes: "",
 };
 
+type LeavePolicy = {
+  annual_leave_allowance?: number | null;
+};
+
 export default function EmployerEmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -91,6 +95,7 @@ export default function EmployerEmployeesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sendingEmployeeId, setSendingEmployeeId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [leavePolicy, setLeavePolicy] = useState<LeavePolicy | null>(null);
   const pageSize = 5;
 
   useEffect(() => {
@@ -142,6 +147,13 @@ export default function EmployerEmployeesPage() {
     } else {
       setEmployees(data || []);
     }
+
+    const { data: policy } = await supabase
+      .from("businesses")
+      .select("annual_leave_allowance")
+      .eq("id", businessId)
+      .maybeSingle();
+    setLeavePolicy(policy);
 
     setLoading(false);
   }
@@ -427,7 +439,10 @@ export default function EmployerEmployeesPage() {
             <button
               style={primaryButton}
               onClick={() => {
-                setForm(emptyForm);
+                setForm({
+                  ...emptyForm,
+                  leave_balance: String(leavePolicy?.annual_leave_allowance ?? 15),
+                });
                 setEditingId(null);
                 setShowForm(!showForm);
               }}

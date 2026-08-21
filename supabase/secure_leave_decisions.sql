@@ -58,6 +58,7 @@ declare
   target_request public.approval_requests%rowtype;
   leave_days integer := 0;
   remaining_balance numeric;
+  target_work_week_days smallint := 5;
 begin
   if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
     raise exception 'Service role required';
@@ -84,9 +85,13 @@ begin
       raise exception 'The leave dates are invalid';
     end if;
 
+    select coalesce(work_week_days, 5) into target_work_week_days
+    from public.businesses
+    where id = target_business_id;
+
     select count(*)::integer into leave_days
     from generate_series(target_request.start_date::date, target_request.end_date::date, interval '1 day') as day
-    where extract(isodow from day) between 1 and 5;
+    where extract(isodow from day) between 1 and target_work_week_days;
 
     select coalesce(leave_balance, 0) into remaining_balance
     from public.employees

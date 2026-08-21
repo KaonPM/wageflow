@@ -22,6 +22,10 @@ type Settings = {
   pensionEnabled: boolean;
   medicalAidEnabled: boolean;
   showLeaveBalances: boolean;
+  workWeekDays: 5 | 6;
+  annualLeaveAllowance: number;
+  sickLeaveAllowance: number;
+  familyResponsibilityLeaveAllowance: number;
   defaultPaymentMethod: string;
 };
 
@@ -43,6 +47,10 @@ type BusinessRecord = {
   pension_enabled?: boolean | null;
   medical_aid_enabled?: boolean | null;
   show_leave_balances?: boolean | null;
+  work_week_days?: number | null;
+  annual_leave_allowance?: number | null;
+  sick_leave_allowance?: number | null;
+  family_responsibility_leave_allowance?: number | null;
   default_payment_method?: string | null;
 };
 
@@ -63,6 +71,10 @@ const defaultSettings: Settings = {
   pensionEnabled: false,
   medicalAidEnabled: false,
   showLeaveBalances: true,
+  workWeekDays: 5,
+  annualLeaveAllowance: 15,
+  sickLeaveAllowance: 30,
+  familyResponsibilityLeaveAllowance: 3,
   defaultPaymentMethod: "Bank Transfer",
 };
 
@@ -146,6 +158,10 @@ export default function EmployerSettingsPage() {
         pensionEnabled: businessQuery.pension_enabled ?? false,
         medicalAidEnabled: businessQuery.medical_aid_enabled ?? false,
         showLeaveBalances: businessQuery.show_leave_balances ?? true,
+        workWeekDays: businessQuery.work_week_days === 6 ? 6 : 5,
+        annualLeaveAllowance: Number(businessQuery.annual_leave_allowance ?? (businessQuery.work_week_days === 6 ? 18 : 15)),
+        sickLeaveAllowance: Number(businessQuery.sick_leave_allowance ?? (businessQuery.work_week_days === 6 ? 36 : 30)),
+        familyResponsibilityLeaveAllowance: Number(businessQuery.family_responsibility_leave_allowance ?? 3),
         defaultPaymentMethod:
           businessQuery.default_payment_method || "Bank Transfer",
       });
@@ -189,6 +205,10 @@ export default function EmployerSettingsPage() {
       pension_enabled: settings.pensionEnabled,
       medical_aid_enabled: settings.medicalAidEnabled,
       show_leave_balances: settings.showLeaveBalances,
+      work_week_days: settings.workWeekDays,
+      annual_leave_allowance: settings.annualLeaveAllowance,
+      sick_leave_allowance: settings.sickLeaveAllowance,
+      family_responsibility_leave_allowance: settings.familyResponsibilityLeaveAllowance,
       default_payment_method: settings.defaultPaymentMethod,
     };
 
@@ -484,6 +504,50 @@ export default function EmployerSettingsPage() {
                   <option value="Other">Other</option>
                 </select>
               </Field>
+            </div>
+
+            <div style={card}>
+              <div style={cardHeader}>
+                <div>
+                  <h2 style={cardTitle}>Leave Policy</h2>
+                  <p style={cardSubtitle}>
+                    BCEA-compatible working-day defaults for this company.
+                  </p>
+                </div>
+              </div>
+
+              <Field label="Standard Work Week">
+                <select
+                  value={settings.workWeekDays}
+                  onChange={(e) => {
+                    const workWeekDays = Number(e.target.value) === 6 ? 6 : 5;
+                    setSettings({
+                      ...settings,
+                      workWeekDays,
+                      annualLeaveAllowance: workWeekDays === 6 ? 18 : 15,
+                      sickLeaveAllowance: workWeekDays === 6 ? 36 : 30,
+                    });
+                  }}
+                  style={select}
+                >
+                  <option value={5}>5 days per week — 15 annual / 30 sick days</option>
+                  <option value={6}>6 days per week — 18 annual / 36 sick days</option>
+                </select>
+              </Field>
+
+              <Field label="Annual Leave per Leave Cycle (working days)">
+                <input style={input} type="number" min={settings.workWeekDays === 6 ? 18 : 15} value={settings.annualLeaveAllowance} onChange={(e) => setSettings({ ...settings, annualLeaveAllowance: Math.max(settings.workWeekDays === 6 ? 18 : 15, Number(e.target.value || 0)) })} />
+              </Field>
+
+              <Field label="Sick Leave per 36-Month Cycle (working days)">
+                <input style={input} type="number" min={settings.workWeekDays === 6 ? 36 : 30} value={settings.sickLeaveAllowance} onChange={(e) => setSettings({ ...settings, sickLeaveAllowance: Math.max(settings.workWeekDays === 6 ? 36 : 30, Number(e.target.value || 0)) })} />
+              </Field>
+
+              <Field label="Family Responsibility Leave per Annual Cycle (days)">
+                <input style={input} type="number" min="3" value={settings.familyResponsibilityLeaveAllowance} onChange={(e) => setSettings({ ...settings, familyResponsibilityLeaveAllowance: Math.max(3, Number(e.target.value || 0)) })} />
+              </Field>
+
+              <p style={cardSubtitle}>The annual-leave balance is applied to newly added employees only. Existing balances are never changed automatically.</p>
             </div>
           </section>
 
