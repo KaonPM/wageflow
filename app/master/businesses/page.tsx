@@ -20,7 +20,7 @@ type Business = {
   created_at: string;
 };
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 export default function MasterBusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);

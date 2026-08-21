@@ -96,7 +96,7 @@ export default function EmployerEmployeesPage() {
   const [sendingEmployeeId, setSendingEmployeeId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [leavePolicy, setLeavePolicy] = useState<LeavePolicy | null>(null);
-  const pageSize = 5;
+  const pageSize = 10;
 
   useEffect(() => {
     fetchEmployees();
