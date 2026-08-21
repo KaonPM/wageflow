@@ -49,11 +49,11 @@ export function EmployerBusinessSwitcher() {
 
   if (businesses.length === 0 && !message) return null;
   return <div className="employer-business-bar">
-    <div><strong>Active business</strong><span>Payroll and HR data are isolated to this selection.</span></div>
+    <div className="employer-business-context"><strong>Active business</strong><span>Payroll and HR data are isolated to this selection.</span></div>
+    <NotificationControl />
     {businesses.length > 0 && <select aria-label="Active business" value={activeBusinessId} disabled={switching} onChange={(event) => switchBusiness(event.target.value)}>
       {businesses.map((business) => <option key={business.id} value={business.id}>{business.trading_name || business.business_name || "Unnamed business"}</option>)}
     </select>}
-    <NotificationControl />
     {message && <span className="employer-business-error">{message}</span>}
   </div>;
 }
