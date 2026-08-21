@@ -44,28 +44,20 @@ export default function MasterUsersPage() {
     setLoading(true);
     setMessage("");
 
-    const { data: userData, error: userError } = await supabase
-      .from("profiles")
-      .select(
-        `
-        *,
-        businesses (
-          business_name
-        )
-      `
-      )
-      .order("created_at", { ascending: false });
-
-    const { data: businessData, error: businessError } = await supabase
-      .from("businesses")
-      .select("id, business_name")
-      .order("business_name", { ascending: true });
+    const [{ data: userData, error: userError }, { data: businessData, error: businessError }] = await Promise.all([
+      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+      supabase.from("businesses").select("id, business_name").order("business_name", { ascending: true }),
+    ]);
 
     if (userError) {
       setMessage(userError.message);
       setUsers([]);
     } else {
-      setUsers(userData || []);
+      const businessNames = new Map((businessData || []).map((business) => [business.id, business.business_name]));
+      setUsers((userData || []).map((user) => ({
+        ...user,
+        businesses: user.business_id ? { business_name: businessNames.get(user.business_id) || null } : null,
+      })));
     }
 
     if (businessError) {
