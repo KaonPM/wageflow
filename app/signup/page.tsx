@@ -13,7 +13,7 @@ export default function SetupRequestPage() {
     email: "",
     phone: "",
     employeeCount: "",
-    plan: "Starter - R199/month",
+    plan: "Starter",
     message: "",
     website: "",
   });
@@ -65,7 +65,7 @@ export default function SetupRequestPage() {
       email: "",
       phone: "",
       employeeCount: "",
-      plan: "Starter - R199/month",
+      plan: "Starter",
       message: "",
       website: "",
     });
@@ -165,8 +165,14 @@ export default function SetupRequestPage() {
             }
             required
           >
-            <option>Starter - R199/month</option>
-            <option>Growth - R299/month</option>
+            <option value="Starter">Starter — R199/month</option>
+            <option value="Pilot">Pilot — no charge</option>
+            <option value="Growth">Growth — R299/month</option>
+            <option value="Daily Bloom">Daily Bloom — no charge</option>
+            <option value="Daily Bloom WageFlow">Daily Bloom WageFlow — no charge</option>
+            <option value="Edu Bloom">Edu Bloom — no charge</option>
+            <option value="Edu Bloom WageFlow">Edu Bloom WageFlow — no charge</option>
+            <option value="Demo">Demo — no charge</option>
           </select>
 
           <textarea
