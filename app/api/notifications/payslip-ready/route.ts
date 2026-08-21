@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "../../_lib/authorization";
 import { sendOneSignalPush } from "../../_lib/oneSignal";
+import { createPortalTask } from "../../_lib/portalTasks";
 
 export async function POST(request: Request) {
   const access = await requireRole(request, ["employer"]);
@@ -14,6 +15,7 @@ export async function POST(request: Request) {
   const { data: payslip } = await access.admin.from("payslips").select("employee_id, payroll_month").eq("id", payslipId).eq("business_id", access.profile.business_id).maybeSingle();
   if (!payslip) return NextResponse.json({ error: "Payslip not found." }, { status: 404 });
   const { data: account } = await access.admin.from("employee_accounts").select("auth_user_id").eq("employee_id", payslip.employee_id).eq("portal_enabled", true).maybeSingle();
+  if (account?.auth_user_id) await createPortalTask(access.admin, { businessId: access.profile.business_id, recipientUserId: account.auth_user_id, recipientRole: "employee", title: "Your payslip is ready", message: `Your payslip for ${payslip.payroll_month || "the latest pay period"} is ready to view.`, href: `/employee/payslips/${payslipId}`, taskType: "payslip_ready" });
   const result = await sendOneSignalPush({ externalIds: account?.auth_user_id ? [account.auth_user_id] : [], title: "Your payslip is ready", message: `Your payslip for ${payslip.payroll_month || "the latest pay period"} is ready to view.`, url: `${new URL(request.url).origin}/employee/payslips/${payslipId}` });
   return NextResponse.json({ success: true, pushConfigured: result.configured, pushed: result.sent });
 }

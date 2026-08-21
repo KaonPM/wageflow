@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "../_lib/authorization";
 import { hasGrowthSubscription } from "../_lib/subscription";
 import { sendOneSignalPush } from "../_lib/oneSignal";
+import { createPortalTask } from "../_lib/portalTasks";
 
 type RequestPayload = {
   requestType?: "Leave request" | "Overtime request";
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
   const { data: employer } = await access.admin.from("businesses").select("employer_id, business_name, trading_name").eq("id", employee.business_id).maybeSingle();
   if (employer?.employer_id) {
     const employeeName = `${employee.first_name || ""} ${employee.last_name || ""}`.trim() || "An employee";
+    await createPortalTask(access.admin, { businessId: employee.business_id, recipientUserId: employer.employer_id, recipientRole: "employer", title: "Approval needed", message: `${employeeName} submitted a ${isLeave ? "leave" : "overtime"} request.`, href: "/employer/hr/approvals", taskType: "approval_needed" });
     await sendOneSignalPush({ externalIds: [employer.employer_id], title: "Approval needed", message: `${employeeName} submitted a ${isLeave ? "leave" : "overtime"} request.`, url: `${new URL(request.url).origin}/employer/hr/approvals` });
   }
 

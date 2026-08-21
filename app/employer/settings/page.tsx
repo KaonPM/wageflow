@@ -27,6 +27,7 @@ type Settings = {
   sickLeaveAllowance: number;
   familyResponsibilityLeaveAllowance: number;
   defaultPaymentMethod: string;
+  defaultPaymentDay: string;
 };
 
 type BusinessRecord = {
@@ -52,6 +53,7 @@ type BusinessRecord = {
   sick_leave_allowance?: number | null;
   family_responsibility_leave_allowance?: number | null;
   default_payment_method?: string | null;
+  default_payment_day?: number | null;
 };
 
 const defaultSettings: Settings = {
@@ -76,6 +78,7 @@ const defaultSettings: Settings = {
   sickLeaveAllowance: 30,
   familyResponsibilityLeaveAllowance: 3,
   defaultPaymentMethod: "Bank Transfer",
+  defaultPaymentDay: "",
 };
 
 export default function EmployerSettingsPage() {
@@ -165,6 +168,7 @@ export default function EmployerSettingsPage() {
         familyResponsibilityLeaveAllowance: Number(businessQuery.family_responsibility_leave_allowance ?? 3),
         defaultPaymentMethod:
           businessQuery.default_payment_method || "Bank Transfer",
+        defaultPaymentDay: businessQuery.default_payment_day ? String(businessQuery.default_payment_day) : "",
       });
     }
 
@@ -260,6 +264,7 @@ export default function EmployerSettingsPage() {
       sick_leave_allowance: settings.sickLeaveAllowance,
       family_responsibility_leave_allowance: settings.familyResponsibilityLeaveAllowance,
       default_payment_method: settings.defaultPaymentMethod,
+      default_payment_day: settings.defaultPaymentDay ? Number(settings.defaultPaymentDay) : null,
     };
 
     let savedBusinessId = businessId;
@@ -554,6 +559,10 @@ export default function EmployerSettingsPage() {
                   <option value="Mobile Payment">Mobile Payment</option>
                   <option value="Other">Other</option>
                 </select>
+              </Field>
+              <Field label="Default Salary Payment Day (optional)">
+                <input type="number" min="1" max="31" placeholder="Example: 25" value={settings.defaultPaymentDay} onChange={(e) => setSettings({ ...settings, defaultPaymentDay: e.target.value.replace(/[^0-9]/g, "").slice(0, 2) })} style={input} />
+                <p style={helperText}>Used as the suggested monthly pay date. You can still change the date for an individual payroll run.</p>
               </Field>
             </div>
 

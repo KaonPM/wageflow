@@ -33,6 +33,7 @@ export default function EmployerDashboard() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [role, setRole] = useState("");
+  const [pendingApprovals, setPendingApprovals] = useState(0);
 
   useEffect(() => {
     loadDashboard();
@@ -167,6 +168,8 @@ export default function EmployerDashboard() {
     }
 
     setEmployees(data || []);
+    const { count } = await supabase.from("approval_requests").select("id", { count: "exact", head: true }).eq("business_id", businessRecord.id).eq("status", "Pending");
+    setPendingApprovals(count || 0);
     setLoading(false);
   }
 
@@ -294,6 +297,7 @@ export default function EmployerDashboard() {
           <OverviewCard label="Total Employees" value={String(totalEmployees)} />
           <OverviewCard label="On Leave" value={String(employeesOnLeave)} />
           <OverviewCard label="Terminated" value={String(employeesTerminated)} />
+          <Link href="/employer/hr/approvals" style={todoCard}><span style={overviewValue}>{String(pendingApprovals)}</span><p style={overviewLabel}>To do: approvals</p><small style={todoHint}>Review pending leave and overtime requests</small></Link>
         </div>
       </section>
     </main>
@@ -635,3 +639,6 @@ const overviewLabel = {
   fontSize: "14px",
   fontWeight: 700,
 };
+
+const todoCard = { ...overviewCard, textDecoration: "none", display: "block", border: "1px solid #99f6e4" };
+const todoHint = { color: "#64748b", fontSize: "12px", lineHeight: 1.4 };

@@ -10,8 +10,8 @@ type Business = { id:string; business_name:string; status:string|null };
 type Statement = { id:string; subscription_id:string; statement_type:"setup"|"monthly"; statement_month:string; amount:number; status:string; recipient_email:string|null; paid_at:string|null; emailed_at:string|null; payment_reference:string|null; created_at:string };
 type BillingRow = Subscription & { businessName:string; businessStatus:string|null };
 const PAGE_SIZE=10;
-const plans=["Starter","Pilot","Growth","Daily Bloom","Edu Bloom","Demo"] as const;
-const planFees:Record<(typeof plans)[number],number>={Starter:199,Pilot:0,Growth:299,"Daily Bloom":0,"Edu Bloom":0,Demo:0};
+const plans=["Starter","Growth","Growth Included"] as const;
+const planFees:Record<(typeof plans)[number],number>={Starter:199,Growth:299,"Growth Included":0};
 const statuses=["active","trial","pending","suspended","cancelled"];
 
 export default function MasterSubscriptionsPage(){

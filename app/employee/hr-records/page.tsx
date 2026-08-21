@@ -314,9 +314,19 @@ function RecordCard({
         >
           View Record
         </Link>
+        {type === "document" && record.file_url && <button type="button" style={downloadButton} onClick={() => void downloadDocument(record.id, record.document_name || "employee-document")}>Download</button>}
       </div>
     </article>
   );
+}
+
+async function downloadDocument(documentId: string, fileName: string) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+  const response = await fetch(`/api/employee-documents/${encodeURIComponent(documentId)}?download=1`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+  if (!response.ok) return;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url);
 }
 
 function getRecordTitle(
@@ -590,3 +600,5 @@ const viewButton: CSSProperties = {
   fontSize: "13px",
   fontWeight: 800,
 };
+
+const downloadButton: CSSProperties = { display: "inline-flex", padding: "9px 13px", borderRadius: "11px", border: "1px solid #0f766e", background: "#fff", color: "#0f766e", fontSize: "13px", fontWeight: 800, cursor: "pointer" };

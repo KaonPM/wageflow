@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
       phone: setupRequest.phone,
       status: "active",
       source_request_id: requestId,
-      selected_package: setupRequest.selected_package,
+      selected_package: normalisePackage(setupRequest.selected_package),
       number_of_employees: setupRequest.number_of_employees,
     }).select("id").single();
     if (error || !business) return NextResponse.json({ error: error?.message || "Business could not be created." }, { status: 500 });
@@ -100,9 +100,9 @@ export async function PATCH(request: Request) {
 
   const { data: subscription, error: subscriptionError } = await access.admin.from("subscriptions").upsert({
     business_id: businessId,
-    plan_name: setupRequest.selected_package || "Starter",
-    monthly_fee: monthlyFee(setupRequest.selected_package),
-    setup_fee: setupFee(setupRequest.selected_package),
+    plan_name: normalisePackage(setupRequest.selected_package),
+    monthly_fee: monthlyFee(normalisePackage(setupRequest.selected_package)),
+    setup_fee: setupFee(normalisePackage(setupRequest.selected_package)),
     setup_paid: false,
     subscription_status: "active",
   }, { onConflict: "business_id" }).select("id,plan_name,setup_fee").single();
@@ -125,4 +125,9 @@ function monthlyFee(packageName: string | null) {
 
 function setupFee(packageName: string | null) {
   return monthlyFee(packageName) > 0 ? 249 : 0;
+}
+
+function normalisePackage(packageName: string | null) {
+  const plan = String(packageName || "").trim();
+  return ["Starter", "Growth"].includes(plan) ? plan : "Growth Included";
 }
