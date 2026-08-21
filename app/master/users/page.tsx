@@ -18,6 +18,7 @@ type UserProfile = {
   access_status: string | null;
   business_id: string | null;
   created_at: string;
+  last_login?: string | null;
   businesses?: {
     business_name: string | null;
   } | null;
@@ -44,9 +45,10 @@ export default function MasterUsersPage() {
     setLoading(true);
     setMessage("");
 
-    const [{ data: userData, error: userError }, { data: businessData, error: businessError }] = await Promise.all([
+    const [{ data: userData, error: userError }, { data: businessData, error: businessError }, { data: employeeAccounts }] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("businesses").select("id, business_name").order("business_name", { ascending: true }),
+      supabase.from("employee_accounts").select("auth_user_id,last_login"),
     ]);
 
     if (userError) {
@@ -54,8 +56,10 @@ export default function MasterUsersPage() {
       setUsers([]);
     } else {
       const businessNames = new Map((businessData || []).map((business) => [business.id, business.business_name]));
+      const lastLoginByUser = new Map((employeeAccounts || []).map((account) => [account.auth_user_id, account.last_login]));
       setUsers((userData || []).map((user) => ({
         ...user,
+        last_login: lastLoginByUser.get(user.id) || null,
         businesses: user.business_id ? { business_name: businessNames.get(user.business_id) || null } : null,
       })));
     }
@@ -72,7 +76,7 @@ export default function MasterUsersPage() {
 
   const summary = useMemo(() => {
     const masterAdmins = users.filter(
-      (user) => user.role?.toLowerCase() === "master"
+      (user) => ["master", "master_admin"].includes(user.role?.toLowerCase() || "")
     ).length;
 
     const employers = users.filter(
@@ -204,6 +208,7 @@ export default function MasterUsersPage() {
                   <th style={th}>Business</th>
                   <th style={th}>Access Status</th>
                   <th style={th}>Created</th>
+                  <th style={th}>Last sign-in</th>
                   <th style={th}>Action</th>
                 </tr>
               </thead>
@@ -216,6 +221,8 @@ export default function MasterUsersPage() {
                       <br />
                       <span style={muted}>{user.email || "No email"}</span>
                     </td>
+
+                    <td style={td}>{user.last_login ? new Date(user.last_login).toLocaleDateString() : "Never"}</td>
 
                     <td style={td}>
                       <select

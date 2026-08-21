@@ -12,6 +12,7 @@ const links = [
   { href: "/master/businesses", label: "Businesses" },
   { href: "/master/subscriptions", label: "Billing" },
   { href: "/master/users", label: "Users" },
+  { href: "/master/audit", label: "Audit" },
 ];
 
 export function MasterPortalBar() {
