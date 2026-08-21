@@ -152,17 +152,28 @@ export default function EmployeeDocumentsPage() {
   }
 
   async function fetchEmployees() {
-    const businessId = await getBusinessId();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (!businessId) return;
+    if (!session) {
+      setMessage("Your session has expired. Please sign in again.");
+      setEmployees([]);
+      return;
+    }
 
-    const { data } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("business_id", businessId)
-      .order("first_name");
+    const response = await fetch("/api/employer/employees", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const result = await response.json().catch(() => ({}));
 
-    setEmployees(data || []);
+    if (!response.ok) {
+      setMessage(result.error || "Employee records could not be loaded.");
+      setEmployees([]);
+      return;
+    }
+
+    setEmployees(result.employees || []);
   }
 
   async function fetchDocuments() {
@@ -808,7 +819,7 @@ export default function EmployeeDocumentsPage() {
         </div>
 
         {employees.length === 0 ? (
-          <div style={emptyState}>No employees found for this business.</div>
+          <div style={emptyState}>No employee records found for this business yet. Add an employee first, then their uploaded documents and WageFlow-generated letters will appear here.</div>
         ) : (
           <div style={tableWrap}>
             <table style={table}>
@@ -829,7 +840,7 @@ export default function EmployeeDocumentsPage() {
 
                         <div style={mutedText}>
                           {documentCount === 0
-                            ? "No documents uploaded"
+                            ? "No documents yet — upload a supporting record or generate an HR letter"
                             : `${documentCount} document${
                                 documentCount === 1 ? "" : "s"
                               } uploaded`}

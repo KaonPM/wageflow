@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
@@ -516,14 +516,19 @@ const moduleGrid = {
 const cardLink = {
   textDecoration: "none",
   color: "inherit",
+  display: "block",
+  height: "100%",
 };
 
-const card = {
+const card: CSSProperties = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
   borderRadius: "22px",
   padding: "22px",
   minHeight: "210px",
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.05)",
 };
 
@@ -563,7 +568,8 @@ const cardFooter = {
   display: "flex",
   justifyContent: "flex-start",
   alignItems: "center",
-  marginTop: "22px",
+  marginTop: "auto",
+  paddingTop: "22px",
 };
 
 const openPill = {
