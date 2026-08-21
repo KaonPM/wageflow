@@ -13,7 +13,7 @@ export async function requireRole(request: Request, allowedRoles: string[]) {
   const admin = getSupabaseAdmin();
   const { data: { user }, error: userError } = await admin.auth.getUser(token);
   if (userError || !user) return { error: "Invalid or expired session.", status: 401 } as const;
-  const { data: profile, error: profileError } = await admin.from("profiles").select("role, business_id, access_status").eq("id", user.id).single();
+  const { data: profile, error: profileError } = await admin.from("profiles").select("role, business_id, access_status, admin_permissions").eq("id", user.id).single();
   if (profileError || !profile || !allowedRoles.includes(String(profile.role).toLowerCase())) return { error: "You are not authorised to perform this action.", status: 403 } as const;
   if (profile.access_status && !["active", "approved"].includes(String(profile.access_status).toLowerCase())) return { error: "This account is not active.", status: 403 } as const;
   return { admin, user, profile } as const;

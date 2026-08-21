@@ -32,6 +32,7 @@ export default function EmployerDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [role, setRole] = useState("");
 
   useEffect(() => {
     loadDashboard();
@@ -46,13 +47,14 @@ export default function EmployerDashboard() {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("business_id")
+      .select("business_id,role")
       .eq("id", user.id)
       .maybeSingle();
 
     if (profileError) {
       console.error("Profile lookup failed", profileError);
     }
+    setRole(String(profile?.role || "").toLowerCase());
 
     let businessRecord: Business | null = null;
 
@@ -269,6 +271,12 @@ export default function EmployerDashboard() {
           href="/employer/settings"
           tag="Business Setup"
         />
+        {role === "employer" && <DashboardCard
+          title="Employer Admins"
+          description="Invite trusted administrators and choose the workspaces they may access."
+          href="/employer/admins"
+          tag="Owner Controls"
+        />}
       </section>
 
       <section style={overviewBox}>

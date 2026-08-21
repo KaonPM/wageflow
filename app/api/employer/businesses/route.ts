@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "../../_lib/authorization";
 
 export async function GET(request: Request) {
-  const access = await requireRole(request, ["employer"]);
+  const access = await requireRole(request, ["employer", "employer_admin"]);
   if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
 
   const { data: memberships, error } = await access.admin
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const access = await requireRole(request, ["employer"]);
+  const access = await requireRole(request, ["employer", "employer_admin"]);
   if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
   const body = (await request.json().catch(() => null)) as { businessId?: string } | null;
   const businessId = String(body?.businessId || "");

@@ -24,7 +24,7 @@ type UserProfile = {
   } | null;
 };
 
-const roles = ["master", "employer", "employee"];
+const roles = ["master", "master_admin", "employer", "employer_admin", "employee"];
 const accessStatuses = ["active", "pending", "suspended", "inactive"];
 
 export default function MasterUsersPage() {
