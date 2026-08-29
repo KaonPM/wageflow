@@ -33,6 +33,8 @@ export default function ManageBusinessPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
+  const [employerEmail, setEmployerEmail] = useState("");
+  const [linkingEmployer, setLinkingEmployer] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/immutability
@@ -196,6 +198,21 @@ export default function ManageBusinessPage() {
   }
 }
 
+  async function linkExistingEmployer() {
+    if (!business || !employerEmail.trim()) { showAppMessage("Enter the existing employer's email address."); return; }
+    setLinkingEmployer(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { showAppMessage("Your session has expired. Please sign in again."); return; }
+      const response = await fetch("/api/master/business-employer-link", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ businessId: business.id, employerEmail: employerEmail.trim() }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) { showAppMessage(result.error || "Employer could not be linked."); return; }
+      setEmployerEmail("");
+      showAppMessage(result.message || "Existing employer linked without sending an email.");
+      await fetchBusiness();
+    } finally { setLinkingEmployer(false); }
+  }
+
   async function updateBusinessStatus(
     status: "active" | "suspended" | "archived" | "deleted"
   ) {
@@ -316,6 +333,16 @@ export default function ManageBusinessPage() {
         Master controls business profile, branding, setup status, suspension,
         archiving and soft deletion.
       </p>
+
+      <section style={card}>
+        <h2 style={sectionTitle}>Link Existing Employer</h2>
+        <p style={smallText}>Give an already active employer access to this business. This does not reset their password or send an email.</p>
+        <div style={employerLinkRow}>
+          <input style={input} type="email" placeholder="Existing employer email address" value={employerEmail} onChange={(event) => setEmployerEmail(event.target.value)} />
+          <button style={uploadButton} disabled={linkingEmployer || !employerEmail.trim()} onClick={linkExistingEmployer}>{linkingEmployer ? "Linking..." : "Link employer"}</button>
+        </div>
+        {business.employer_id && <p style={smallText}>This changes the primary owner assignment; existing memberships remain active.</p>}
+      </section>
 
       <section style={card}>
         <h2 style={sectionTitle}>Business Profile</h2>
@@ -903,4 +930,18 @@ const outlineDangerButton = {
   fontSize: 15,
   cursor: "pointer",
   minWidth: 140,
+};
+
+const smallText = {
+  margin: "0 0 12px",
+  color: "#64748b",
+  fontSize: "13px",
+  lineHeight: 1.5,
+};
+
+const employerLinkRow = {
+  display: "flex",
+  gap: "10px",
+  alignItems: "center",
+  flexWrap: "wrap" as const,
 };
