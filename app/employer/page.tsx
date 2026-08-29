@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
-import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type Business = {
   id: string;
@@ -277,7 +276,7 @@ export default function EmployerDashboard() {
         </div>
       </section>
 
-      <CollapsibleWorkspaceGrid gridStyle={moduleGrid} label="workspaces">
+      <section style={moduleGrid}>
         <DashboardCard
           title="Employees"
           description="Add and manage employee profiles, job details, salary information, bank details and employment records."
@@ -328,7 +327,7 @@ export default function EmployerDashboard() {
           tag="Owner Controls"
         />}
         <DashboardCard title="Security Settings" description="Update your password, add two-factor authentication and sign out of other sessions." href="/security" tag="Account Security" />
-      </CollapsibleWorkspaceGrid>
+      </section>
 
     </main>
   );

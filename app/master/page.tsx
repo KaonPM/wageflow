@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
-import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type DashboardStats = {
   activeBusinesses: number;
@@ -61,14 +60,14 @@ export default function MasterDashboard() {
     </section>
 
     <section style={sectionHeader}><div><h2 style={sectionTitle}>Administration workspace</h2><p style={sectionText}>Only platform-level client metadata is shown here.</p></div></section>
-    <CollapsibleWorkspaceGrid gridStyle={grid} label="administration workspaces">
+    <section style={grid}>
       <DashboardCard title="Setup Requests" description="Review new client requests and complete controlled onboarding." href="/master/wageflow-requests" tag="Onboarding" />
       <DashboardCard title="Businesses" description="Manage client identity, branding and lifecycle access." href="/master/businesses" tag="Client Admin" />
       <DashboardCard title="Billing" description="Manage plans, fees, payment state and subscription access." href="/master/subscriptions" tag="Finance" />
       <DashboardCard title="User Access" description="Review roles, account status and business assignments." href="/master/users" tag="Security" />
       <DashboardCard title="Master Admins" description="Invite trusted platform administrators and review their access." href="/master/admins" tag="Security" />
       <DashboardCard title="Audit Trail" description="Review platform changes to user access and subscription settings." href="/master/audit" tag="Control" />
-    </CollapsibleWorkspaceGrid>
+    </section>
   </main>;
 }
 
