@@ -41,6 +41,10 @@ export async function markStatementPaidAndEmail(admin: SupabaseClient, statement
   if (subscriptionError || businessError || !subscription || !business) throw new Error(subscriptionError?.message || businessError?.message || "Billing details could not be loaded.");
   const update = await admin.from("subscription_statements").update({ status: "paid", paid_at: new Date().toISOString(), payment_reference: paymentReference?.trim().slice(0, 120) || null }).eq("id", statement.id);
   if (update.error) throw new Error(update.error.message);
+  if (statement.statement_type === "setup") {
+    const { error: setupError } = await admin.from("subscriptions").update({ setup_paid: true }).eq("id", statement.subscription_id);
+    if (setupError) throw new Error(setupError.message);
+  }
   if (!business.email) {
     await admin.from("subscription_statements").update({ status: "email_failed", email_error: "The business has no billing email address." }).eq("id", statement.id);
     return { emailed: false, reason: "no_email" };

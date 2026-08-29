@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     monthly_fee: plan === "Growth" ? 299 : 199,
     setup_fee: 249,
     setup_paid: false,
-    subscription_status: "active",
+    subscription_status: "pending",
   }, { onConflict: "business_id" });
   if (subscriptionError) return NextResponse.json({ error: "Business was created but its subscription could not be prepared." }, { status: 500 });
 

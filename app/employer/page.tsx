@@ -284,7 +284,6 @@ export default function EmployerDashboard() {
       </section>
 
       <section style={moduleSection}>
-        <div style={moduleHeader}><h2 style={moduleTitle}>Workspaces</h2></div>
         <div style={moduleGrid}>
           <DashboardCard title="Employees" description="Profiles, employment and pay details." href="/employer/employees" />
           <DashboardCard title="HR" description="Documents, records, policies and approvals." href="/employer/hr" />
