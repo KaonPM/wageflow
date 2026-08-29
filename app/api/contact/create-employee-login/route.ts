@@ -18,6 +18,8 @@ export async function POST(req: Request) {
 
     const { data: employee } = await supabaseAdmin.from("employees").select("id, business_id, profile_id").eq("id", employeeId).eq("business_id", access.profile.business_id).single();
     if (!employee) return NextResponse.json({ error: "Employee not found for this business." }, { status: 404 });
+    const { data: business } = await supabaseAdmin.from("businesses").select("default_employee_portal_enabled").eq("id", access.profile.business_id).maybeSingle();
+    if (business?.default_employee_portal_enabled === false) return NextResponse.json({ error: "Employee portal access is disabled for this paper-first business." }, { status: 403 });
     let userId = employee.profile_id as string | null;
     if (userId) {
       const { data: linkedUser, error: linkedUserError } = await supabaseAdmin.auth.admin.getUserById(userId);

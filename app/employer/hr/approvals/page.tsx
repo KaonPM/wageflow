@@ -49,6 +49,8 @@ export default function HRApprovalsPage() {
   const [employerNote, setEmployerNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [paperFirst, setPaperFirst] = useState(false);
+  const [paperRequest, setPaperRequest] = useState({ employeeId: "", requestType: "Leave request", leaveType: "Annual leave", startDate: "", endDate: "", overtimeDate: "", overtimeHours: "", note: "" });
 
   useEffect(() => {
     loadPageData();
@@ -86,7 +88,25 @@ export default function HRApprovalsPage() {
 
     setEmployees((employeeData || []) as Employee[]);
     setRequests((requestData || []) as ApprovalRequest[]);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase.from("profiles").select("business_id").eq("id", user.id).maybeSingle();
+      if (profile?.business_id) {
+        const { data: business } = await supabase.from("businesses").select("default_employee_portal_enabled").eq("id", profile.business_id).maybeSingle();
+        setPaperFirst(business?.default_employee_portal_enabled === false);
+      }
+    }
     setLoading(false);
+  }
+
+  async function savePaperRequest() {
+    setSaving(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const response = await fetch("/api/employer/paper-requests", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` }, body: JSON.stringify({ ...paperRequest, overtimeHours: Number(paperRequest.overtimeHours || 0) }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) showAppMessage(result.error || "Paper request could not be saved.");
+    else { setPaperRequest({ employeeId: "", requestType: "Leave request", leaveType: "Annual leave", startDate: "", endDate: "", overtimeDate: "", overtimeHours: "", note: "" }); await loadPageData(); showAppMessage("Paper request captured for employer approval."); }
+    setSaving(false);
   }
 
   function getEmployeeName(employee: Employee | null | undefined) {
@@ -208,6 +228,16 @@ export default function HRApprovalsPage() {
       </section>
 
       <CollapsibleWorkspaceGrid gridStyle={styles.sectionStack} label="approval workspaces" alwaysOpenCount={1}>
+      {paperFirst && <section style={styles.card}>
+        <div style={styles.cardTop}><div><h2 style={styles.cardTitle}>Paper request capture</h2><p style={styles.muted}>Record leave or overtime submitted on paper. Profile changes are updated in Employees.</p></div></div>
+        <div style={styles.formGrid}>
+          <label style={styles.label}>Employee<select style={styles.input} value={paperRequest.employeeId} onChange={(event) => setPaperRequest({ ...paperRequest, employeeId: event.target.value })}><option value="">Select employee</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{getEmployeeName(employee)}</option>)}</select></label>
+          <label style={styles.label}>Request<select style={styles.input} value={paperRequest.requestType} onChange={(event) => setPaperRequest({ ...paperRequest, requestType: event.target.value })}><option>Leave request</option><option>Overtime request</option></select></label>
+          {paperRequest.requestType === "Leave request" ? <><label style={styles.label}>Leave type<input style={styles.input} value={paperRequest.leaveType} onChange={(event) => setPaperRequest({ ...paperRequest, leaveType: event.target.value })} /></label><label style={styles.label}>Start date<input style={styles.input} type="date" value={paperRequest.startDate} onChange={(event) => setPaperRequest({ ...paperRequest, startDate: event.target.value })} /></label><label style={styles.label}>End date<input style={styles.input} type="date" value={paperRequest.endDate} onChange={(event) => setPaperRequest({ ...paperRequest, endDate: event.target.value })} /></label></> : <><label style={styles.label}>Overtime date<input style={styles.input} type="date" value={paperRequest.overtimeDate} onChange={(event) => setPaperRequest({ ...paperRequest, overtimeDate: event.target.value })} /></label><label style={styles.label}>Hours<input style={styles.input} type="number" min="0.25" step="0.25" value={paperRequest.overtimeHours} onChange={(event) => setPaperRequest({ ...paperRequest, overtimeHours: event.target.value })} /></label></>}
+        </div>
+        <label style={styles.label}>Paper form notes<textarea style={styles.textarea} value={paperRequest.note} onChange={(event) => setPaperRequest({ ...paperRequest, note: event.target.value })} /></label>
+        <button style={styles.primaryButton} disabled={saving} onClick={savePaperRequest}>{saving ? "Saving..." : "Save paper request"}</button>
+      </section>}
       <section style={styles.card}>
         <div style={styles.cardTop}>
           <div>
@@ -215,7 +245,7 @@ export default function HRApprovalsPage() {
             <p style={styles.muted}>Select an employee to review leave or overtime requests.</p>
           </div>
           <div style={styles.headerActions}>
-            <Link href="/employer/change-requests" style={styles.lightButton}>Profile changes</Link>
+            <Link href={paperFirst ? "/employer/employees" : "/employer/change-requests"} style={styles.lightButton}>{paperFirst ? "Employee records" : "Profile changes"}</Link>
             <button style={styles.lightButton} onClick={loadPageData}>Refresh</button>
           </div>
         </div>
@@ -669,6 +699,7 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: "100px",
     resize: "vertical",
   },
+  input: { width: "100%", boxSizing: "border-box", border: "1px solid #d0d5dd", borderRadius: "10px", padding: "10px", background: "#ffffff", color: "#101828", fontSize: "14px" },
   detailBox: {
     border: "1px solid #e6ecea",
     borderRadius: "14px",

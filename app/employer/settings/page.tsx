@@ -311,6 +311,13 @@ export default function EmployerSettingsPage() {
         .from("profiles")
         .update({ business_id: savedBusinessId })
         .eq("id", employerId);
+
+      if (!settings.defaultEmployeePortalEnabled) {
+        const { data: businessEmployees } = await supabase.from("employees").select("id").eq("business_id", savedBusinessId);
+        await supabase.from("employees").update({ portal_requested: false, payslip_delivery_method: "paper" }).eq("business_id", savedBusinessId);
+        const employeeIds = (businessEmployees || []).map((employee) => employee.id);
+        if (employeeIds.length) await supabase.from("employee_accounts").update({ portal_enabled: false }).in("employee_id", employeeIds);
+      }
     }
 
     setMessage("Settings saved successfully.");

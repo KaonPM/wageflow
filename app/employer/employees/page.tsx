@@ -564,13 +564,13 @@ export default function EmployerEmployeesPage() {
                         >
                           Edit
                         </button>
-                        <button
+                        {leavePolicy?.default_employee_portal_enabled !== false && <button
                           style={resendButton}
                           onClick={() => resendEmployeeSetupEmail(employee)}
                           disabled={sendingEmployeeId === employee.id || !employee.email || !employee.portal_requested}
                         >
                           {sendingEmployeeId === employee.id ? "Sending..." : "Resend Setup Email"}
-                        </button>
+                        </button>}
                         {employee.employment_status !== "terminated" && <button style={terminateButton} onClick={() => { setTerminatingEmployee(employee); setTerminationDate(""); setTerminationReason(""); setFinalPaymentDate(""); setExitType("Dismissal"); setNoticeServed(""); setNoticeNote(""); setTerminationConfirmed(false); }}>Process Exit</button>}
                       </td>
                     </tr>
@@ -665,7 +665,7 @@ export default function EmployerEmployeesPage() {
               />
             </Field>
 
-            <Field label="Payslip delivery">
+            {leavePolicy?.default_employee_portal_enabled === false ? <Field label="Payslip delivery"><p style={muted}>Paper payslip only — employee portal is disabled for this business.</p></Field> : <Field label="Payslip delivery">
               <select style={input} value={form.payslip_delivery_method} onChange={(e) => {
                 const delivery = e.target.value as typeof form.payslip_delivery_method;
                 setForm({ ...form, payslip_delivery_method: delivery, portal_requested: delivery !== "paper" });
@@ -675,7 +675,7 @@ export default function EmployerEmployeesPage() {
                 <option value="portal_only">Employee portal only</option>
               </select>
               <p style={muted}>Portal choices require the employee&apos;s email address. Paper-only workers can be paid without one.</p>
-            </Field>
+            </Field>}
 
             <Field label="Contact Number">
               <input

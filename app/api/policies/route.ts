@@ -12,12 +12,13 @@ export async function GET(request: Request) {
 
   if (String(access.profile.role).toLowerCase() === "employer") {
     if (!access.profile.business_id) return NextResponse.json({ error: "Business profile not found." }, { status: 400 });
-    const [{ data: policies, error }, { data: employees }] = await Promise.all([
+    const [{ data: policies, error }, { data: employees }, { data: business }] = await Promise.all([
       access.admin.from("company_policies").select("id,title,version,policy_text,file_path,published_at,created_at,policy_assignments(id,employee_id,policy_acknowledgements(id,acknowledged_at,employee_id))").eq("business_id", access.profile.business_id).order("published_at", { ascending: false }),
       access.admin.from("employees").select("id,full_name,first_name,last_name,employment_status,status").eq("business_id", access.profile.business_id).order("first_name"),
+      access.admin.from("businesses").select("default_employee_portal_enabled").eq("id", access.profile.business_id).maybeSingle(),
     ]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ policies: policies || [], employees: employees || [] });
+    return NextResponse.json({ policies: policies || [], employees: employees || [], paperFirst: business?.default_employee_portal_enabled === false });
   }
 
   const { data: account, error: accountError } = await access.admin.from("employee_accounts").select("employee_id,portal_enabled").eq("auth_user_id", access.user.id).maybeSingle();

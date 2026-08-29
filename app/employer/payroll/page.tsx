@@ -315,62 +315,6 @@ export default function PayrollPage() {
     uifEnabled,
   ]);
 
-  async function queuePayslipNotifications({
-    payslipId,
-    employee,
-    activeBusinessId,
-  }: {
-    payslipId: string;
-    employee: Employee | undefined;
-    activeBusinessId: string;
-  }) {
-    const employeeName = getEmployeeName(employee);
-
-    const smsMessage = `Hi ${employeeName}, your WageFlow payslip for ${payrollMonth} is now available. Please log in to your employee portal or check your email.`;
-
-    const emailMessage = `Hi ${employeeName}, your WageFlow payslip for ${payrollMonth} is now available. Please log in to your employee portal to view or download it.`;
-
-    const notificationRows = [];
-
-    if (employee?.phone) {
-      notificationRows.push({
-        payslip_id: payslipId,
-        employee_id: selectedEmployee,
-        business_id: activeBusinessId,
-        notification_type: "sms",
-        recipient: employee.phone,
-        message: smsMessage,
-        status: "pending",
-      });
-    }
-
-    if (employee?.email) {
-      notificationRows.push({
-        payslip_id: payslipId,
-        employee_id: selectedEmployee,
-        business_id: activeBusinessId,
-        notification_type: "email",
-        recipient: employee.email,
-        message: emailMessage,
-        status: "pending",
-      });
-    }
-
-    if (notificationRows.length === 0) {
-      notificationRows.push({
-        payslip_id: payslipId,
-        employee_id: selectedEmployee,
-        business_id: activeBusinessId,
-        notification_type: "manual",
-        recipient: "",
-        message: smsMessage,
-        status: "missing_contact",
-      });
-    }
-
-    await supabase.from("payslip_notifications").insert(notificationRows);
-  }
-
   async function recalculatePayrollRunTotals(
     payrollRunId: string,
     activeBusinessId: string
@@ -456,8 +400,6 @@ export default function PayrollPage() {
     }
 
     const [year, month] = payrollMonth.split("-");
-    const employee = employees.find((item) => item.id === selectedEmployee);
-
     const { data: existingPayslip, error: existingPayslipError } =
       await supabase
         .from("payslips")
@@ -586,12 +528,6 @@ export default function PayrollPage() {
       return;
     }
 
-    await queuePayslipNotifications({
-      payslipId: payslipData.id,
-      employee,
-      activeBusinessId,
-    });
-
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       await fetch("/api/notifications/payslip-ready", {
@@ -603,7 +539,7 @@ export default function PayrollPage() {
 
     await fetchSalaryReceipts(activeBusinessId);
 
-    setMessage("Payslip generated successfully and linked to payroll run.");
+    setMessage("Payslip generated successfully. Use Payslip Distribution to print and record paper delivery where required.");
     setSaving(false);
   }
 

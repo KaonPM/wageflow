@@ -15,6 +15,7 @@ type Business = {
   logo_url?: string | null;
   status?: string | null;
   default_payment_day?: number | null;
+  default_employee_portal_enabled?: boolean | null;
 };
 
 type Employee = {
@@ -279,7 +280,7 @@ export default function EmployerDashboard() {
         <div style={overviewGrid}>
           <Link href="/employer/hr/documents" style={todoCard}><span style={overviewValue}>{String(missingDocuments)}</span><p style={overviewLabel}>Missing documents</p></Link>
           <Link href="/employer/hr/approvals" style={todoCard}><span style={overviewValue}>{String(pendingApprovals)}</span><p style={overviewLabel}>HR approvals</p></Link>
-          <Link href="/employer/change-requests" style={todoCard}><span style={overviewValue}>{String(pendingChangeRequests)}</span><p style={overviewLabel}>Profile changes</p></Link>
+          {business?.default_employee_portal_enabled === false ? <Link href="/employer/employees" style={todoCard}><span style={overviewValue}>{String(totalEmployees)}</span><p style={overviewLabel}>Employee records</p></Link> : <Link href="/employer/change-requests" style={todoCard}><span style={overviewValue}>{String(pendingChangeRequests)}</span><p style={overviewLabel}>Profile changes</p></Link>}
         </div>
       </section>
 
