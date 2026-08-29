@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type DashboardData = {
   employeeName: string;
@@ -254,7 +255,7 @@ export default function EmployeeDashboard() {
           </div>
         </section>
 
-        <section style={grid} className="employee-dashboard-grid">
+        <CollapsibleWorkspaceGrid gridStyle={grid} className="employee-dashboard-grid" label="workspace tools">
           <DashboardCard
             eyebrow="My Details"
             title="Employee Profile"
@@ -312,7 +313,7 @@ export default function EmployeeDashboard() {
             description="Update your password, set up two-factor authentication and manage signed-in sessions."
             href="/security"
           />
-        </section>
+        </CollapsibleWorkspaceGrid>
       </div>
     </main>
   );
