@@ -638,8 +638,7 @@ export default function PayrollPage() {
           <h1 style={title}>Payroll</h1>
           <p style={businessLine}>{businessName}</p>
           <p style={subtitle}>
-            Generate payslips, review payroll runs, and access payroll records
-            from one compact workspace.
+            Payslips, payroll runs and payment records.
           </p>
         </div>
 
@@ -648,7 +647,7 @@ export default function PayrollPage() {
         </Link>
       </section>
 
-      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="payroll workspaces">
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="payroll workspaces" alwaysOpenCount={1}>
       <section style={actionGrid}>
         <button
           style={actionCard}
@@ -656,39 +655,39 @@ export default function PayrollPage() {
         >
           <strong style={actionTitle}>Generate Payslip</strong>
           <span style={actionText}>
-            Calculate estimated payroll deductions and issue an employee payslip.
+            Calculate and issue a payslip.
           </span>
         </button>
 
         <Link href="/employer/payroll/history" style={actionCardLink}>
           <strong style={actionTitle}>Payroll History</strong>
           <span style={actionText}>
-            View payroll runs, monthly totals, and batches.
+            Runs and monthly totals.
           </span>
         </Link>
 
         <Link href="/employer/payslips" style={actionCardLink}>
           <strong style={actionTitle}>Payslip Records</strong>
           <span style={actionText}>
-            Search and manage generated employee payslips.
+            Search issued payslips.
           </span>
         </Link>
 
         <Link href="/employer/payroll/payments" style={actionCardLink}>
           <strong style={actionTitle}>Payment Review</strong>
           <span style={actionText}>
-            Prepare bank payments, cash lists, and estimated SARS/UIF totals.
+            Bank, cash and tax totals.
           </span>
         </Link>
         <Link href="/employer/payroll/compliance" style={actionCardLink}>
           <strong style={actionTitle}>Compliance Summary</strong>
           <span style={actionText}>
-            Review estimated PAYE, UIF and EMP201-ready monthly totals.
+            PAYE, UIF and EMP201 totals.
           </span>
         </Link>
         <button type="button" style={actionCard} onClick={sendPayrollReminder}>
           <strong style={actionTitle}>Send Payroll Reminder</strong>
-          <span style={actionText}>Remind employees to submit outstanding leave or overtime information.</span>
+          <span style={actionText}>Remind staff about outstanding requests.</span>
         </button>
       </section>
 

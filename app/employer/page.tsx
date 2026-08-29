@@ -279,14 +279,14 @@ export default function EmployerDashboard() {
       <section style={moduleGrid}>
         <DashboardCard
           title="Employees"
-          description="Add and manage employee profiles, job details, salary information, bank details and employment records."
+          description="Profiles, employment and pay details."
           href="/employer/employees"
           tag="Staff Records"
         />
 
         <DashboardCard
           title="Payroll"
-          description="Generate payslips, view payroll history, manage payslip records and review payroll totals."
+          description="Payslips, runs and payment totals."
           href="/employer/payroll"
           tag="Payroll Workspace"
         />
@@ -294,39 +294,39 @@ export default function EmployerDashboard() {
 
         <DashboardCard
           title="HR Records"
-          description="Manage leave records, employee documents, warnings, confirmations of employment and HR notes."
+          description="Records, documents and approvals."
           href="/employer/hr"
           tag="HR Records"
         />
 
         <DashboardCard
           title="Reports"
-          description="Generate payroll, employee, compliance, salary confirmation and business reports."
+          description="Payroll, staff and compliance reports."
           href="/employer/reports"
           tag="Reports"
         />
 
         <DashboardCard
           title="Settings"
-          description="Configure company details, branding, PAYE, UIF and payment preferences."
+          description="Business, tax and pay defaults."
           href="/employer/settings"
           tag="Business Setup"
         />
-        {role === "employer" && <DashboardCard title="Add another business" description="Create a separate payroll workspace and switch between your businesses." href="/employer/businesses/new" tag="Owner Controls" />}
+        {role === "employer" && <DashboardCard title="Add another business" description="Create another payroll workspace." href="/employer/businesses/new" tag="Owner Controls" />}
         <DashboardCard
           title="Change Requests"
-          description="Review employee contact, emergency-contact and banking changes before they update payroll records."
+          description="Review employee detail changes."
           href="/employer/change-requests"
           tag="Employer Approval"
         />
-        <DashboardCard title="Tasks & Notifications" description="Review your pending workflow tasks and team updates." href="/employer/tasks" tag="Work Queue" />
+        <DashboardCard title="Tasks & Notifications" description="Pending tasks and team updates." href="/employer/tasks" tag="Work Queue" />
         {role === "employer" && <DashboardCard
           title="Employer Admins"
-          description="Invite trusted administrators and choose the workspaces they may access."
+          description="Invite and manage administrator access."
           href="/employer/admins"
           tag="Owner Controls"
         />}
-        <DashboardCard title="Security Settings" description="Update your password, add two-factor authentication and sign out of other sessions." href="/security" tag="Account Security" />
+        <DashboardCard title="Security Settings" description="Password and sign-in security." href="/security" tag="Account Security" />
       </section>
 
     </main>

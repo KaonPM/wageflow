@@ -325,7 +325,7 @@ export default function EmployerSettingsPage() {
           <p style={eyebrow}>WageFlow Employer</p>
           <h1 style={title}>Employer Settings</h1>
           <p style={subtitle}>
-            Configure business identity, payroll behaviour and payslip branding.
+            Business, payroll and payslip settings.
           </p>
         </div>
 
@@ -346,7 +346,7 @@ export default function EmployerSettingsPage() {
                 <div>
                   <h2 style={cardTitle}>Business Details</h2>
                   <p style={cardSubtitle}>
-                    These details appear on the payslip employer section.
+                    Shown on payslips.
                   </p>
                 </div>
               </div>
@@ -400,7 +400,7 @@ export default function EmployerSettingsPage() {
                 <div>
                   <h2 style={cardTitle}>Contact Details</h2>
                   <p style={cardSubtitle}>
-                    These details are displayed on employee payslips.
+                    Shown on payslips.
                   </p>
                 </div>
               </div>
@@ -434,7 +434,7 @@ export default function EmployerSettingsPage() {
                   onChange={handleLogoUpload}
                   disabled={uploadingLogo || !businessId}
                 />
-                <p style={helperText}>PNG, JPG or WebP, up to 2 MB. The logo appears on payslips and is not offered as a download.</p>
+                <p style={helperText}>PNG, JPG or WebP · max 2 MB.</p>
                 {settings.logoUrl && <img src={settings.logoUrl} alt="Business logo preview" style={logoPreview} />}
               </Field>
 
@@ -474,7 +474,7 @@ export default function EmployerSettingsPage() {
                 <div>
                   <h2 style={cardTitle}>SARS and UIF References</h2>
                   <p style={cardSubtitle}>
-                    These references support payroll record keeping.
+                    Used for payroll records.
                   </p>
                 </div>
               </div>
@@ -523,7 +523,7 @@ export default function EmployerSettingsPage() {
                 <div>
                   <h2 style={cardTitle}>Payslip Preferences</h2>
                   <p style={cardSubtitle}>
-                    Control optional payslip and payroll items.
+                    Choose default payroll options.
                   </p>
                 </div>
               </div>
@@ -551,7 +551,7 @@ export default function EmployerSettingsPage() {
                 checked={settings.defaultEmployeePortalEnabled}
                 onChange={() => handleToggle("defaultEmployeePortalEnabled")}
               />
-              <p style={helperText}>Turn this off for a paper-first workforce. New employees will not need an email address or portal login, but you can enable access for an individual employee when needed.</p>
+              <p style={helperText}>Turn off for paper-first staff. Individual access can still be enabled later.</p>
 
               <Field label="Default Payment Method">
                 <select
@@ -574,7 +574,7 @@ export default function EmployerSettingsPage() {
               </Field>
               <Field label="Default Salary Payment Day (optional)">
                 <input type="number" min="1" max="31" placeholder="Example: 25" value={settings.defaultPaymentDay} onChange={(e) => setSettings({ ...settings, defaultPaymentDay: e.target.value.replace(/[^0-9]/g, "").slice(0, 2) })} style={input} />
-                <p style={helperText}>Used as the suggested monthly pay date. You can still change the date for an individual payroll run.</p>
+                <p style={helperText}>Suggested pay date; editable for each run.</p>
               </Field>
             </div>
 
@@ -583,7 +583,7 @@ export default function EmployerSettingsPage() {
                 <div>
                   <h2 style={cardTitle}>Leave Policy</h2>
                   <p style={cardSubtitle}>
-                    BCEA-compatible working-day defaults for this company.
+                    Working-day defaults.
                   </p>
                 </div>
               </div>
@@ -619,7 +619,7 @@ export default function EmployerSettingsPage() {
                 <input style={input} type="number" min="3" value={settings.familyResponsibilityLeaveAllowance} onChange={(e) => setSettings({ ...settings, familyResponsibilityLeaveAllowance: Math.max(3, Number(e.target.value || 0)) })} />
               </Field>
 
-              <p style={cardSubtitle}>The annual-leave balance is applied to newly added employees only. Existing balances are never changed automatically.</p>
+              <p style={cardSubtitle}>Applies to new employees only.</p>
             </div>
           </section>
 

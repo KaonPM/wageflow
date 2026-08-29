@@ -216,7 +216,7 @@ export default function HRNotesPage() {
         </Link>
       </section>
 
-      <CollapsibleWorkspaceGrid gridStyle={styles.sectionStack} label="HR note workspaces">
+      <CollapsibleWorkspaceGrid gridStyle={styles.sectionStack} label="HR note workspaces" alwaysOpenCount={1}>
       <section style={styles.card}>
         <div style={styles.cardTop}>
           <div>

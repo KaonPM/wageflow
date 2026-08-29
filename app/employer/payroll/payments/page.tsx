@@ -485,7 +485,7 @@ export default function PayrollPaymentsPage() {
 
       {message && <div style={notice}>{message}</div>}
 
-      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="payment review workspaces">
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="payment review workspaces" alwaysOpenCount={1}>
       <section style={card}>
         <div style={toolbar}>
           <div>

@@ -176,7 +176,7 @@ export default function PayrollRunDetailPage() {
       {loading ? (
         <div style={emptyState}>Loading payroll run...</div>
       ) : run ? (
-        <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="payroll run workspaces">
+        <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="payroll run workspaces" alwaysOpenCount={1}>
           <section style={summaryGrid}>
             <SummaryCard
               label="Employees Paid"

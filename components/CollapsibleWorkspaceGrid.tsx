@@ -1,22 +1,26 @@
 "use client";
 
-import { Children, isValidElement, type CSSProperties, type ReactNode, useState } from "react";
+import { Children, cloneElement, isValidElement, type CSSProperties, type ReactNode, useState } from "react";
 
 type Props = {
   children: ReactNode;
   gridStyle: CSSProperties;
   className?: string;
   label?: string;
+  alwaysOpenCount?: number;
 };
 
-export function CollapsibleWorkspaceGrid({ children, gridStyle, className, label = "workspaces" }: Props) {
+export function CollapsibleWorkspaceGrid({ children, gridStyle, className, label = "workspaces", alwaysOpenCount = 0 }: Props) {
   const items = Children.toArray(children).filter(Boolean);
-  const collapsible = items.length >= 3;
+  const openItems = items.slice(0, alwaysOpenCount);
+  const workspaceItems = items.slice(alwaysOpenCount);
+  const collapsible = workspaceItems.length >= 2;
 
   if (!collapsible) return <section style={gridStyle} className={className}>{items}</section>;
 
   return <section aria-label={label} style={{ ...gridStyle, gap: 10 }} className={className}>
-    {items.map((item, index) => <CollapsibleWorkspace key={index} label={getWorkspaceLabel(item, index)}>{item}</CollapsibleWorkspace>)}
+    {openItems}
+    {workspaceItems.map((item, index) => <CollapsibleWorkspace key={index} label={getWorkspaceLabel(item, index + alwaysOpenCount)}>{item}</CollapsibleWorkspace>)}
   </section>;
 }
 
@@ -24,10 +28,13 @@ function CollapsibleWorkspace({ children, label }: { children: ReactNode; label:
   const [open, setOpen] = useState(false);
 
   return <section style={workspace}>
-    <button type="button" style={pill} aria-expanded={open} onClick={() => setOpen((current) => !current)}>
-      {open ? `Close ${label}` : `Open ${label}`}
-    </button>
-    {open && <div style={workspaceContent}>{children}</div>}
+    <div style={workspaceHeader}>
+      <h2 style={workspaceTitle}>{label}</h2>
+      <button type="button" style={pill} aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+        {open ? "Close" : "Open"}
+      </button>
+    </div>
+    {open && <div style={workspaceContent}>{hideFirstHeading(children)}</div>}
   </section>;
 }
 
@@ -58,6 +65,25 @@ function textContent(node: ReactNode): string {
   return Children.toArray(node.props.children).map(textContent).join("");
 }
 
+function hideFirstHeading(node: ReactNode): ReactNode {
+  let hidden = false;
+
+  function visit(current: ReactNode): ReactNode {
+    if (!isValidElement<{ children?: ReactNode; style?: CSSProperties }>(current)) return current;
+
+    if (!hidden && typeof current.type === "string" && ["h2", "h3"].includes(current.type)) {
+      hidden = true;
+      return cloneElement(current, { style: { ...current.props.style, display: "none" } });
+    }
+
+    const childNodes = Children.toArray(current.props.children);
+    if (childNodes.length === 0) return current;
+    return cloneElement(current, undefined, childNodes.map(visit));
+  }
+
+  return visit(node);
+}
+
 const pill: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
@@ -73,4 +99,6 @@ const pill: CSSProperties = {
 };
 
 const workspace: CSSProperties = { minWidth: 0 };
-const workspaceContent: CSSProperties = { marginTop: 8 };
+const workspaceHeader: CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", padding: "8px 0", borderBottom: "1px solid #dce6ee" };
+const workspaceTitle: CSSProperties = { margin: 0, color: "#173d3a", fontSize: 15, fontWeight: 800 };
+const workspaceContent: CSSProperties = { marginTop: 10 };

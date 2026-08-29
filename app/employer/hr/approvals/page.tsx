@@ -207,7 +207,7 @@ export default function HRApprovalsPage() {
         </Link>
       </section>
 
-      <CollapsibleWorkspaceGrid gridStyle={styles.sectionStack} label="approval workspaces">
+      <CollapsibleWorkspaceGrid gridStyle={styles.sectionStack} label="approval workspaces" alwaysOpenCount={1}>
       <section style={styles.card}>
         <div style={styles.cardTop}>
           <div>

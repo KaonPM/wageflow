@@ -450,7 +450,7 @@ Employer representative: ______________________ Date: _______________`;
         </Link>
       </section>
 
-      <CollapsibleWorkspaceGrid gridStyle={styles.sectionStack} label="disciplinary record workspaces">
+      <CollapsibleWorkspaceGrid gridStyle={styles.sectionStack} label="disciplinary record workspaces" alwaysOpenCount={1}>
       <section style={styles.card}>
         <div style={styles.cardTop}>
           <div>

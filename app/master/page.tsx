@@ -47,7 +47,7 @@ export default function MasterDashboard() {
 
   return <main style={page}>
     <section style={header}>
-      <div><p style={eyebrow}>Platform administration</p><h1 style={title}>Master Overview</h1><p style={subtitle}>Monitor client onboarding, billing and access without opening employee, payroll or payslip records.</p></div>
+      <div><p style={eyebrow}>Platform administration</p><h1 style={title}>Master Overview</h1><p style={subtitle}>Client onboarding, billing and access.</p></div>
       <button onClick={fetchStats} style={refreshButton}>Refresh overview</button>
     </section>
 
@@ -59,20 +59,20 @@ export default function MasterDashboard() {
       <StatCard label="Access paused" value={loading ? "..." : String(stats.suspendedBusinesses)} note="Suspended or archived clients" />
     </section>
 
-    <section style={sectionHeader}><div><h2 style={sectionTitle}>Administration workspace</h2><p style={sectionText}>Only platform-level client metadata is shown here.</p></div></section>
+    <section style={sectionHeader}><div><h2 style={sectionTitle}>Administration</h2><p style={sectionText}>Platform controls only.</p></div></section>
     <section style={grid}>
-      <DashboardCard title="Setup Requests" description="Review new client requests and complete controlled onboarding." href="/master/wageflow-requests" tag="Onboarding" />
-      <DashboardCard title="Businesses" description="Manage client identity, branding and lifecycle access." href="/master/businesses" tag="Client Admin" />
-      <DashboardCard title="Billing" description="Manage plans, fees, payment state and subscription access." href="/master/subscriptions" tag="Finance" />
-      <DashboardCard title="User Access" description="Review roles, account status and business assignments." href="/master/users" tag="Security" />
-      <DashboardCard title="Master Admins" description="Invite trusted platform administrators and review their access." href="/master/admins" tag="Security" />
-      <DashboardCard title="Audit Trail" description="Review platform changes to user access and subscription settings." href="/master/audit" tag="Control" />
+      <DashboardCard title="Setup Requests" description="Review new client requests." href="/master/wageflow-requests" tag="Onboarding" />
+      <DashboardCard title="Businesses" description="Client profile and access." href="/master/businesses" tag="Client Admin" />
+      <DashboardCard title="Billing" description="Plans, fees and payment status." href="/master/subscriptions" tag="Finance" />
+      <DashboardCard title="User Access" description="Roles, status and business links." href="/master/users" tag="Security" />
+      <DashboardCard title="Master Admins" description="Platform administrator access." href="/master/admins" tag="Security" />
+      <DashboardCard title="Audit Trail" description="Access and billing changes." href="/master/audit" tag="Control" />
     </section>
   </main>;
 }
 
 function StatCard({label,value,note}:{label:string;value:string;note:string}) { return <article style={statCard}><span style={statLabel}>{label}</span><strong style={statValue}>{value}</strong><small style={statNote}>{note}</small></article>; }
-function DashboardCard({title,description,href,tag}:{title:string;description:string;href:string;tag:string}) { return <Link href={href} style={cardLink}><article style={card}><span style={tagStyle}>{tag}</span><h2 style={cardTitle}>{title}</h2><p style={cardText}>{description}</p><span style={openLink}>Open workspace <span aria-hidden="true">→</span></span></article></Link>; }
+function DashboardCard({title,description,href,tag}:{title:string;description:string;href:string;tag:string}) { return <Link href={href} style={cardLink}><article style={card}><span style={tagStyle}>{tag}</span><h2 style={cardTitle}>{title}</h2><p style={cardText}>{description}</p><span style={openLink}>Open <span aria-hidden="true">→</span></span></article></Link>; }
 
 const page={minHeight:"100vh",padding:38,fontFamily:"Arial, sans-serif",background:"#f4f8fb",color:"#0f172a"};
 const header={display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:20,flexWrap:"wrap" as const,marginBottom:26};

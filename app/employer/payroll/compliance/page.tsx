@@ -277,7 +277,7 @@ export default function ComplianceSummaryPage() {
         </Link>
       </section>
 
-      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="compliance workspaces">
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="compliance workspaces" alwaysOpenCount={1}>
       <section style={card}>
         <div style={toolbar}>
           <div>

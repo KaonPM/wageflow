@@ -843,7 +843,7 @@ export default function EmployerReportsPage() {
         </Link>
       </section>
 
-      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="report workspaces">
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="report workspaces" alwaysOpenCount={1}>
       <section style={panel}>
         <div style={panelHeader}>
           <div>

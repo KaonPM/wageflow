@@ -453,7 +453,7 @@ export default function EmployerEmployeesPage() {
         </Link>
       </section>
 
-      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="employee workspaces">
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="employee workspaces" alwaysOpenCount={1}>
       <section style={summaryGrid}>
         <SummaryCard label="Total Employees" value={String(employees.length)} />
         <SummaryCard label="Active Employees" value={String(activeEmployees)} />
