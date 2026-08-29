@@ -290,6 +290,7 @@ export default function EmployerDashboard() {
           href="/employer/payroll"
           tag="Payroll Workspace"
         />
+        <DashboardCard title="Payslip Distribution" description="Print a paper-payslip register and record delivery or signed receipt." href="/employer/payslip-distribution" tag="Paper Payroll" />
 
         <DashboardCard
           title="HR Records"
@@ -311,6 +312,7 @@ export default function EmployerDashboard() {
           href="/employer/settings"
           tag="Business Setup"
         />
+        {role === "employer" && <DashboardCard title="Add another business" description="Create a separate payroll workspace and switch between your businesses." href="/employer/businesses/new" tag="Owner Controls" />}
         <DashboardCard
           title="Change Requests"
           description="Review employee contact, emergency-contact and banking changes before they update payroll records."

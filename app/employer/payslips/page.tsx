@@ -227,6 +227,9 @@ export default function EmployerPayslipsPage() {
             <Link href="/employer/payroll" style={primaryLink}>
               Run Payroll
             </Link>
+            {monthFilter && <Link href={`/employer/payslips/print?month=${encodeURIComponent(monthFilter)}`} style={primaryLink}>
+              Bulk Print Period
+            </Link>}
           </div>
         </div>
 

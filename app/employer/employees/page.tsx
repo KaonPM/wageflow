@@ -40,6 +40,8 @@ type Employee = {
   overtime_enabled: boolean | null;
   overtime_rate: number | null;
   notes: string | null;
+  portal_requested?: boolean | null;
+  payslip_delivery_method?: "paper" | "portal_and_paper" | "portal_only" | null;
   created_at?: string | null;
 };
 
@@ -77,10 +79,13 @@ const emptyForm = {
   overtime_enabled: false,
   overtime_rate: "",
   notes: "",
+  portal_requested: false,
+  payslip_delivery_method: "paper",
 };
 
 type LeavePolicy = {
   annual_leave_allowance?: number | null;
+  default_employee_portal_enabled?: boolean | null;
 };
 
 export default function EmployerEmployeesPage() {
@@ -94,6 +99,7 @@ export default function EmployerEmployeesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sendingEmployeeId, setSendingEmployeeId] = useState<string | null>(null);
+  const [portalRequestedInitially, setPortalRequestedInitially] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [leavePolicy, setLeavePolicy] = useState<LeavePolicy | null>(null);
   const [terminatingEmployee, setTerminatingEmployee] = useState<Employee | null>(null);
@@ -158,7 +164,7 @@ export default function EmployerEmployeesPage() {
 
     const { data: policy } = await supabase
       .from("businesses")
-      .select("annual_leave_allowance")
+      .select("annual_leave_allowance,default_employee_portal_enabled")
       .eq("id", businessId)
       .maybeSingle();
     setLeavePolicy(policy);
@@ -203,6 +209,8 @@ export default function EmployerEmployeesPage() {
       overtime_enabled: form.overtime_enabled,
       overtime_rate: Number(form.overtime_rate || 0),
       notes: form.notes,
+      portal_requested: form.portal_requested,
+      payslip_delivery_method: form.portal_requested ? form.payslip_delivery_method : "paper",
     };
   }
 
@@ -271,8 +279,8 @@ export default function EmployerEmployeesPage() {
     setSaving(true);
     setMessage("");
 
-    if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim()) {
-      setMessage("First name, last name and email address are required.");
+    if (!form.first_name.trim() || !form.last_name.trim() || (form.portal_requested && !form.email.trim())) {
+      setMessage(form.portal_requested ? "First name, last name and email address are required when employee portal access is enabled." : "First name and last name are required.");
       setSaving(false);
       return;
     }
@@ -287,6 +295,27 @@ export default function EmployerEmployeesPage() {
         setMessage(error.message);
         setSaving(false);
         return;
+      }
+
+      if (form.portal_requested !== portalRequestedInitially) {
+        if (form.portal_requested) {
+          try {
+            await sendEmployeeSetupEmail(editingId, form.email, `${form.first_name} ${form.last_name}`);
+          } catch (portalError) {
+            setMessage(portalError instanceof Error ? portalError.message : "Employee details were saved, but portal access could not be enabled.");
+            setSaving(false);
+            return;
+          }
+        } else {
+          const { data: { session } } = await supabase.auth.getSession();
+          const response = await fetch("/api/employer/employee-portal", { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` }, body: JSON.stringify({ employeeId: editingId, enabled: false }) });
+          if (!response.ok) {
+            const result = await response.json().catch(() => ({}));
+            setMessage(result.error || "Employee details were saved, but portal access could not be disabled.");
+            setSaving(false);
+            return;
+          }
+        }
       }
 
       setMessage("Employee updated successfully.");
@@ -314,19 +343,15 @@ export default function EmployerEmployeesPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) await fetch("/api/employee-onboarding-task", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ employeeId: createdEmployee.id }) });
 
-      try {
-        await sendEmployeeSetupEmail(
-          createdEmployee.id,
-          form.email,
-          `${form.first_name} ${form.last_name}`
-        );
-        setMessage(
-          `Employee added successfully. Employee number: ${createdEmployee.employee_number}. Setup email sent.`
-        );
-      } catch (emailError) {
-        setMessage(
-          `${emailError instanceof Error ? emailError.message : "The setup email could not be sent."} Employee number: ${createdEmployee.employee_number}.`
-        );
+      if (form.portal_requested) {
+        try {
+          await sendEmployeeSetupEmail(createdEmployee.id, form.email, `${form.first_name} ${form.last_name}`);
+          setMessage(`Employee added successfully. Employee number: ${createdEmployee.employee_number}. Setup email sent.`);
+        } catch (emailError) {
+          setMessage(`${emailError instanceof Error ? emailError.message : "The setup email could not be sent."} Employee number: ${createdEmployee.employee_number}.`);
+        }
+      } else {
+        setMessage(`Employee added successfully. Employee number: ${createdEmployee.employee_number}. Paper payslip delivery selected.`);
       }
     }
 
@@ -339,6 +364,7 @@ export default function EmployerEmployeesPage() {
 
   function editEmployee(employee: Employee) {
     setEditingId(employee.id);
+    setPortalRequestedInitially(employee.portal_requested ?? false);
     setShowForm(true);
 
     setForm({
@@ -375,6 +401,8 @@ export default function EmployerEmployeesPage() {
       overtime_enabled: Boolean(employee.overtime_enabled),
       overtime_rate: String(employee.overtime_rate || ""),
       notes: employee.notes || "",
+      portal_requested: employee.portal_requested ?? false,
+      payslip_delivery_method: employee.payslip_delivery_method || "paper",
     });
   }
 
@@ -468,8 +496,11 @@ export default function EmployerEmployeesPage() {
                 setForm({
                   ...emptyForm,
                   leave_balance: String(leavePolicy?.annual_leave_allowance ?? 15),
+                  portal_requested: leavePolicy?.default_employee_portal_enabled ?? true,
+                  payslip_delivery_method: (leavePolicy?.default_employee_portal_enabled ?? true) ? "portal_and_paper" : "paper",
                 });
                 setEditingId(null);
+                setPortalRequestedInitially(false);
                 setShowForm(!showForm);
               }}
             >
@@ -534,7 +565,7 @@ export default function EmployerEmployeesPage() {
                         <button
                           style={resendButton}
                           onClick={() => resendEmployeeSetupEmail(employee)}
-                          disabled={sendingEmployeeId === employee.id || !employee.email}
+                          disabled={sendingEmployeeId === employee.id || !employee.email || !employee.portal_requested}
                         >
                           {sendingEmployeeId === employee.id ? "Sending..." : "Resend Setup Email"}
                         </button>
@@ -624,12 +655,24 @@ export default function EmployerEmployeesPage() {
               <input
                 style={input}
                 type="email"
-                required
+                required={form.portal_requested}
                 value={form.email}
                 onChange={(e) =>
                   setForm({ ...form, email: e.target.value })
                 }
               />
+            </Field>
+
+            <Field label="Payslip delivery">
+              <select style={input} value={form.payslip_delivery_method} onChange={(e) => {
+                const delivery = e.target.value as typeof form.payslip_delivery_method;
+                setForm({ ...form, payslip_delivery_method: delivery, portal_requested: delivery !== "paper" });
+              }}>
+                <option value="paper">Paper payslip only — no employee portal</option>
+                <option value="portal_and_paper">Employee portal + paper copy</option>
+                <option value="portal_only">Employee portal only</option>
+              </select>
+              <p style={muted}>Portal choices require the employee&apos;s email address. Paper-only workers can be paid without one.</p>
             </Field>
 
             <Field label="Contact Number">

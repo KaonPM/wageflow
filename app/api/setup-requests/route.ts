@@ -3,7 +3,7 @@ import { getSupabaseAdmin, requireRole } from "../_lib/authorization";
 import { issueStatement } from "../_lib/billing";
 import { checkRateLimit, isSameOrigin } from "../_lib/rateLimit";
 
-type Payload = { ownerName?: string; businessName?: string; email?: string; phone?: string; employeeCount?: string | number; plan?: string; message?: string; accepted?: boolean; acceptedAt?: string; website?: string };
+type Payload = { ownerName?: string; businessName?: string; email?: string; phone?: string; employeeCount?: string | number; plan?: string; message?: string; accepted?: boolean; acceptedAt?: string; website?: string; defaultEmployeePortalEnabled?: boolean };
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: "Request origin is not allowed." }, { status: 403 });
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (Number.isNaN(acceptedAt.getTime())) return NextResponse.json({ error: "Terms acceptance is invalid." }, { status: 400 });
 
   try {
-    const { error } = await getSupabaseAdmin().from("wageflow_setup_requests").insert({ business_name: businessName, contact_person: contactPerson, email, phone, selected_package: selectedPackage, number_of_employees: employeeCount, notes, terms_accepted: true, privacy_accepted: true, status: "Pending" });
+    const { error } = await getSupabaseAdmin().from("wageflow_setup_requests").insert({ business_name: businessName, contact_person: contactPerson, email, phone, selected_package: selectedPackage, number_of_employees: employeeCount, notes, default_employee_portal_enabled: body.defaultEmployeePortalEnabled === true, terms_accepted: true, privacy_accepted: true, status: "Pending" });
     if (error) throw error;
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
@@ -47,7 +47,7 @@ export async function PATCH(request: Request) {
 
   const { data: setupRequest, error: requestError } = await access.admin
     .from("wageflow_setup_requests")
-    .select("id,business_name,email,phone,selected_package,number_of_employees,status")
+    .select("id,business_name,email,phone,selected_package,number_of_employees,status,default_employee_portal_enabled")
     .eq("id", requestId)
     .maybeSingle();
   if (requestError || !setupRequest) return NextResponse.json({ error: "Setup request was not found." }, { status: 404 });
@@ -79,6 +79,7 @@ export async function PATCH(request: Request) {
       source_request_id: requestId,
       selected_package: normalisePackage(setupRequest.selected_package),
       number_of_employees: setupRequest.number_of_employees,
+      default_employee_portal_enabled: setupRequest.default_employee_portal_enabled === true,
     }).select("id").single();
     if (error || !business) return NextResponse.json({ error: error?.message || "Business could not be created." }, { status: 500 });
     businessId = business.id;

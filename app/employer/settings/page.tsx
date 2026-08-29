@@ -28,6 +28,7 @@ type Settings = {
   familyResponsibilityLeaveAllowance: number;
   defaultPaymentMethod: string;
   defaultPaymentDay: string;
+  defaultEmployeePortalEnabled: boolean;
 };
 
 type BusinessRecord = {
@@ -54,6 +55,7 @@ type BusinessRecord = {
   family_responsibility_leave_allowance?: number | null;
   default_payment_method?: string | null;
   default_payment_day?: number | null;
+  default_employee_portal_enabled?: boolean | null;
 };
 
 const defaultSettings: Settings = {
@@ -79,6 +81,7 @@ const defaultSettings: Settings = {
   familyResponsibilityLeaveAllowance: 3,
   defaultPaymentMethod: "Bank Transfer",
   defaultPaymentDay: "",
+  defaultEmployeePortalEnabled: true,
 };
 
 export default function EmployerSettingsPage() {
@@ -169,6 +172,7 @@ export default function EmployerSettingsPage() {
         defaultPaymentMethod:
           businessQuery.default_payment_method || "Bank Transfer",
         defaultPaymentDay: businessQuery.default_payment_day ? String(businessQuery.default_payment_day) : "",
+        defaultEmployeePortalEnabled: businessQuery.default_employee_portal_enabled ?? true,
       });
     }
 
@@ -265,6 +269,7 @@ export default function EmployerSettingsPage() {
       family_responsibility_leave_allowance: settings.familyResponsibilityLeaveAllowance,
       default_payment_method: settings.defaultPaymentMethod,
       default_payment_day: settings.defaultPaymentDay ? Number(settings.defaultPaymentDay) : null,
+      default_employee_portal_enabled: settings.defaultEmployeePortalEnabled,
     };
 
     let savedBusinessId = businessId;
@@ -540,6 +545,13 @@ export default function EmployerSettingsPage() {
                 checked={settings.showLeaveBalances}
                 onChange={() => handleToggle("showLeaveBalances")}
               />
+
+              <Toggle
+                label="Enable employee portal by default"
+                checked={settings.defaultEmployeePortalEnabled}
+                onChange={() => handleToggle("defaultEmployeePortalEnabled")}
+              />
+              <p style={helperText}>Turn this off for a paper-first workforce. New employees will not need an email address or portal login, but you can enable access for an individual employee when needed.</p>
 
               <Field label="Default Payment Method">
                 <select

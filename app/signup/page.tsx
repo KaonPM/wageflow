@@ -14,6 +14,7 @@ export default function SetupRequestPage() {
     phone: "",
     employeeCount: "",
     plan: "Starter",
+    defaultEmployeePortalEnabled: false,
     message: "",
     website: "",
   });
@@ -64,8 +65,9 @@ export default function SetupRequestPage() {
       businessName: "",
       email: "",
       phone: "",
-      employeeCount: "",
-      plan: "Starter",
+    employeeCount: "",
+    plan: "Starter",
+    defaultEmployeePortalEnabled: false,
       message: "",
       website: "",
     });
@@ -172,6 +174,15 @@ export default function SetupRequestPage() {
             <option value="Edu Bloom">Edu Bloom — no charge</option>
             <option value="Demo">Demo — no charge</option>
           </select>
+
+          <label style={choiceRow}>
+            <input
+              type="checkbox"
+              checked={form.defaultEmployeePortalEnabled}
+              onChange={(e) => setForm({ ...form, defaultEmployeePortalEnabled: e.target.checked })}
+            />
+            <span><strong>Enable employee portal by default</strong><br />Use this only where employees normally have their own email and device. You can still enable portal access for an individual employee later.</span>
+          </label>
 
           <textarea
             style={textarea}
@@ -337,5 +348,14 @@ const errorText = {
 
 const successText = {
   color: "#047857",
+  fontSize: 14,
+};
+
+const choiceRow = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 10,
+  color: "#334e68",
+  lineHeight: 1.5,
   fontSize: 14,
 };
