@@ -72,7 +72,7 @@ export default function MasterDashboard() {
 }
 
 function StatCard({label,value,note}:{label:string;value:string;note:string}) { return <article style={statCard}><span style={statLabel}>{label}</span><strong style={statValue}>{value}</strong><small style={statNote}>{note}</small></article>; }
-function DashboardCard({title,description,href,tag}:{title:string;description:string;href:string;tag:string}) { return <Link href={href} style={cardLink}><article style={card}><span style={tagStyle}>{tag}</span><h2 style={cardTitle}>{title}</h2><p style={cardText}>{description}</p><span style={openLink}>Open <span aria-hidden="true">→</span></span></article></Link>; }
+function DashboardCard({title,description,href,tag}:{title:string;description:string;href:string;tag:string}) { return <Link href={href} style={cardLink}><article style={card}><span style={tagStyle}>{tag}</span><h2 style={cardTitle}>{title}</h2><p style={cardText}>{description}</p><span style={openLink}>Open</span></article></Link>; }
 
 const page={minHeight:"100vh",padding:38,fontFamily:"Arial, sans-serif",background:"#f4f8fb",color:"#0f172a"};
 const header={display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:20,flexWrap:"wrap" as const,marginBottom:26};

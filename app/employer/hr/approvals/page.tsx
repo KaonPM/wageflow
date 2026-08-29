@@ -203,7 +203,7 @@ export default function HRApprovalsPage() {
         </div>
 
         <Link href="/employer/hr" style={styles.backButton}>
-           ← Back to HR Records
+           Back to HR Records
         </Link>
       </section>
 

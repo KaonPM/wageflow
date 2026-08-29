@@ -18,7 +18,7 @@ export default function TermsPage() {
   return (
     <main style={page}>
       <div style={card}>
-        <Link href="/" style={homeButton}>← Home</Link>
+        <Link href="/" style={homeButton}>Home</Link>
 
         <h1>WageFlow Terms & Conditions</h1>
         <p><strong>Last updated:</strong> 05 May 2026</p>
@@ -114,7 +114,7 @@ export default function TermsPage() {
 
         <div style={actionRow}>
           <Link href="/privacy" style={secondaryButton}>
-            ← Back to Privacy Policy
+            Back to Privacy Policy
           </Link>
         </div>
       </div>

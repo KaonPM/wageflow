@@ -4,7 +4,7 @@ export default function GetStartedPage() {
   return (
     <main style={page}>
       <section style={card}>
-        <Link href="/" style={homeButton}>← Home</Link>
+        <Link href="/" style={homeButton}>Home</Link>
 
         <img src="/wageflow-logo.png" alt="WageFlow Logo" style={logo} />
 

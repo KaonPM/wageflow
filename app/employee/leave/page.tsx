@@ -261,7 +261,7 @@ export default function EmployeeLeavePage() {
 
           <div className="employee-leave-header-actions" style={headerActions}>
             <Link href="/employee" style={backDashboardButton}>
-               ← Back to Dashboard
+               Back to Dashboard
             </Link>
           </div>
         </section>

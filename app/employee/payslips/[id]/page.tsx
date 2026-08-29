@@ -391,7 +391,7 @@ export default function EmployeePayslipViewPage() {
     <main style={page}>
       <section style={topBar}>
         <Link href="/employee/payslips" style={backLink}>
-           ← Back to Payslips
+           Back to Payslips
         </Link>
 
         <button style={pdfButton} onClick={downloadPdf} disabled={downloading}>

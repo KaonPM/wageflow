@@ -292,7 +292,7 @@ export default function EmployeeHrRecordDetailPage() {
       <div style={shell}>
         <section style={topBar}>
           <Link href="/employee/hr-records" style={primaryButton}>
-             ← Back to HR Records
+             Back to HR Records
           </Link>
 
           {isStoredDocument && (

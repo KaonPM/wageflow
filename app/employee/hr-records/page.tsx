@@ -164,7 +164,7 @@ export default function EmployeeHRRecordsPage() {
 
           <div style={headerActions}>
             <Link href="/employee" style={backDashboardButton}>
-               ← Back to Dashboard
+               Back to Dashboard
             </Link>
           </div>
         </section>

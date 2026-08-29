@@ -79,7 +79,7 @@ export default function SetupRequestPage() {
     <main style={page}>
       <section style={card}>
         <Link href="/" style={homeButton}>
-          ← Home
+          Home
         </Link>
 
         <img

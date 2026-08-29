@@ -4,7 +4,7 @@ export default function PrivacyPage() {
   return (
     <main style={page}>
       <div style={card}>
-        <Link href="/" style={homeButton}>← Home</Link>
+        <Link href="/" style={homeButton}>Home</Link>
 
         <h1>WageFlow Privacy Policy</h1>
         <p><strong>Last updated:</strong> 05 May 2026</p>
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
 
         <div style={actionRow}>
           <Link href="/get-started" style={secondaryButton}>
-            ← Back to Get Started
+            Back to Get Started
           </Link>
 
           <Link href="/terms" style={continueButton}>

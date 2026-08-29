@@ -446,7 +446,7 @@ Employer representative: ______________________ Date: _______________`;
         </div>
 
         <Link href="/employer/hr" style={styles.backButton}>
-           ← Back to HR Records
+           Back to HR Records
         </Link>
       </section>
 
@@ -662,7 +662,7 @@ Employer representative: ______________________ Date: _______________`;
                 setMode(null);
               }}
             >
-              ← Back
+              Back
             </button>
             <button
               style={styles.greenButton}

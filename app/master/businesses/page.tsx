@@ -16,6 +16,7 @@ type Business = {
   primary_color: string | null;
   accent_color: string | null;
   selected_package: string | null;
+  subscriptions?: Array<{ plan_name: string | null; monthly_fee: number | null }>;
   number_of_employees: number | null;
   created_at: string;
 };
@@ -38,7 +39,7 @@ export default function MasterBusinessesPage() {
 
     const { data, error } = await supabase
       .from("businesses")
-      .select("*")
+      .select("*, subscriptions(plan_name, monthly_fee)")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -113,7 +114,7 @@ export default function MasterBusinessesPage() {
           </p>
         </div>
 
-        <div style={headerActions}><Link href="/master" style={backButton}>← Back to overview</Link><button onClick={fetchBusinesses} style={refreshButton}>Refresh</button></div>
+        <div style={headerActions}><Link href="/master" style={backButton}>Back to overview</Link><button onClick={fetchBusinesses} style={refreshButton}>Refresh</button></div>
       </div>
 
       <section style={toolbar}>
@@ -162,7 +163,7 @@ export default function MasterBusinessesPage() {
                     </p>
 
                     <p style={smallText}>
-                      Package: {formatPackage(business.selected_package)} •
+                      Package: {formatPackage(business.subscriptions?.[0]?.plan_name || business.selected_package, business.subscriptions?.[0]?.monthly_fee)} •
                       Employees: {business.number_of_employees || 0}
                     </p>
                   </div>
@@ -187,11 +188,12 @@ export default function MasterBusinessesPage() {
   );
 }
 
-function formatPackage(selectedPackage: string | null) {
+function formatPackage(selectedPackage: string | null, monthlyFee?: number | null) {
   const value = (selectedPackage || "").trim();
   const normalized = value.toLowerCase();
-  if (normalized.startsWith("starter")) return "Starter — R199/month";
-  if (normalized.startsWith("growth")) return "Growth — R299/month";
+  if (normalized === "growth included") return "Growth Included — no charge";
+  if (normalized.startsWith("starter")) return `Starter — R${Number(monthlyFee ?? 199).toFixed(0)}/month`;
+  if (normalized.startsWith("growth")) return `Growth — R${Number(monthlyFee ?? 299).toFixed(0)}/month`;
   if (normalized.startsWith("pilot")) return "Pilot — no charge";
   if (normalized.startsWith("daily bloom")) return "Daily Bloom — no charge";
   if (normalized.startsWith("edu bloom")) return "Edu Bloom — no charge";

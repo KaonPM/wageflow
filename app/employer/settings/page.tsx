@@ -330,7 +330,7 @@ export default function EmployerSettingsPage() {
         </div>
 
         <Link href="/employer" style={backButton}>
-           ← Back to Employer Dashboard
+           Back to Employer Dashboard
         </Link>
       </section>
 
