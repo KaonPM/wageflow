@@ -335,16 +335,6 @@ export default function ManageBusinessPage() {
       </p>
 
       <section style={card}>
-        <h2 style={sectionTitle}>Link Existing Employer</h2>
-        <p style={smallText}>Give an already active employer access to this business. This does not reset their password or send an email.</p>
-        <div style={employerLinkRow}>
-          <input style={input} type="email" placeholder="Existing employer email address" value={employerEmail} onChange={(event) => setEmployerEmail(event.target.value)} />
-          <button style={uploadButton} disabled={linkingEmployer || !employerEmail.trim()} onClick={linkExistingEmployer}>{linkingEmployer ? "Linking..." : "Link employer"}</button>
-        </div>
-        {business.employer_id && <p style={smallText}>This changes the primary owner assignment; existing memberships remain active.</p>}
-      </section>
-
-      <section style={card}>
         <h2 style={sectionTitle}>Business Profile</h2>
 
         <div style={grid}>
@@ -596,6 +586,16 @@ export default function ManageBusinessPage() {
             </div>
           </label>
         </div>
+      </section>
+
+      <section style={card}>
+        <h2 style={sectionTitle}>Link Existing Employer</h2>
+        <p style={smallText}>Give an already active employer access to this business. This does not reset their password or send an email.</p>
+        <div style={employerLinkRow}>
+          <input style={input} type="email" placeholder="Existing employer email address" value={employerEmail} onChange={(event) => setEmployerEmail(event.target.value)} />
+          <button style={uploadButton} disabled={linkingEmployer || !employerEmail.trim()} onClick={linkExistingEmployer}>{linkingEmployer ? "Linking..." : "Link employer"}</button>
+        </div>
+        {business.employer_id && <p style={smallText}>This changes the primary owner assignment; existing memberships remain active.</p>}
       </section>
 
       <section style={dangerCard}>
