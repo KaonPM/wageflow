@@ -81,7 +81,7 @@ async function sendStatementEmail(statement: Statement) {
   const fromEmail = process.env.BREVO_FROM_EMAIL;
   if (!apiKey || !fromEmail) return { ok: false, error: "Brevo billing email is not configured." };
 
-  const label = statement.statementType === "setup" ? "Once-off setup payment" : "Monthly subscription payment";
+  const label = statement.statementType === "setup" ? "Business Setup & Activation Fee" : "Monthly subscription payment";
   const amount = new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(statement.amount);
   const month = new Date(`${statement.statementMonth}T00:00:00Z`).toLocaleDateString("en-ZA", { month: "long", year: "numeric", timeZone: "UTC" });
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
