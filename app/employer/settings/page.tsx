@@ -90,6 +90,7 @@ export default function EmployerSettingsPage() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [employerId, setEmployerId] = useState<string | null>(null);
+  const [isBusinessOwner, setIsBusinessOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -117,9 +118,11 @@ export default function EmployerSettingsPage() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("business_id")
+      .select("business_id, role")
       .eq("id", user.id)
       .maybeSingle();
+
+    setIsBusinessOwner(String(profile?.role || "").toLowerCase() === "employer");
 
     let foundBusinessId = profile?.business_id || null;
     let businessQuery: BusinessRecord | null = null;
@@ -623,6 +626,20 @@ export default function EmployerSettingsPage() {
             </div>
           </section>
 
+          {isBusinessOwner && (
+            <section style={ownerToolsCard}>
+              <div>
+                <h2 style={cardTitle}>Business management</h2>
+                <p style={cardSubtitle}>Administrators and additional businesses.</p>
+              </div>
+              <div style={ownerToolsActions}>
+                <Link href="/employer/admins" style={ownerToolLink}>Administrators</Link>
+                <Link href="/employer/businesses/new" style={ownerToolLink}>Add business</Link>
+                <Link href="/security" style={ownerToolLink}>Security</Link>
+              </div>
+            </section>
+          )}
+
           <div style={buttonRow}>
             <button onClick={handleSave} style={saveButton} disabled={saving}>
               {saving ? "Saving..." : "Save Settings"}
@@ -896,6 +913,22 @@ const saveButton = {
   fontWeight: 800,
   cursor: "pointer",
 };
+
+const ownerToolsCard = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: "14px",
+  padding: "16px",
+  marginTop: "16px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "14px",
+  flexWrap: "wrap" as const,
+};
+
+const ownerToolsActions = { display: "flex", gap: "8px", flexWrap: "wrap" as const };
+const ownerToolLink = { background: "#ecfeff", color: "#0f766e", border: "1px solid #99f6e4", borderRadius: "999px", padding: "6px 10px", fontSize: "12px", fontWeight: 800, textDecoration: "none" };
 
 const helperText = {
   margin: "7px 0 0",

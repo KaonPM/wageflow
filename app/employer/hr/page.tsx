@@ -8,8 +8,7 @@ export default function EmployerHRPage() {
           <h1 style={title}>HR Records</h1>
 
           <p style={subtitle}>
-            Manage employee documents, disciplinary records, HR approvals and
-            internal HR notes from one workspace.
+            Documents, records, policies and approvals.
           </p>
         </div>
 
@@ -34,8 +33,8 @@ export default function EmployerHRPage() {
         />
 
         <ModuleCard
-          title="HR Approvals"
-          description="Manage leave requests, overtime requests, approval status, approval notes and employee notifications."
+          title="Approvals"
+          description="Review leave, overtime and employee profile changes."
           href="/employer/hr/approvals"
           tag="Approvals"
         />

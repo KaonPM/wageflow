@@ -33,8 +33,8 @@ export default function EmployerDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
-  const [role, setRole] = useState("");
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingChangeRequests, setPendingChangeRequests] = useState(0);
   const [missingDocuments, setMissingDocuments] = useState(0);
 
   useEffect(() => {
@@ -50,14 +50,13 @@ export default function EmployerDashboard() {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("business_id,role")
+      .select("business_id")
       .eq("id", user.id)
       .maybeSingle();
 
     if (profileError) {
       console.error("Profile lookup failed", profileError);
     }
-    setRole(String(profile?.role || "").toLowerCase());
 
     let businessRecord: Business | null = null;
 
@@ -180,6 +179,8 @@ export default function EmployerDashboard() {
     }
     const { count } = await supabase.from("approval_requests").select("id", { count: "exact", head: true }).eq("business_id", businessRecord.id).eq("status", "Pending");
     setPendingApprovals(count || 0);
+    const { count: changeRequestCount } = await supabase.from("employee_change_requests").select("id", { count: "exact", head: true }).eq("business_id", businessRecord.id).eq("status", "Pending");
+    setPendingChangeRequests(changeRequestCount || 0);
     setLoading(false);
   }
 
@@ -270,53 +271,26 @@ export default function EmployerDashboard() {
           <OverviewCard label="On Leave" value={String(employeesOnLeave)} />
           <OverviewCard label="Terminated" value={String(employeesTerminated)} />
           <OverviewCard label="Next payroll date" value={nextPayrollDate} />
-          <Link href="/employer/hr/documents" style={todoCard}><span style={overviewValue}>{String(missingDocuments)}</span><p style={overviewLabel}>Employees missing documents</p></Link>
-          <Link href="/employer/hr/approvals" style={todoCard}><span style={overviewValue}>{String(pendingApprovals)}</span><p style={overviewLabel}>Pending approvals</p></Link>
+        </div>
+        <div style={attentionHeader}>
+          <h2 style={attentionTitle}>Needs attention</h2>
+          <Link href="/employer/tasks" style={taskLink}>All tasks</Link>
+        </div>
+        <div style={overviewGrid}>
+          <Link href="/employer/hr/documents" style={todoCard}><span style={overviewValue}>{String(missingDocuments)}</span><p style={overviewLabel}>Missing documents</p></Link>
+          <Link href="/employer/hr/approvals" style={todoCard}><span style={overviewValue}>{String(pendingApprovals)}</span><p style={overviewLabel}>HR approvals</p></Link>
+          <Link href="/employer/change-requests" style={todoCard}><span style={overviewValue}>{String(pendingChangeRequests)}</span><p style={overviewLabel}>Profile changes</p></Link>
         </div>
       </section>
 
       <section style={moduleSection}>
-        <div style={moduleHeader}><h2 style={moduleTitle}>People & HR</h2></div>
+        <div style={moduleHeader}><h2 style={moduleTitle}>Workspaces</h2></div>
         <div style={moduleGrid}>
-        <DashboardCard
-          title="Employees"
-          description="Profiles, employment and pay details."
-          href="/employer/employees"
-        />
-        <DashboardCard
-          title="HR Records"
-          description="Records, documents and approvals."
-          href="/employer/hr"
-        />
-        <DashboardCard
-          title="Change Requests"
-          description="Review employee detail changes."
-          href="/employer/change-requests"
-        />
-        <DashboardCard title="Tasks" description="Pending tasks and updates." href="/employer/tasks" />
-        </div>
-      </section>
-
-      <section style={moduleSection}>
-        <div style={moduleHeader}><h2 style={moduleTitle}>Payroll & reports</h2></div>
-        <div style={moduleGrid}>
-          <DashboardCard title="Payroll" description="Payslips, runs and payment totals." href="/employer/payroll" />
-          <DashboardCard title="Payslip Distribution" description="Paper payslip register and receipts." href="/employer/payslip-distribution" />
+          <DashboardCard title="Employees" description="Profiles, employment and pay details." href="/employer/employees" />
+          <DashboardCard title="HR" description="Documents, records, policies and approvals." href="/employer/hr" />
+          <DashboardCard title="Payroll" description="Payslips, runs and payment records." href="/employer/payroll" />
           <DashboardCard title="Reports" description="Payroll, staff and compliance reports." href="/employer/reports" />
-        </div>
-      </section>
-
-      <section style={moduleSection}>
-        <div style={moduleHeader}><h2 style={moduleTitle}>Business & access</h2></div>
-        <div style={moduleGrid}>
-          <DashboardCard title="Settings" description="Business, tax and pay defaults." href="/employer/settings" />
-          {role === "employer" && <DashboardCard title="Add another business" description="Create another payroll workspace." href="/employer/businesses/new" />}
-        {role === "employer" && <DashboardCard
-          title="Employer Admins"
-          description="Invite and manage administrator access."
-          href="/employer/admins"
-        />}
-        <DashboardCard title="Security" description="Password and sign-in security." href="/security" />
+          <DashboardCard title="Settings" description="Business, payroll and account access." href="/employer/settings" />
         </div>
       </section>
 
@@ -646,5 +620,9 @@ const overviewLabel = {
   fontSize: "12px",
   fontWeight: 700,
 };
+
+const attentionHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", margin: "16px 0 9px" };
+const attentionTitle = { margin: 0, color: "#334155", fontSize: "14px", fontWeight: 800 };
+const taskLink = { color: "#0f766e", textDecoration: "none", fontSize: "12px", fontWeight: 800 };
 
 const todoCard = { ...overviewCard, textDecoration: "none", display: "block", border: "1px solid #99f6e4" };

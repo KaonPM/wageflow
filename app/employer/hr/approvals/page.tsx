@@ -196,9 +196,9 @@ export default function HRApprovalsPage() {
     <main style={styles.page}>
       <section style={styles.header}>
         <div>
-          <h1 style={styles.title}>HR Approvals</h1>
+          <h1 style={styles.title}>Approvals</h1>
           <p style={styles.subtitle}>
-            Review leave, overtime and other HR requests by employee.
+            Review leave, overtime and employee profile requests.
           </p>
         </div>
 
@@ -212,14 +212,12 @@ export default function HRApprovalsPage() {
         <div style={styles.cardTop}>
           <div>
             <h2 style={styles.cardTitle}>Employee Approval Overview</h2>
-            <p style={styles.muted}>
-              Select an employee to view requests and make an approval decision.
-            </p>
+            <p style={styles.muted}>Select an employee to review leave or overtime requests.</p>
           </div>
-
-          <button style={styles.lightButton} onClick={loadPageData}>
-            Refresh
-          </button>
+          <div style={styles.headerActions}>
+            <Link href="/employer/change-requests" style={styles.lightButton}>Profile changes</Link>
+            <button style={styles.lightButton} onClick={loadPageData}>Refresh</button>
+          </div>
         </div>
 
         {employees.length === 0 ? (
@@ -528,6 +526,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "16px",
     marginBottom: "20px",
   },
+  headerActions: { display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" },
   cardTitle: {
     margin: 0,
     fontSize: "22px",

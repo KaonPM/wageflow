@@ -673,6 +673,13 @@ export default function PayrollPage() {
           </span>
         </Link>
 
+        <Link href="/employer/payslip-distribution" style={actionCardLink}>
+          <strong style={actionTitle}>Payslip Distribution</strong>
+          <span style={actionText}>
+            Print register and record receipts.
+          </span>
+        </Link>
+
         <Link href="/employer/payroll/payments" style={actionCardLink}>
           <strong style={actionTitle}>Payment Review</strong>
           <span style={actionText}>
