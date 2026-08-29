@@ -30,7 +30,7 @@ body {
   background: var(--wf-page);
   color: var(--wf-ink);
   font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.5;
   width: 100%;
   overflow-x: hidden;
@@ -45,16 +45,27 @@ td, th, p, h1, h2, h3, h4, h5, h6, label, small { overflow-wrap: anywhere; }
 
 /* Shared visual rhythm across public, employer, employee and master workspaces. */
 main { font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif !important; }
-main h1 { font-size: clamp(24px, 2.7vw, 30px) !important; line-height: 1.15 !important; letter-spacing: -.02em; }
-main h2 { font-size: clamp(17px, 1.8vw, 20px) !important; line-height: 1.25 !important; }
-main h3 { font-size: 16px !important; line-height: 1.3 !important; }
-main p { line-height: 1.5; }
-main input, main select, main textarea { border-color: #cbd5e1 !important; border-radius: 9px !important; font-size: 14px !important; }
-main button { border-radius: 9px !important; font-size: 13px !important; line-height: 1.25 !important; }
-main table { font-size: 13px; }
+main h1 { font-size: clamp(22px, 2.5vw, 28px) !important; line-height: 1.15 !important; letter-spacing: -.02em; }
+main h2 { font-size: clamp(16px, 1.7vw, 18px) !important; line-height: 1.25 !important; }
+main h3 { font-size: 15px !important; line-height: 1.3 !important; }
+main p { line-height: 1.45; }
+main input, main select, main textarea { border-color: #cbd5e1 !important; border-radius: 8px !important; font-size: 13px !important; padding: 8px 10px !important; }
+main textarea { min-height: 84px; }
+main button { border-radius: 8px !important; font-size: 12px !important; line-height: 1.2 !important; padding-top: 8px !important; padding-bottom: 8px !important; }
+main label { font-size: 12px !important; }
+main input, main select { min-height: 36px; }
+main table { font-size: 12px; }
 main th { font-size: 11px !important; letter-spacing: .03em; }
 main [style*="border-radius: 20px"], main [style*="border-radius: 22px"] { border-radius: var(--wf-radius) !important; }
-main [style*="padding: 38px"], main [style*="padding: 40px"] { padding: 28px !important; }
+main [style*="padding: 38px"], main [style*="padding: 40px"] { padding: 24px !important; }
+main [style*="padding: 32px"] { padding: 24px !important; }
+main [style*="padding: 24px"] { padding: 18px !important; }
+main [style*="padding: 22px"] { padding: 16px !important; }
+main [style*="padding: 20px"] { padding: 16px !important; }
+main [style*="gap: 20px"] { gap: 14px !important; }
+main [style*="gap: 18px"] { gap: 12px !important; }
+main [style*="gap: 16px"] { gap: 12px !important; }
+main [style*="gap: 14px"] { gap: 10px !important; }
 main [style*="box-shadow"] { box-shadow: 0 8px 22px rgba(15, 23, 42, .045) !important; }
 
 @media (max-width: 700px) {
