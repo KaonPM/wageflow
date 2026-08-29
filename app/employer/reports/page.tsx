@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type Employee = {
   id: string;
@@ -842,6 +843,7 @@ export default function EmployerReportsPage() {
         </Link>
       </section>
 
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="report workspaces">
       <section style={panel}>
         <div style={panelHeader}>
           <div>
@@ -1143,6 +1145,7 @@ export default function EmployerReportsPage() {
           )}
         </section>
       )}
+      </CollapsibleWorkspaceGrid>
     </main>
   );
 }
@@ -1613,6 +1616,11 @@ const messageStyle = {
   marginTop: "14px",
   color: "#155e75",
   fontWeight: 700,
+};
+
+const sectionStack = {
+  display: "grid",
+  gap: 0,
 };
 
 const scheduleLink = {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { showAppMessage } from "@/app/lib/appMessage";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type ApprovalStatus = "Pending" | "Approved" | "Declined" | "Cancelled";
 
@@ -206,6 +207,7 @@ export default function HRApprovalsPage() {
         </Link>
       </section>
 
+      <CollapsibleWorkspaceGrid gridStyle={styles.sectionStack} label="approval workspaces">
       <section style={styles.card}>
         <div style={styles.cardTop}>
           <div>
@@ -427,6 +429,7 @@ export default function HRApprovalsPage() {
           </div>
         </section>
       )}
+      </CollapsibleWorkspaceGrid>
     </main>
   );
 }
@@ -475,6 +478,7 @@ function statusStyle(status: ApprovalStatus): React.CSSProperties {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  sectionStack: { display: "grid", gap: 0 },
   page: {
     minHeight: "100vh",
     padding: "38px 42px",

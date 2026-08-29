@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "../../../../lib/supabaseClient";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type PayrollRun = {
   id: string;
@@ -175,7 +176,7 @@ export default function PayrollRunDetailPage() {
       {loading ? (
         <div style={emptyState}>Loading payroll run...</div>
       ) : run ? (
-        <>
+        <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="payroll run workspaces">
           <section style={summaryGrid}>
             <SummaryCard
               label="Employees Paid"
@@ -313,7 +314,7 @@ export default function PayrollRunDetailPage() {
               </div>
             )}
           </section>
-        </>
+        </CollapsibleWorkspaceGrid>
       ) : null}
     </main>
   );
@@ -547,4 +548,9 @@ const openButton = {
   borderRadius: "10px",
   textDecoration: "none",
   fontWeight: 800,
+};
+
+const sectionStack = {
+  display: "grid",
+  gap: 0,
 };

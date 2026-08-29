@@ -7,6 +7,7 @@ import {
   calculateEstimatedUif,
 } from "../../lib/payrollTaxConfig";
 import { supabase } from "../../lib/supabaseClient";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type Employee = {
   id: string;
@@ -647,6 +648,7 @@ export default function PayrollPage() {
         </Link>
       </section>
 
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="payroll workspaces">
       <section style={actionGrid}>
         <button
           style={actionCard}
@@ -1031,6 +1033,7 @@ export default function PayrollPage() {
           </div>
         </section>
       )}
+      </CollapsibleWorkspaceGrid>
     </main>
   );
 }
@@ -1360,4 +1363,9 @@ const netBox = {
   justifyContent: "space-between",
   gap: "16px",
   fontSize: "18px",
+};
+
+const sectionStack = {
+  display: "grid",
+  gap: 0,
 };

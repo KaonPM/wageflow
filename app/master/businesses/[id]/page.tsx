@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import { showAppMessage } from "@/app/lib/appMessage";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type Business = {
   id: string;
@@ -334,6 +335,7 @@ export default function ManageBusinessPage() {
         archiving and soft deletion.
       </p>
 
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="business sections">
       <section style={card}>
         <h2 style={sectionTitle}>Business Profile</h2>
 
@@ -679,6 +681,7 @@ export default function ManageBusinessPage() {
           </div>
         </div>
       </section>
+      </CollapsibleWorkspaceGrid>
     </main>
   );
 }
@@ -930,6 +933,11 @@ const outlineDangerButton = {
   fontSize: 15,
   cursor: "pointer",
   minWidth: 140,
+};
+
+const sectionStack = {
+  display: "grid",
+  gap: 20,
 };
 
 const smallText = {

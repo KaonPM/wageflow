@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
 import { Pagination } from "@/components/Pagination";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type Employee = {
   id: string;
@@ -452,6 +453,7 @@ export default function EmployerEmployeesPage() {
         </Link>
       </section>
 
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="employee workspaces">
       <section style={summaryGrid}>
         <SummaryCard label="Total Employees" value={String(employees.length)} />
         <SummaryCard label="Active Employees" value={String(activeEmployees)} />
@@ -953,6 +955,7 @@ export default function EmployerEmployeesPage() {
           </button>
         </section>
       )}
+      </CollapsibleWorkspaceGrid>
     </main>
   );
 }
@@ -1221,6 +1224,11 @@ const td = {
 const muted = {
   color: "#64748b",
   fontSize: "13px",
+};
+
+const sectionStack = {
+  display: "grid",
+  gap: 0,
 };
 
 const resendButton = {

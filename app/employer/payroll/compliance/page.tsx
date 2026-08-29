@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
 import { validateUifDeclaration } from "@/app/lib/compliance/uif/validator";
 import type { ComplianceEmployee, ComplianceIssue } from "@/app/lib/compliance/types";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type Business = {
   id: string;
@@ -276,6 +277,7 @@ export default function ComplianceSummaryPage() {
         </Link>
       </section>
 
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="compliance workspaces">
       <section style={card}>
         <div style={toolbar}>
           <div>
@@ -409,6 +411,7 @@ export default function ComplianceSummaryPage() {
           </section>
         </>
       )}
+      </CollapsibleWorkspaceGrid>
     </main>
   );
 }
@@ -654,6 +657,11 @@ const disclaimerBox = {
   padding: "16px",
   fontSize: "13px",
   lineHeight: 1.6,
+};
+
+const sectionStack = {
+  display: "grid",
+  gap: 0,
 };
 
 const previewCard = { ...card, border: "2px solid #99f6e4" };

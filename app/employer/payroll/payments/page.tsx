@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type PayrollRun = {
   id: string;
@@ -484,6 +485,7 @@ export default function PayrollPaymentsPage() {
 
       {message && <div style={notice}>{message}</div>}
 
+      <CollapsibleWorkspaceGrid gridStyle={sectionStack} label="payment review workspaces">
       <section style={card}>
         <div style={toolbar}>
           <div>
@@ -640,6 +642,7 @@ export default function PayrollPaymentsPage() {
       </section>
 
       {loadingPayslips && <div style={emptyState}>Loading payment rows...</div>}
+      </CollapsibleWorkspaceGrid>
     </main>
   );
 }
@@ -1097,6 +1100,8 @@ const infoValue: CSSProperties = {
   color: "#0f172a",
   fontSize: "16px",
 };
+
+const sectionStack: CSSProperties = { display: "grid", gap: 0 };
 
 const confirmationGrid: CSSProperties = {
   display: "grid",

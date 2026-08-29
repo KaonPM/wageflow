@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { showAppMessage } from "@/app/lib/appMessage";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type Employee = {
   id: string;
@@ -215,6 +216,7 @@ export default function HRNotesPage() {
         </Link>
       </section>
 
+      <CollapsibleWorkspaceGrid gridStyle={styles.sectionStack} label="HR note workspaces">
       <section style={styles.card}>
         <div style={styles.cardTop}>
           <div>
@@ -392,6 +394,7 @@ export default function HRNotesPage() {
           </div>
         </section>
       )}
+      </CollapsibleWorkspaceGrid>
     </main>
   );
 }
@@ -407,6 +410,7 @@ function formatDate(value: string | null) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  sectionStack: { display: "grid", gap: 0 },
   page: {
     minHeight: "100vh",
     padding: "32px 38px",
