@@ -246,11 +246,10 @@ export default function EmployerDashboard() {
 
           <div style={brandText}>
             <h1 style={businessTitle}>{businessName}</h1>
-            <h2 style={dashboardTitle}>Employer Dashboard</h2>
+            <h2 style={dashboardTitle}>Workplace overview</h2>
 
             <p style={subtitle}>
-              Employer dashboard for managing employees, payroll, HR records,
-              approvals and business settings from one organised workspace.
+              Staff, payroll and business settings.
             </p>
           </div>
         </div>
@@ -276,57 +275,49 @@ export default function EmployerDashboard() {
         </div>
       </section>
 
-      <section style={moduleGrid}>
+      <section style={moduleSection}>
+        <div style={moduleHeader}><h2 style={moduleTitle}>People & HR</h2></div>
+        <div style={moduleGrid}>
         <DashboardCard
           title="Employees"
           description="Profiles, employment and pay details."
           href="/employer/employees"
-          tag="Staff Records"
         />
-
-        <DashboardCard
-          title="Payroll"
-          description="Payslips, runs and payment totals."
-          href="/employer/payroll"
-          tag="Payroll Workspace"
-        />
-        <DashboardCard title="Payslip Distribution" description="Print a paper-payslip register and record delivery or signed receipt." href="/employer/payslip-distribution" tag="Paper Payroll" />
-
         <DashboardCard
           title="HR Records"
           description="Records, documents and approvals."
           href="/employer/hr"
-          tag="HR Records"
         />
-
-        <DashboardCard
-          title="Reports"
-          description="Payroll, staff and compliance reports."
-          href="/employer/reports"
-          tag="Reports"
-        />
-
-        <DashboardCard
-          title="Settings"
-          description="Business, tax and pay defaults."
-          href="/employer/settings"
-          tag="Business Setup"
-        />
-        {role === "employer" && <DashboardCard title="Add another business" description="Create another payroll workspace." href="/employer/businesses/new" tag="Owner Controls" />}
         <DashboardCard
           title="Change Requests"
           description="Review employee detail changes."
           href="/employer/change-requests"
-          tag="Employer Approval"
         />
-        <DashboardCard title="Tasks & Notifications" description="Pending tasks and team updates." href="/employer/tasks" tag="Work Queue" />
+        <DashboardCard title="Tasks" description="Pending tasks and updates." href="/employer/tasks" />
+        </div>
+      </section>
+
+      <section style={moduleSection}>
+        <div style={moduleHeader}><h2 style={moduleTitle}>Payroll & reports</h2></div>
+        <div style={moduleGrid}>
+          <DashboardCard title="Payroll" description="Payslips, runs and payment totals." href="/employer/payroll" />
+          <DashboardCard title="Payslip Distribution" description="Paper payslip register and receipts." href="/employer/payslip-distribution" />
+          <DashboardCard title="Reports" description="Payroll, staff and compliance reports." href="/employer/reports" />
+        </div>
+      </section>
+
+      <section style={moduleSection}>
+        <div style={moduleHeader}><h2 style={moduleTitle}>Business & access</h2></div>
+        <div style={moduleGrid}>
+          <DashboardCard title="Settings" description="Business, tax and pay defaults." href="/employer/settings" />
+          {role === "employer" && <DashboardCard title="Add another business" description="Create another payroll workspace." href="/employer/businesses/new" />}
         {role === "employer" && <DashboardCard
           title="Employer Admins"
           description="Invite and manage administrator access."
           href="/employer/admins"
-          tag="Owner Controls"
         />}
-        <DashboardCard title="Security Settings" description="Password and sign-in security." href="/security" tag="Account Security" />
+        <DashboardCard title="Security" description="Password and sign-in security." href="/security" />
+        </div>
       </section>
 
     </main>
@@ -364,20 +355,14 @@ function DashboardCard({
   title,
   description,
   href,
-  tag,
 }: {
   title: string;
   description: string;
   href: string;
-  tag: string;
 }) {
   return (
     <Link href={href} style={cardLink}>
       <article style={card}>
-        <div style={cardTop}>
-          <span style={tagStyle}>{tag}</span>
-        </div>
-
         <h2 style={cardTitle}>{title}</h2>
         <p style={cardText}>{description}</p>
 
@@ -450,7 +435,7 @@ const divider = {
 const brandBlock = {
   display: "flex",
   alignItems: "center",
-  gap: "24px",
+  gap: "14px",
   flexWrap: "wrap" as const,
 };
 
@@ -460,9 +445,9 @@ const brandText = {
 };
 
 const logoBox = {
-  width: "132px",
-  height: "132px",
-  borderRadius: "26px",
+  width: "72px",
+  height: "72px",
+  borderRadius: "18px",
   background: "#ffffff",
   border: "1px solid #dbeafe",
   overflow: "hidden",
@@ -480,34 +465,34 @@ const logoImage = {
 };
 
 const logoFallback = {
-  width: "132px",
-  height: "132px",
-  borderRadius: "26px",
+  width: "72px",
+  height: "72px",
+  borderRadius: "18px",
   background: "#0f766e",
   color: "#ffffff",
   flexShrink: 0,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: "38px",
+  fontSize: "24px",
   fontWeight: 900,
   boxShadow: "0 14px 32px rgba(15, 23, 42, 0.08)",
 };
 
 const businessTitle = {
   color: "#0f766e",
-  fontSize: "clamp(32px, 9vw, 40px)",
+  fontSize: "clamp(24px, 5vw, 30px)",
   lineHeight: 1.08,
   margin: "0 0 8px",
-  fontWeight: 900,
+  fontWeight: 800,
   overflowWrap: "anywhere" as const,
 };
 
 const dashboardTitle = {
   color: "#0f172a",
-  fontSize: "24px",
-  margin: "0 0 10px",
-  fontWeight: 800,
+  fontSize: "17px",
+  margin: "0 0 6px",
+  fontWeight: 700,
 };
 
 const subtitle = {
@@ -531,9 +516,12 @@ const notice = {
 const moduleGrid = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-  gap: "18px",
-  marginBottom: "22px",
+  gap: "12px",
 };
+
+const moduleSection = { marginBottom: "22px" };
+const moduleHeader = { borderBottom: "1px solid #dce6ee", marginBottom: "10px", paddingBottom: "7px" };
+const moduleTitle = { margin: 0, color: "#334155", fontSize: "15px", fontWeight: 800 };
 
 const cardLink = {
   textDecoration: "none",
@@ -545,44 +533,26 @@ const cardLink = {
 const card: CSSProperties = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
-  borderRadius: "22px",
-  padding: "22px",
-  minHeight: "210px",
+  borderRadius: "14px",
+  padding: "16px",
+  minHeight: "140px",
   height: "100%",
   display: "flex",
   flexDirection: "column",
   boxShadow: "0 12px 32px rgba(15, 23, 42, 0.05)",
 };
 
-const cardTop = {
-  display: "flex",
-  justifyContent: "flex-end",
-  alignItems: "center",
-  gap: "12px",
-  marginBottom: "18px",
-};
-
-
-const tagStyle = {
-  background: "#f1f5f9",
-  color: "#475569",
-  padding: "6px 10px",
-  borderRadius: "999px",
-  fontSize: "11px",
-  fontWeight: 800,
-};
-
 const cardTitle = {
   color: "#0f172a",
-  fontSize: "20px",
-  margin: "0 0 10px",
-  fontWeight: 900,
+  fontSize: "17px",
+  margin: "0 0 6px",
+  fontWeight: 800,
 };
 
 const cardText = {
   color: "#64748b",
-  fontSize: "14px",
-  lineHeight: 1.55,
+  fontSize: "13px",
+  lineHeight: 1.4,
   margin: 0,
 };
 
@@ -591,7 +561,7 @@ const cardFooter = {
   justifyContent: "flex-start",
   alignItems: "center",
   marginTop: "auto",
-  paddingTop: "22px",
+  paddingTop: "12px",
 };
 
 const openPill = {
@@ -602,8 +572,9 @@ const openPill = {
   color: "#0f766e",
   border: "1px solid #99f6e4",
   borderRadius: "999px",
-  padding: "8px 16px",
-  fontWeight: 900,
+  padding: "5px 10px",
+  fontSize: "12px",
+  fontWeight: 800,
 };
 
 const overviewBox = {
