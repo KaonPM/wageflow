@@ -17,6 +17,7 @@ type Request = {
   number_of_employees: number;
   notes: string;
   status: string;
+  lifecycle_status: string;
   created_at: string;
 };
 
@@ -24,6 +25,7 @@ export default function WageFlowRequestsPage() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage,setCurrentPage]=useState(1); const pageSize=10;
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
     fetchRequests();
@@ -35,7 +37,6 @@ export default function WageFlowRequestsPage() {
     const { data, error } = await supabase
       .from("wageflow_setup_requests")
       .select("*")
-      .eq("status", "Pending")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -48,7 +49,7 @@ export default function WageFlowRequestsPage() {
     setLoading(false);
   }
 
-  async function runMasterAction(action: "prepare_approval" | "finalize_approval" | "reject", requestId: string) {
+  async function runMasterAction(action: "prepare_approval" | "finalize_approval" | "decline_activation" | "reject", requestId: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return { error: "Your session has expired. Please sign in again." };
     const response = await fetch("/api/setup-requests", {
@@ -100,20 +101,16 @@ export default function WageFlowRequestsPage() {
     if (!confirmed) return;
 
     const prepared = await runMasterAction("prepare_approval", request.id);
-    if (prepared.error || !prepared.businessId) {
-      showAppMessage(prepared.error || "Business onboarding could not be prepared.");
-      return;
-    }
-
-    const loginCreated = await createEmployerLogin(request, String(prepared.businessId));
-
-    if (!loginCreated) return;
-
-    const approved = await runMasterAction("finalize_approval", request.id);
-    if (approved.error) { showAppMessage(approved.error); return; }
-
-    showAppMessage("Employer approved and setup email accepted for delivery.");
+    if (prepared.error) { showAppMessage(prepared.error || "Initial payment could not be prepared."); return; }
+    showAppMessage("Initial payment request prepared and queued for delivery.");
     fetchRequests();
+  }
+
+  async function activateRequest(request: Request) {
+    if (!window.confirm(`Activate ${request.business_name} now that its payment is verified?`)) return;
+    const activated = await runMasterAction("finalize_approval", request.id);
+    if (activated.error || !activated.businessId) { showAppMessage(activated.error || "Activation could not be completed."); return; }
+    if (await createEmployerLogin(request, String(activated.businessId))) { showAppMessage("Business activated and login email accepted for delivery."); fetchRequests(); }
   }
 
   async function rejectRequest(id: string) {
@@ -126,7 +123,8 @@ export default function WageFlowRequestsPage() {
     fetchRequests();
   }
 
-  const totalPages=Math.max(1,Math.ceil(requests.length/pageSize));const safePage=Math.min(currentPage,totalPages);const visibleRequests=requests.slice((safePage-1)*pageSize,safePage*pageSize);
+  const filteredRequests=filter === "all" ? requests : requests.filter((request) => request.lifecycle_status === filter);
+  const totalPages=Math.max(1,Math.ceil(filteredRequests.length/pageSize));const safePage=Math.min(currentPage,totalPages);const visibleRequests=filteredRequests.slice((safePage-1)*pageSize,safePage*pageSize);
 
   return (
     <main style={page}>
@@ -138,15 +136,15 @@ export default function WageFlowRequestsPage() {
 
       <h1 style={title}>WageFlow Setup Requests</h1>
 
-      <p style={subtitle}>
-        Review new WageFlow employer requests before activating their business
-        account.
-      </p>
+      <p style={subtitle}>Review applications, initial-payment progress and final activation decisions.</p>
+      <select value={filter} onChange={(event) => { setFilter(event.target.value); setCurrentPage(1); }} style={filterSelect}>
+        <option value="all">All application history</option><option value="submitted">New review</option><option value="awaiting_initial_payment">Payment outstanding</option><option value="payment_verified">Final approval needed</option><option value="activation_declined">Financial resolution</option><option value="activated">Activated</option><option value="rejected">Rejected</option><option value="archived">Archived</option>
+      </select>
 
       <section style={card}>
         {loading ? (
           <p>Loading requests...</p>
-        ) : requests.length === 0 ? (
+        ) : filteredRequests.length === 0 ? (
           <p>No setup requests yet.</p>
         ) : (
           <div style={tableWrap}>
@@ -187,8 +185,8 @@ export default function WageFlowRequestsPage() {
                     <td style={td}>{request.number_of_employees || "-"}</td>
 
                     <td style={td}>
-                      <span style={badge(request.status)}>
-                        {request.status}
+                      <span style={badge(request.lifecycle_status)}>
+                        {request.lifecycle_status.replaceAll("_", " ")}
                       </span>
                     </td>
 
@@ -197,13 +195,13 @@ export default function WageFlowRequestsPage() {
                     </td>
 
                     <td style={td}>
-                      {request.status === "Pending" ? (
+                      {request.lifecycle_status === "submitted" ? (
                         <div style={actions}>
                           <button
                             style={approveBtn}
                             onClick={() => approveRequest(request)}
                           >
-                            Approve
+                            Approve & request payment
                           </button>
 
                           <button
@@ -213,6 +211,8 @@ export default function WageFlowRequestsPage() {
                             Reject
                           </button>
                         </div>
+                      ) : request.lifecycle_status === "payment_verified" ? (
+                        <div style={actions}><button style={approveBtn} onClick={() => activateRequest(request)}>Final activation approval</button><button style={rejectBtn} onClick={() => void runMasterAction("decline_activation", request.id).then(fetchRequests)}>Decline activation</button></div>
                       ) : (
                         <span style={muted}>Completed</span>
                       )}
@@ -221,7 +221,7 @@ export default function WageFlowRequestsPage() {
                 ))}
               </tbody>
             </table>
-            <Pagination page={safePage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={requests.length} pageSize={pageSize}/>
+            <Pagination page={safePage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={filteredRequests.length} pageSize={pageSize}/>
           </div>
         )}
       </section>
@@ -262,6 +262,8 @@ const subtitle = {
   marginBottom: "24px",
   color: "#475569",
 };
+
+const filterSelect = { padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: "8px", marginBottom: "18px", background: "#fff" };
 
 const card = {
   background: "#ffffff",

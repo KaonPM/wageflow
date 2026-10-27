@@ -12,6 +12,13 @@ type Statement = {
   statementMonth: string;
 };
 
+type VerifiedPaystackTransaction = {
+  status: string;
+  reference: string;
+  amount: number;
+  currency: string;
+};
+
 export async function issueStatement(admin: SupabaseClient, statement: Statement) {
   if (!isBillablePlan(statement.planName) || statement.amount <= 0) return { issued: false, reason: "not_billable" };
 
@@ -30,31 +37,45 @@ export async function issueStatement(admin: SupabaseClient, statement: Statement
   return { issued: true, emailed: false };
 }
 
-export async function markStatementPaidAndEmail(admin: SupabaseClient, statementId: string, paymentReference?: string) {
-  const { data: statement, error } = await admin.from("subscription_statements").select("id,subscription_id,business_id,statement_type,statement_month,amount,status").eq("id", statementId).maybeSingle();
+export async function verifyPaystackPayment(admin: SupabaseClient, transaction: VerifiedPaystackTransaction) {
+  if (transaction.status !== "success") throw new Error("Paystack has not confirmed this payment.");
+  if (transaction.currency !== "ZAR") throw new Error("The Paystack payment currency does not match this statement.");
+  const { data: statement, error } = await admin
+    .from("subscription_statements")
+    .select("id,amount,payment_provider,payment_reference")
+    .eq("payment_reference", transaction.reference)
+    .maybeSingle();
+  if (error || !statement) throw new Error(error?.message || "No WageFlow statement matches this Paystack payment.");
+  if (statement.payment_provider !== "paystack") throw new Error("This statement was not initialized with Paystack.");
+  if (Math.round(Number(statement.amount) * 100) !== Number(transaction.amount)) throw new Error("The Paystack payment amount does not match this statement.");
+  return statement;
+}
+
+export async function completePaystackStatement(admin: SupabaseClient, statementId: string, paymentReference: string) {
+  const { data: statement, error } = await admin.from("subscription_statements").select("id,subscription_id,business_id,statement_type,statement_month,amount,status,paid_at").eq("id", statementId).maybeSingle();
   if (error || !statement) throw new Error(error?.message || "Statement not found.");
-  if (statement.status === "emailed") return { emailed: false, reason: "already_emailed" };
+  if (statement.paid_at) return { alreadyPaid: true };
   const [{ data: subscription, error: subscriptionError }, { data: business, error: businessError }] = await Promise.all([
     admin.from("subscriptions").select("plan_name").eq("id", statement.subscription_id).maybeSingle(),
     admin.from("businesses").select("business_name,email").eq("id", statement.business_id).maybeSingle(),
   ]);
   if (subscriptionError || businessError || !subscription || !business) throw new Error(subscriptionError?.message || businessError?.message || "Billing details could not be loaded.");
-  const update = await admin.from("subscription_statements").update({ status: "paid", paid_at: new Date().toISOString(), payment_reference: paymentReference?.trim().slice(0, 120) || null }).eq("id", statement.id);
+  const update = await admin.from("subscription_statements").update({ status: "paid", paid_at: new Date().toISOString(), payment_provider: "paystack", payment_reference: paymentReference.trim().slice(0, 120), email_error: null }).eq("id", statement.id);
   if (update.error) throw new Error(update.error.message);
   if (statement.statement_type === "setup") {
     const { error: setupError } = await admin.from("subscriptions").update({ setup_paid: true }).eq("id", statement.subscription_id);
     if (setupError) throw new Error(setupError.message);
   }
   if (!business.email) {
-    await admin.from("subscription_statements").update({ status: "email_failed", email_error: "The business has no billing email address." }).eq("id", statement.id);
-    return { emailed: false, reason: "no_email" };
+    await admin.from("subscription_statements").update({ email_error: "The business has no billing email address." }).eq("id", statement.id);
+    return { alreadyPaid: false };
   }
   const delivery = await sendStatementEmail({ subscriptionId: statement.subscription_id, businessId: statement.business_id, businessName: business.business_name, email: business.email, planName: subscription.plan_name, amount: Number(statement.amount), statementType: statement.statement_type as "setup" | "monthly", statementMonth: statement.statement_month });
   await admin.from("subscription_statements").update(delivery.ok
-    ? { status: "emailed", emailed_at: new Date().toISOString(), email_error: null }
-    : { status: "email_failed", email_error: delivery.error.slice(0, 500) }
+    ? { emailed_at: new Date().toISOString(), email_error: null }
+    : { email_error: delivery.error.slice(0, 500) }
   ).eq("id", statement.id);
-  return { emailed: delivery.ok, reason: delivery.ok ? undefined : delivery.error };
+  return { alreadyPaid: false };
 }
 
 export async function resendStatementEmail(admin: SupabaseClient, statementId: string) {

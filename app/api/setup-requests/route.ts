@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, requireRole } from "../_lib/authorization";
-import { issueStatement } from "../_lib/billing";
 import { checkRateLimit, isSameOrigin } from "../_lib/rateLimit";
+import { prepareInitialPayment, queueEmail } from "../_lib/applicationWorkflow";
 
 type Payload = { ownerName?: string; businessName?: string; email?: string; phone?: string; employeeCount?: string | number; plan?: string; message?: string; accepted?: boolean; acceptedAt?: string; website?: string; defaultEmployeePortalEnabled?: boolean };
 
@@ -26,16 +26,20 @@ export async function POST(request: Request) {
   if (Number.isNaN(acceptedAt.getTime())) return NextResponse.json({ error: "Terms acceptance is invalid." }, { status: 400 });
 
   try {
-    const { error } = await getSupabaseAdmin().from("wageflow_setup_requests").insert({ business_name: businessName, contact_person: contactPerson, email, phone, selected_package: selectedPackage, number_of_employees: employeeCount, notes, default_employee_portal_enabled: body.defaultEmployeePortalEnabled === true, terms_accepted: true, privacy_accepted: true, status: "Pending" });
-    if (error) throw error;
-    return NextResponse.json({ success: true }, { status: 201 });
+    const admin = getSupabaseAdmin();
+    const { data: application, error } = await admin.from("wageflow_setup_requests").insert({ business_name: businessName, contact_person: contactPerson, email, phone, selected_package: selectedPackage, number_of_employees: employeeCount, notes, default_employee_portal_enabled: body.defaultEmployeePortalEnabled === true, terms_accepted: true, privacy_accepted: true, status: "Pending", lifecycle_status: "submitted" }).select("id").single();
+    if (error || !application) throw error || new Error("Application could not be saved.");
+    await queueEmail(admin, { idempotencyKey: `application-acknowledgement:${application.id}`, eventType: "application_acknowledgement", recipient: email, applicationId: application.id, payload: { businessName } });
+    const alertRecipient = String(process.env.WAGEFLOW_MASTER_ALERT_EMAIL || "").trim().toLowerCase();
+    if (/^\S+@\S+\.\S+$/.test(alertRecipient)) await queueEmail(admin, { idempotencyKey: `application-alert:${application.id}`, eventType: "application_admin_alert", recipient: alertRecipient, applicationId: application.id, payload: { businessName, contactPerson } });
+    return NextResponse.json({ success: true, applicationSaved: true, emailsQueued: true }, { status: 201 });
   } catch (error) {
     console.error("Setup request persistence failed", error instanceof Error ? error.message : "Unknown error");
     return NextResponse.json({ error: "We could not record the setup request. Please try again." }, { status: 500 });
   }
 }
 
-type MasterAction = { action?: "prepare_approval" | "finalize_approval" | "reject"; requestId?: string };
+type MasterAction = { action?: "prepare_approval" | "finalize_approval" | "decline_activation" | "reject"; requestId?: string; reason?: string };
 
 export async function PATCH(request: Request) {
   const access = await requireRole(request, ["master", "master_admin"]);
@@ -47,88 +51,39 @@ export async function PATCH(request: Request) {
 
   const { data: setupRequest, error: requestError } = await access.admin
     .from("wageflow_setup_requests")
-    .select("id,business_name,email,phone,selected_package,number_of_employees,status,default_employee_portal_enabled")
+    .select("id,business_name,email,phone,selected_package,number_of_employees,status,lifecycle_status,default_employee_portal_enabled")
     .eq("id", requestId)
     .maybeSingle();
   if (requestError || !setupRequest) return NextResponse.json({ error: "Setup request was not found." }, { status: 404 });
 
   if (body.action === "reject") {
-    const { error } = await access.admin.from("wageflow_setup_requests").update({ status: "Rejected", rejected_at: new Date().toISOString() }).eq("id", requestId);
+    const { error } = await access.admin.from("wageflow_setup_requests").update({ status: "Rejected", lifecycle_status: "rejected", rejected_at: new Date().toISOString(), initial_reviewed_at: new Date().toISOString(), initial_reviewed_by: access.user.id }).eq("id", requestId);
     return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ success: true });
   }
 
   if (body.action === "finalize_approval") {
-    const { error } = await access.admin.from("wageflow_setup_requests").update({ status: "Approved", approved_at: new Date().toISOString() }).eq("id", requestId);
+    const { data: payment, error: paymentError } = await access.admin.from("application_initial_payments").select("id,business_id,subscription_id,status").eq("application_id", requestId).maybeSingle();
+    if (paymentError || !payment || payment.status !== "verified") return NextResponse.json({ error: "A verified initial payment is required before activation." }, { status: 409 });
+    if (setupRequest.lifecycle_status !== "payment_verified") return NextResponse.json({ error: "This application is not awaiting final activation approval." }, { status: 409 });
+    const now = new Date().toISOString();
+    const [businessUpdate, subscriptionUpdate, requestUpdate] = await Promise.all([
+      access.admin.from("businesses").update({ status: "active" }).eq("id", payment.business_id),
+      access.admin.from("subscriptions").update({ subscription_status: "active", setup_paid: true }).eq("id", payment.subscription_id),
+      access.admin.from("wageflow_setup_requests").update({ status: "Approved", lifecycle_status: "activated", approved_at: now, final_reviewed_at: now, final_reviewed_by: access.user.id, activation_decision_reason: body.reason?.trim().slice(0, 500) || null }).eq("id", requestId),
+    ]);
+    const activationError = businessUpdate.error || subscriptionUpdate.error || requestUpdate.error;
+    if (activationError) return NextResponse.json({ error: activationError.message }, { status: 500 });
+    return NextResponse.json({ success: true, businessId: payment.business_id, activationReady: true });
+  }
+  if (body.action === "decline_activation") {
+    const { error } = await access.admin.from("wageflow_setup_requests").update({ lifecycle_status: "activation_declined", status: "Activation Declined", final_reviewed_at: new Date().toISOString(), final_reviewed_by: access.user.id, activation_decision_reason: body.reason?.trim().slice(0, 500) || "Financial resolution required." }).eq("id", requestId);
     return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ success: true });
   }
-
-  const { data: existingBusiness, error: lookupError } = await access.admin
-    .from("businesses")
-    .select("id")
-    .eq("source_request_id", requestId)
-    .maybeSingle();
-  if (lookupError) return NextResponse.json({ error: lookupError.message }, { status: 500 });
-
-  let businessId = existingBusiness?.id as string | undefined;
-  if (!businessId) {
-    const { data: business, error } = await access.admin.from("businesses").insert({
-      business_name: setupRequest.business_name,
-      email: setupRequest.email,
-      phone: setupRequest.phone,
-      status: "active",
-      source_request_id: requestId,
-      selected_package: normalisePackage(setupRequest.selected_package),
-      number_of_employees: setupRequest.number_of_employees,
-      default_employee_portal_enabled: setupRequest.default_employee_portal_enabled === true,
-    }).select("id").single();
-    if (error || !business) return NextResponse.json({ error: error?.message || "Business could not be created." }, { status: 500 });
-    businessId = business.id;
-  }
-
-  const { error: settingsError } = await access.admin.from("business_settings").upsert({
-    business_id: businessId,
-    primary_color: "#0f766e",
-    secondary_color: "#d4af37",
-    paye_enabled: true,
-    uif_enabled: true,
-    pension_enabled: false,
-    medical_aid_enabled: false,
-    show_leave_balances: true,
-    default_payment_method: "Bank Transfer",
-  }, { onConflict: "business_id" });
-  if (settingsError) return NextResponse.json({ error: settingsError.message }, { status: 500 });
-  if (!businessId) return NextResponse.json({ error: "Business could not be created." }, { status: 500 });
-
-  const { data: subscription, error: subscriptionError } = await access.admin.from("subscriptions").upsert({
-    business_id: businessId,
-    plan_name: normalisePackage(setupRequest.selected_package),
-    monthly_fee: monthlyFee(normalisePackage(setupRequest.selected_package)),
-    setup_fee: setupFee(normalisePackage(setupRequest.selected_package)),
-    setup_paid: false,
-    subscription_status: "active",
-  }, { onConflict: "business_id" }).select("id,plan_name,setup_fee").single();
-  if (subscriptionError) return NextResponse.json({ error: subscriptionError.message }, { status: 500 });
-
+  if (setupRequest.lifecycle_status !== "submitted") return NextResponse.json({ error: "This application has already been reviewed." }, { status: 409 });
   try {
-    await issueStatement(access.admin, { subscriptionId: subscription.id, businessId, businessName: setupRequest.business_name, email: setupRequest.email, planName: subscription.plan_name, amount: Number(subscription.setup_fee || 0), statementType: "setup", statementMonth: new Date().toISOString().slice(0, 7) + "-01" });
+    const result = await prepareInitialPayment(access.admin, { application: setupRequest, actorId: access.user.id, origin: new URL(request.url).origin });
+    return NextResponse.json({ success: true, ...result });
   } catch (error) {
-    console.error("Setup statement issue failed", error instanceof Error ? error.message : "Unknown error");
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Initial payment could not be prepared." }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true, businessId });
-}
-
-function monthlyFee(packageName: string | null) {
-  if (packageName === "Growth") return 299;
-  if (packageName === "Starter" || !packageName) return 199;
-  return 0;
-}
-
-function setupFee(packageName: string | null) {
-  return monthlyFee(packageName) > 0 ? 249 : 0;
-}
-
-function normalisePackage(packageName: string | null) {
-  const plan = String(packageName || "").trim();
-  return ["Starter", "Growth"].includes(plan) ? plan : "Growth Included";
 }
