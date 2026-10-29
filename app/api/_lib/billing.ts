@@ -51,7 +51,7 @@ export async function verifyPaystackPayment(admin: SupabaseClient, transaction: 
   return statement;
 }
 
-export async function completePaystackStatement(admin: SupabaseClient, statementId: string, paymentReference: string) {
+export async function completePaystackStatement(admin: SupabaseClient, statementId: string, paymentReference: string, providerTransactionId = paymentReference) {
   const { data: statement, error } = await admin.from("subscription_statements").select("id,subscription_id,business_id,statement_type,statement_month,amount,status,paid_at").eq("id", statementId).maybeSingle();
   if (error || !statement) throw new Error(error?.message || "Statement not found.");
   if (statement.paid_at) return { alreadyPaid: true };
@@ -60,12 +60,9 @@ export async function completePaystackStatement(admin: SupabaseClient, statement
     admin.from("businesses").select("business_name,email").eq("id", statement.business_id).maybeSingle(),
   ]);
   if (subscriptionError || businessError || !subscription || !business) throw new Error(subscriptionError?.message || businessError?.message || "Billing details could not be loaded.");
-  const update = await admin.from("subscription_statements").update({ status: "paid", paid_at: new Date().toISOString(), payment_provider: "paystack", payment_reference: paymentReference.trim().slice(0, 120), email_error: null }).eq("id", statement.id);
-  if (update.error) throw new Error(update.error.message);
-  if (statement.statement_type === "setup") {
-    const { error: setupError } = await admin.from("subscriptions").update({ setup_paid: true }).eq("id", statement.subscription_id);
-    if (setupError) throw new Error(setupError.message);
-  }
+  const { data: completed, error: completionError } = await admin.rpc("complete_subscription_statement_payment", { statement_id_input: statement.id, payment_reference_input: paymentReference, provider_transaction: providerTransactionId });
+  if (completionError) throw new Error(completionError.message);
+  if (!completed) return { alreadyPaid: true };
   if (!business.email) {
     await admin.from("subscription_statements").update({ email_error: "The business has no billing email address." }).eq("id", statement.id);
     return { alreadyPaid: false };

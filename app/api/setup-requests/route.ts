@@ -62,18 +62,8 @@ export async function PATCH(request: Request) {
   }
 
   if (body.action === "finalize_approval") {
-    const { data: payment, error: paymentError } = await access.admin.from("application_initial_payments").select("id,business_id,subscription_id,status").eq("application_id", requestId).maybeSingle();
-    if (paymentError || !payment || payment.status !== "verified") return NextResponse.json({ error: "A verified initial payment is required before activation." }, { status: 409 });
-    if (setupRequest.lifecycle_status !== "payment_verified") return NextResponse.json({ error: "This application is not awaiting final activation approval." }, { status: 409 });
-    const now = new Date().toISOString();
-    const [businessUpdate, subscriptionUpdate, requestUpdate] = await Promise.all([
-      access.admin.from("businesses").update({ status: "active" }).eq("id", payment.business_id),
-      access.admin.from("subscriptions").update({ subscription_status: "active", setup_paid: true }).eq("id", payment.subscription_id),
-      access.admin.from("wageflow_setup_requests").update({ status: "Approved", lifecycle_status: "activated", approved_at: now, final_reviewed_at: now, final_reviewed_by: access.user.id, activation_decision_reason: body.reason?.trim().slice(0, 500) || null }).eq("id", requestId),
-    ]);
-    const activationError = businessUpdate.error || subscriptionUpdate.error || requestUpdate.error;
-    if (activationError) return NextResponse.json({ error: activationError.message }, { status: 500 });
-    return NextResponse.json({ success: true, businessId: payment.business_id, activationReady: true });
+    const { data: businessId, error } = await access.admin.rpc("activate_verified_application", { application_id_input: requestId, actor: access.user.id, decision_reason: body.reason?.trim().slice(0, 500) || null });
+    return error ? NextResponse.json({ error: error.message }, { status: 409 }) : NextResponse.json({ success: true, businessId, activationReady: true });
   }
   if (body.action === "decline_activation") {
     const { error } = await access.admin.from("wageflow_setup_requests").update({ lifecycle_status: "activation_declined", status: "Activation Declined", final_reviewed_at: new Date().toISOString(), final_reviewed_by: access.user.id, activation_decision_reason: body.reason?.trim().slice(0, 500) || "Financial resolution required." }).eq("id", requestId);

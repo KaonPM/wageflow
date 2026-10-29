@@ -12,8 +12,15 @@ type PaystackTransaction = {
 };
 
 function secretKey() {
+  const mode = process.env.PAYSTACK_MODE;
   const key = process.env.PAYSTACK_SECRET_KEY;
+  if (mode !== "test" && mode !== "live") {
+    throw new Error("Paystack is not configured for a safe environment. Set PAYSTACK_MODE to test or live on the server.");
+  }
   if (!key) throw new Error("Paystack is not configured. Set PAYSTACK_SECRET_KEY on the server.");
+  if (!key.startsWith(`sk_${mode}_`)) {
+    throw new Error("Paystack secret key does not match the configured environment.");
+  }
   return key;
 }
 
@@ -32,6 +39,7 @@ export async function initializePaystackTransaction(input: {
   const response = await fetch(`${PAYSTACK_API}/transaction/initialize`, {
     method: "POST",
     headers: { Authorization: `Bearer ${secretKey()}`, "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(15_000),
     body: JSON.stringify({
       email: input.email,
       amount: String(Math.round(input.amount * 100)),
@@ -49,6 +57,7 @@ export async function initializePaystackTransaction(input: {
 export async function verifyPaystackTransaction(reference: string) {
   const response = await fetch(`${PAYSTACK_API}/transaction/verify/${encodeURIComponent(reference)}`, {
     headers: { Authorization: `Bearer ${secretKey()}` },
+    signal: AbortSignal.timeout(15_000),
   });
   const result = await response.json().catch(() => null) as { status?: boolean; message?: string; data?: PaystackTransaction } | null;
   if (!response.ok || !result?.status || !result.data) throw new Error(result?.message || "Paystack could not verify the payment.");

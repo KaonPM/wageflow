@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin, requireRole } from "../../_lib/authorization";
+import { EmployerOnboardingError, provisionEmployerOnboarding, queueEmployerPasswordSetup } from "../../_lib/employerOnboarding";
 
+/* Legacy direct mailer removed from the execution path in favour of email_outbox.
 async function sendLoginEmail({
   to,
   name,
@@ -67,6 +68,7 @@ async function sendLoginEmail({
 function escapeHtml(value: string) {
   return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character] || character);
 }
+*/
 
 export async function POST(req: Request) {
   try {
@@ -77,8 +79,6 @@ export async function POST(req: Request) {
 
     const rawBusinessId = body.businessId || body.business_id || body.id;
     const email = body.email;
-    const businessName = body.businessName || body.business_name || "Employer";
-
     if (!email) {
       return NextResponse.json(
         { error: "Business email is required." },
@@ -115,7 +115,31 @@ export async function POST(req: Request) {
       businessId = businessRecord.id;
     }
 
-    let userId: string | null = null;
+    const { data: eligibleBusiness, error: eligibilityError } = await supabaseAdmin
+      .from("businesses")
+      .select("id,status,source_request_id,wageflow_setup_requests!inner(lifecycle_status)")
+      .eq("id", businessId)
+      .maybeSingle();
+    const lifecycleStatus = (eligibleBusiness?.wageflow_setup_requests as { lifecycle_status?: string } | null)?.lifecycle_status;
+    if (eligibilityError || !eligibleBusiness || String(eligibleBusiness.status).toLowerCase() !== "active" || lifecycleStatus !== "activated") {
+      return NextResponse.json({ error: "Employer onboarding is not available until final activation is complete." }, { status: 409 });
+    }
+    const applicationId = String(eligibleBusiness.source_request_id || "");
+    if (!applicationId) return NextResponse.json({ error: "This business is not linked to a recoverable WageFlow application." }, { status: 409 });
+    try {
+      const { context } = await provisionEmployerOnboarding(supabaseAdmin, { applicationId, businessId: businessId as string });
+      await queueEmployerPasswordSetup(supabaseAdmin, context, true);
+      return NextResponse.json({ success: true, notificationSent: true, notificationProvider: "outbox", message: "Employer password setup delivery was queued for retryable processing." });
+    } catch (error) {
+      const message = error instanceof EmployerOnboardingError ? error.message : "Employer onboarding could not be prepared.";
+      return NextResponse.json({ error: message }, { status: error instanceof EmployerOnboardingError && error.requiresManualRecovery ? 409 : 502 });
+    }
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Employer onboarding could not be prepared." }, { status: 500 });
+  }
+}
+
+/* Legacy direct delivery is disabled: onboarding now uses the server-only outbox service above.
 
     const { data: usersData, error: usersError } =
       await supabaseAdmin.auth.admin.listUsers();
@@ -250,3 +274,4 @@ export async function POST(req: Request) {
     );
   }
 }
+*/

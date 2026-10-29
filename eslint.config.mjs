@@ -17,6 +17,7 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".next-stage-f-generated-backup-20261028/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

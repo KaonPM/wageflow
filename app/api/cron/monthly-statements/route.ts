@@ -10,6 +10,10 @@ export async function GET(request: Request) {
   const statementMonth = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-01`;
   const { data: subscriptions, error } = await admin.from("subscriptions").select("id,business_id,plan_name,monthly_fee").eq("subscription_status", "active").in("plan_name", ["Starter", "Growth"]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const subscriptionIds = (subscriptions || []).map((subscription) => subscription.id);
+  const { data: coveredPayments, error: coveredError } = subscriptionIds.length ? await admin.from("application_initial_payments").select("subscription_id").in("subscription_id", subscriptionIds).eq("covered_month", statementMonth).eq("status", "verified") : { data: [], error: null };
+  if (coveredError) return NextResponse.json({ error: coveredError.message }, { status: 500 });
+  const coveredSubscriptions = new Set((coveredPayments || []).map((payment) => payment.subscription_id));
   const businessIds = [...new Set((subscriptions || []).map((subscription) => subscription.business_id).filter(Boolean))] as string[];
   const { data: businesses, error: businessesError } = businessIds.length ? await admin.from("businesses").select("id,business_name,email").in("id", businessIds) : { data: [], error: null };
   if (businessesError) return NextResponse.json({ error: businessesError.message }, { status: 500 });
@@ -17,6 +21,7 @@ export async function GET(request: Request) {
 
   let issued = 0;
   for (const subscription of subscriptions || []) {
+    if (coveredSubscriptions.has(subscription.id)) continue;
     const business = businessById.get(subscription.business_id);
     if (!business || Number(subscription.monthly_fee || 0) <= 0) continue;
     const result = await issueStatement(admin, { subscriptionId: subscription.id, businessId: subscription.business_id, businessName: business.business_name, email: business.email, planName: subscription.plan_name, amount: Number(subscription.monthly_fee), statementType: "monthly", statementMonth });

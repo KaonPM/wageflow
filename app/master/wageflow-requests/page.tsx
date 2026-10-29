@@ -61,38 +61,6 @@ export default function WageFlowRequestsPage() {
     return response.ok ? result : { error: result.error || "The setup request could not be updated." };
   }
 
-  async function createEmployerLogin(request: Request, businessId: string) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { showAppMessage("Your session has expired. Please sign in again."); return false; }
-    const loginResponse = await fetch("/api/contact/create-employer-login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        businessId,
-        email: request.email,
-        name: request.contact_person,
-        businessName: request.business_name,
-      }),
-    });
-
-    const loginResult = await loginResponse.json().catch(() => ({}));
-    if (!loginResponse.ok || loginResult.notificationSent !== true) {
-
-      showAppMessage(
-        loginResult.error ||
-          "The business was created, but the employer login email could not be sent."
-      );
-
-      return false;
-    }
-
-    showAppMessage(loginResult.message || "Employer setup email accepted for delivery.");
-    return true;
-  }
-
   async function approveRequest(request: Request) {
     const confirmed = window.confirm(
       `Approve setup request for ${request.business_name}?`
@@ -110,7 +78,8 @@ export default function WageFlowRequestsPage() {
     if (!window.confirm(`Activate ${request.business_name} now that its payment is verified?`)) return;
     const activated = await runMasterAction("finalize_approval", request.id);
     if (activated.error || !activated.businessId) { showAppMessage(activated.error || "Activation could not be completed."); return; }
-    if (await createEmployerLogin(request, String(activated.businessId))) { showAppMessage("Business activated and login email accepted for delivery."); fetchRequests(); }
+    showAppMessage("Business activated. Employer onboarding and secure password setup delivery are queued for retryable processing.");
+    fetchRequests();
   }
 
   async function rejectRequest(id: string) {
