@@ -6,9 +6,12 @@ import Link from "next/link";
 export default function PaymentReturnPage() {
   const [message, setMessage] = useState("Confirming your Paystack payment…");
   const [success, setSuccess] = useState(false);
+  const [returnTo, setReturnTo] = useState("/");
 
   useEffect(() => {
-    const reference = new URLSearchParams(window.location.search).get("reference");
+    const parameters = new URLSearchParams(window.location.search);
+    const reference = parameters.get("reference");
+    setReturnTo(parameters.get("returnTo") === "employer-billing" ? "/employer/billing" : "/master/subscriptions");
     if (!reference) { setMessage("We could not find a Paystack payment reference."); return; }
     fetch("/api/billing/paystack/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reference }) })
       .then(async (response) => ({ ok: response.ok, result: await response.json().catch(() => null) }))
@@ -16,7 +19,7 @@ export default function PaymentReturnPage() {
       .catch(() => setMessage("Your payment could not be confirmed yet. Please try again shortly."));
   }, []);
 
-  return <main style={page}><section style={card}><h1 style={title}>{success ? "Payment received" : "Confirming payment"}</h1><p style={text}>{message}</p><Link href="/" style={button}>Return to WageFlow</Link></section></main>;
+  return <main style={page}><section style={card}><h1 style={title}>{success ? "Payment received" : "Confirming payment"}</h1><p style={text}>{message}</p><Link href={returnTo} style={button}>Return to billing</Link></section></main>;
 }
 
 const page={minHeight:"100vh",display:"grid",placeItems:"center",padding:24,background:"#f4f8fb",fontFamily:"Arial, sans-serif"};

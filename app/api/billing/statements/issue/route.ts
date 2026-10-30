@@ -18,6 +18,11 @@ export async function POST(request: Request) {
   if (subscriptionError || !subscription?.business_id) return NextResponse.json({ error: subscriptionError?.message || "Subscription was not found." }, { status: 404 });
   if (subscription.setup_paid || Number(subscription.setup_fee || 0) <= 0 || !["Starter", "Growth"].includes(String(subscription.plan_name))) return NextResponse.json({ error: "This subscription has no setup charge to bill." }, { status: 400 });
 
+  const { data: signupPayment, error: signupPaymentError } = await access.admin.from("application_initial_payments")
+    .select("id").eq("subscription_id", subscription.id).eq("status", "verified").gt("setup_amount", 0).limit(1).maybeSingle();
+  if (signupPaymentError) return NextResponse.json({ error: "Signup payment could not be checked." }, { status: 500 });
+  if (signupPayment) return NextResponse.json({ error: "The setup fee was already paid at signup." }, { status: 409 });
+
   const { data: existing } = await access.admin.from("subscription_statements").select("id").eq("subscription_id", subscription.id).eq("statement_type", "setup").maybeSingle();
   if (existing) return NextResponse.json({ error: "A setup statement has already been issued." }, { status: 409 });
 

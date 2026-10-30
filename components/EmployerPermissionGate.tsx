@@ -11,6 +11,7 @@ const pathPermissions: Array<[string, string]> = [
   ["/employer/hr/documents", "hr"],
   ["/employer/hr", "hr"],
   ["/employer/reports", "reports"],
+  ["/employer/billing", "settings"],
   ["/employer/settings", "settings"],
 ];
 
