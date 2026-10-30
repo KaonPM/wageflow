@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
+import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
 
 type Business = { id: string; business_name: string; trading_name: string | null; email: string | null; address: string | null; registration_number: string | null; status: string };
 type Subscription = { id: string; plan_name: string; monthly_fee: number; setup_fee: number; setup_paid: boolean; subscription_status: string; created_at: string };
@@ -79,7 +80,7 @@ export default function EmployerBillingPage() {
   }
 
   if (loading) return <main style={statePage}><section style={stateCard}><div className="app-loading-mark" /><h1>Loading billing</h1><p>Retrieving the subscription for your active business…</p></section></main>;
-  if (!data) return <main style={statePage}><section style={stateCard}><h1>Billing unavailable</h1><p>{message || "No billing account is linked to the active business."}</p><div style={actions}><button style={primaryButton} onClick={loadBilling}>Try again</button><Link href="/employer" style={secondaryLink}>Back to overview</Link></div></section></main>;
+  if (!data) return <main style={statePage}><section style={stateCard}><h1>Billing unavailable</h1><p>{message || "No billing account is linked to the active business."}</p><div style={actions}><button style={primaryButton} onClick={loadBilling}>Try again</button><Link href="/employer" style={secondaryLink}>Back to dashboard</Link></div></section></main>;
 
   const businessName = data.business.trading_name || data.business.business_name;
   const subscription = data.subscription;
@@ -87,7 +88,7 @@ export default function EmployerBillingPage() {
   return <main style={page}>
     <header style={header}>
       <div><p style={eyebrow}>Account & billing</p><h1 style={title}>Billing</h1><p style={subtitle}>Manage {businessName}&apos;s subscription, settle open statements and keep billing details current.</p></div>
-      <div style={actions}><button style={secondaryButton} onClick={loadBilling}>Refresh</button><Link href="/employer" style={secondaryLink}>Overview</Link></div>
+      <div style={actions}><Link href="/employer" style={secondaryLink}>Back to dashboard</Link><button style={secondaryButton} onClick={loadBilling}>Refresh</button></div>
     </header>
 
     {message && <div style={notice}>{message}</div>}
@@ -100,7 +101,16 @@ export default function EmployerBillingPage() {
     </section>
 
     <div style={layout}>
-      <div style={stack}>
+      <CollapsibleWorkspaceGrid gridStyle={stack} label="subscription and payment workspaces" alwaysOpenCount={1}>
+        <section style={card}>
+          <div style={cardHeader}><div><p style={sectionEyebrow}>Payments</p><h2 style={cardTitle}>Open statements</h2><p style={muted}>Secure payment is completed through Paystack.</p></div></div>
+          {openStatements.length === 0 ? <div style={successBox}><strong>You&apos;re all paid up</strong><span>There are no outstanding subscription statements.</span></div> : <div style={statementList}>{openStatements.map((statement) => <article key={statement.id} style={openStatement}>
+            <div><strong>{statementTitle(statement)}</strong><p style={muted}>{formatMonth(statement.statement_month)} · {statement.recipient_email || "Billing email not set"}</p></div>
+            <strong style={statementAmount}>{money(statement.amount)}</strong>
+            <button style={primaryButton} disabled={payingId === statement.id} onClick={() => pay(statement)}>{payingId === statement.id ? "Opening Paystack…" : "Pay securely"}</button>
+          </article>)}</div>}
+        </section>
+
         <section style={card}>
           <div style={cardHeader}><div><p style={sectionEyebrow}>Subscription</p><h2 style={cardTitle}>Your WageFlow plan</h2></div><StatusPill status={subscription?.subscription_status || "not assigned"} /></div>
           {subscription ? <>
@@ -117,17 +127,9 @@ export default function EmployerBillingPage() {
           </> : <div style={empty}>No subscription is assigned to this business yet. Contact WageFlow support to activate a plan.</div>}
         </section>
 
-        <section style={card}>
-          <div style={cardHeader}><div><p style={sectionEyebrow}>Payments</p><h2 style={cardTitle}>Open statements</h2><p style={muted}>Secure payment is completed through Paystack.</p></div></div>
-          {openStatements.length === 0 ? <div style={successBox}><strong>You&apos;re all paid up</strong><span>There are no outstanding subscription statements.</span></div> : <div style={statementList}>{openStatements.map((statement) => <article key={statement.id} style={openStatement}>
-            <div><strong>{statementTitle(statement)}</strong><p style={muted}>{formatMonth(statement.statement_month)} · {statement.recipient_email || "Billing email not set"}</p></div>
-            <strong style={statementAmount}>{money(statement.amount)}</strong>
-            <button style={primaryButton} disabled={payingId === statement.id} onClick={() => pay(statement)}>{payingId === statement.id ? "Opening Paystack…" : "Pay securely"}</button>
-          </article>)}</div>}
-        </section>
-      </div>
+      </CollapsibleWorkspaceGrid>
 
-      <aside style={stack}>
+      <CollapsibleWorkspaceGrid gridStyle={stack} label="billing details workspaces">
         <section style={card}>
           <p style={sectionEyebrow}>Billing details</p><h2 style={cardTitle}>Invoice contact</h2><p style={muted}>Statements and payment confirmations are sent to this address.</p>
           <label style={label}>Billing email<input style={input} type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="accounts@company.co.za" /></label>
@@ -140,10 +142,10 @@ export default function EmployerBillingPage() {
           <p style={sectionEyebrow}>Payment method</p><h2 style={cardTitle}>Paystack checkout</h2><p style={muted}>Card and bank details are entered securely on Paystack. WageFlow does not store your full card details.</p>
           <div style={provider}><span style={providerMark}>P</span><div><strong>Paystack</strong><span>Secure once-off statement payments</span></div></div>
         </section>
-      </aside>
+      </CollapsibleWorkspaceGrid>
     </div>
 
-    <section style={{ ...card, marginTop: 18 }}>
+    <section style={{ ...card, marginTop: 12 }}>
       <div style={cardHeader}><div><p style={sectionEyebrow}>History</p><h2 style={cardTitle}>Statements & payments</h2><p style={muted}>{paidStatements.length + data.initialPayments.length} paid · {data.statements.length + data.initialPayments.length} total</p></div></div>
       {data.initialPayments.length > 0 && <div style={statementList}>{data.initialPayments.map((payment) => <article key={payment.id} style={openStatement}>
         <div><strong>Signup payment</strong><p style={muted}>Setup {money(payment.setup_amount)} · First month {money(payment.first_month_amount)} ({formatMonth(payment.covered_month)}) · Paid {formatDate(payment.verified_at || payment.created_at)}</p></div>
@@ -166,23 +168,23 @@ function formatDate(value: string) { const date = new Date(value.includes("T") ?
 function formatMonth(value: string) { const date = new Date(`${value}T00:00:00Z`); return date.toLocaleDateString("en-ZA", { month: "long", year: "numeric", timeZone: "UTC" }); }
 function getPlanLimit(plan: string | null) { const normalized = String(plan || "").toLowerCase(); return normalized.includes("growth") ? 20 : normalized.includes("starter") ? 10 : null; }
 
-const page: CSSProperties = { minHeight: "100vh", padding: 38, background: "#f4f8fb", color: "#0f172a", fontFamily: "Arial, sans-serif" };
+const page: CSSProperties = { minHeight: "100vh", width: "100%", maxWidth: 1200, margin: "0 auto", padding: 24, background: "#f4f8fb", color: "#0f172a" };
 const header: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, flexWrap: "wrap", marginBottom: 24 };
-const eyebrow: CSSProperties = { margin: "0 0 7px", color: "#b7791f", fontWeight: 900, textTransform: "uppercase", letterSpacing: ".09em", fontSize: 11 };
+const eyebrow: CSSProperties = { margin: "0 0 7px", color: "#b7791f", fontWeight: 900, textTransform: "uppercase", letterSpacing: ".09em", fontSize: 12 };
 const sectionEyebrow: CSSProperties = { ...eyebrow, color: "#0f766e", marginBottom: 5 };
 const title: CSSProperties = { margin: "0 0 8px", color: "#0b6158", fontSize: 34, fontWeight: 900 };
 const subtitle: CSSProperties = { margin: 0, maxWidth: 720, color: "#64748b", lineHeight: 1.6 };
 const actions: CSSProperties = { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" };
-const summaryGrid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14, marginBottom: 18 };
-const summaryCard: CSSProperties = { display: "grid", gap: 6, padding: 18, background: "#fff", border: "1px solid #dce6ee", borderRadius: 14, boxShadow: "0 8px 24px rgba(15,23,42,.04)" };
+const summaryGrid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 12 };
+const summaryCard: CSSProperties = { display: "grid", gap: 6, padding: 16, background: "#fff", border: "1px solid #dce6ee", borderRadius: 14, boxShadow: "0 8px 24px rgba(15,23,42,.04)" };
 const summaryAlert: CSSProperties = { borderColor: "#f59e0b", background: "#fffbeb" };
-const summaryLabel: CSSProperties = { color: "#64748b", fontSize: 11, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" };
+const summaryLabel: CSSProperties = { color: "#64748b", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" };
 const summaryValue: CSSProperties = { color: "#0b6158", fontSize: 24 };
-const summaryNote: CSSProperties = { color: "#94a3b8", fontSize: 12 };
-const layout: CSSProperties = { display: "grid", gridTemplateColumns: "minmax(0,1.65fr) minmax(280px,.85fr)", gap: 18, alignItems: "start" };
-const stack: CSSProperties = { display: "grid", gap: 18 };
-const card: CSSProperties = { padding: 21, background: "#fff", border: "1px solid #dce6ee", borderRadius: 16, boxShadow: "0 8px 24px rgba(15,23,42,.04)" };
-const cardHeader: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 16 };
+const summaryNote: CSSProperties = { color: "#64748b", fontSize: 12 };
+const layout: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,440px),1fr))", gap: 12, alignItems: "start" };
+const stack: CSSProperties = { display: "grid", gap: 12, alignContent: "start" };
+const card: CSSProperties = { padding: 18, background: "#fff", border: "1px solid #dce6ee", borderRadius: 14, boxShadow: "0 8px 24px rgba(15,23,42,.04)" };
+const cardHeader: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 };
 const cardTitle: CSSProperties = { margin: "0 0 5px", color: "#173d3a", fontSize: 20 };
 const muted: CSSProperties = { margin: "4px 0 0", color: "#64748b", fontSize: 13, lineHeight: 1.5 };
 const planHero: CSSProperties = { display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", padding: 18, borderRadius: 13, background: "linear-gradient(135deg,#ecfdf5,#ecfeff)", border: "1px solid #99f6e4", marginBottom: 14 };
@@ -213,7 +215,7 @@ const tableWrap: CSSProperties = { overflowX: "auto" };
 const table: CSSProperties = { width: "100%", borderCollapse: "collapse" };
 const th: CSSProperties = { padding: "10px", textAlign: "left", color: "#64748b", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", textTransform: "uppercase", fontSize: 11 };
 const td: CSSProperties = { padding: "12px 10px", borderBottom: "1px solid #e2e8f0", verticalAlign: "top" };
-const subText: CSSProperties = { display: "block", marginTop: 4, color: "#94a3b8", fontSize: 11, maxWidth: 240 };
+const subText: CSSProperties = { display: "block", marginTop: 4, color: "#64748b", fontSize: 12, maxWidth: 240 };
 const statementDetail: CSSProperties = { display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 10, padding: 16, marginBottom: 16, background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 12 };
 const statePage: CSSProperties = { minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f4f8fb" };
 const stateCard: CSSProperties = { width: "min(100%,520px)", padding: 30, textAlign: "center", background: "#fff", border: "1px solid #dce6ee", borderRadius: 18 };
