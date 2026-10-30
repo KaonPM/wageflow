@@ -290,7 +290,7 @@ export default function EmployerDashboard() {
           <DashboardCard title="HR" description="Documents, records, policies and approvals." href="/employer/hr" />
           <DashboardCard title="Payroll" description="Payslips, runs and payment records." href="/employer/payroll" />
           <DashboardCard title="Reports" description="Payroll, staff and compliance reports." href="/employer/reports" />
-          <DashboardCard title="Billing" description="Subscription, payments and statement history." href="/employer/billing" />
+          <DashboardCard title="Billing" description="Manage your plan and review payments." href="/employer/billing" />
           <DashboardCard title="Settings" description="Business, payroll and account access." href="/employer/settings" />
         </div>
       </section>
