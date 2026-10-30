@@ -134,4 +134,29 @@ describe("public payment-page initialization and callback verification", () => {
     expect(response.status).toBe(400);
     expect(rpc).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["pending", "pending"],
+    ["failed", "failed"],
+    ["abandoned", "failed"],
+  ])("reports a %s statement checkout without marking it paid", async (providerStatus, paymentState) => {
+    verifyPaystackTransaction.mockResolvedValue({ ...transaction, status: providerStatus });
+    verifyAdmin(null);
+    const response = await verify(request("/api/billing/paystack/verify", { reference }));
+    expect(response.status).toBe(409);
+    expect((await response.json()).paymentState).toBe(paymentState);
+    expect(verifyPaystackPayment).not.toHaveBeenCalled();
+    expect(completePaystackStatement).not.toHaveBeenCalled();
+  });
+
+  it("still completes a successful statement through verified payment", async () => {
+    verifyAdmin(null);
+    verifyPaystackPayment.mockResolvedValue({ id: "statement-1" });
+    completePaystackStatement.mockResolvedValue({ alreadyPaid: false });
+    const response = await verify(request("/api/billing/paystack/verify", { reference }));
+    expect(response.status).toBe(200);
+    expect((await response.json()).success).toBe(true);
+    expect(verifyPaystackPayment).toHaveBeenCalledWith(expect.anything(), transaction);
+    expect(completePaystackStatement).toHaveBeenCalledWith(expect.anything(), "statement-1", reference, String(transaction.id));
+  });
 });

@@ -34,6 +34,16 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ success: true, result });
     }
+    if (transaction.status !== "success") {
+      const failed = transaction.status === "failed" || transaction.status === "abandoned";
+      return NextResponse.json({
+        success: false,
+        paymentState: failed ? "failed" : "pending",
+        error: failed
+          ? "Paystack reports that this checkout did not complete. You can return to billing and try again."
+          : "Paystack has not confirmed this payment yet. Please check again shortly.",
+      }, { status: 409 });
+    }
     const statement = await verifyPaystackPayment(admin, transaction);
     const result = await completePaystackStatement(admin, statement.id, reference, String(transaction.id));
     return NextResponse.json({ success: true, alreadyPaid: result.alreadyPaid });

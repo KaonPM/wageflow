@@ -46,7 +46,7 @@ describe("employer billing API", () => {
     }));
     const membership = query({ data: { membership_role: "admin" } });
     const business = query({ data: { id: "business-1", business_name: "Test business" } });
-    const subscription = query({ data: { id: "subscription-1", created_at: "2025-01-01T00:00:00Z", plan_name: "Starter" } });
+    const subscription = query({ data: { id: "subscription-1", created_at: "2025-01-01T00:00:00Z", plan_name: "Starter", monthly_fee: 199, subscription_status: "active" } });
     const recent = query({ data: [open[0]] });
     const latest = query({ data: { statement_month: "2025-12-01" } });
     const employees = query({ count: 0 });
@@ -78,5 +78,23 @@ describe("employer billing API", () => {
     expect(signupPayments.eq).toHaveBeenCalledWith("business_id", "business-1");
     expect(signupPayments.eq).toHaveBeenCalledWith("status", "verified");
     expect(openPage.range).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not promise a monthly statement for a zero-fee included plan", async () => {
+    const membership = query({ data: { membership_role: "admin" } });
+    const business = query({ data: { id: "business-1", business_name: "Test business" } });
+    const subscription = query({ data: { id: "subscription-1", created_at: "2025-01-01T00:00:00Z", plan_name: "Growth Included", monthly_fee: 0, subscription_status: "active" } });
+    const empty = query();
+    const from = vi.fn((table: string) => {
+      if (table === "employer_business_memberships") return membership;
+      if (table === "businesses") return business;
+      if (table === "subscriptions") return subscription;
+      return empty;
+    });
+    requireRole.mockResolvedValue({ admin: { from }, user: { id: "admin-1" }, profile: { role: "employer", business_id: "business-1" } });
+
+    const response = await GET(request());
+    expect(response.status).toBe(200);
+    expect((await response.json()).nextInvoiceDate).toBeNull();
   });
 });

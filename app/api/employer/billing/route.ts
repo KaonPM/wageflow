@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "../../_lib/authorization";
 import { hasEmployerBillingPermission } from "../../_lib/employerBillingAccess";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isBillablePlan } from "../../_lib/subscription";
 
 const BILLING_ROLES = ["employer", "employer_admin"];
 
@@ -47,7 +48,9 @@ export async function GET(request: Request) {
   const openStatements = (openStatementResult.data || []).filter((statement) => Number(statement.amount) > 0);
   const statements = [...openStatements, ...recentStatements.filter((statement) => !openStatements.some((open) => open.id === statement.id))]
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const nextInvoiceDate = getNextInvoiceDate(subscription?.created_at || null, latestStatementResult.data?.statement_month || null);
+  const nextInvoiceDate = subscription && subscription.subscription_status === "active" && isBillablePlan(subscription.plan_name) && Number(subscription.monthly_fee) > 0
+    ? getNextInvoiceDate(subscription.created_at, latestStatementResult.data?.statement_month || null)
+    : null;
 
   return NextResponse.json({
     business: businessResult.data,

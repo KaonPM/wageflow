@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
 import { CollapsibleWorkspaceGrid } from "@/components/CollapsibleWorkspaceGrid";
@@ -9,7 +9,7 @@ type Business = { id: string; business_name: string; trading_name: string | null
 type Subscription = { id: string; plan_name: string; monthly_fee: number; setup_fee: number; setup_paid: boolean; subscription_status: string; created_at: string };
 type Statement = { id: string; statement_type: "setup" | "monthly"; statement_month: string; amount: number; status: string; recipient_email: string | null; paid_at: string | null; emailed_at: string | null; payment_reference: string | null; created_at: string; payment_provider: string | null };
 type InitialPayment = { id: string; subscription_id: string | null; setup_amount: number; first_month_amount: number; total_amount: number; currency: string; covered_month: string; status: string; verified_at: string | null; created_at: string };
-type BillingData = { business: Business; subscription: Subscription | null; statements: Statement[]; initialPayments: InitialPayment[]; employeeCount: number; openBalance: number; nextInvoiceDate: string; membershipRole: string };
+type BillingData = { business: Business; subscription: Subscription | null; statements: Statement[]; initialPayments: InitialPayment[]; employeeCount: number; openBalance: number; nextInvoiceDate: string | null; membershipRole: string };
 
 export default function EmployerBillingPage() {
   const [data, setData] = useState<BillingData | null>(null);
@@ -20,6 +20,7 @@ export default function EmployerBillingPage() {
   const [selected, setSelected] = useState<Statement | null>(null);
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
+  const [copiedReference, setCopiedReference] = useState<string | null>(null);
 
   const authenticatedRequest = useCallback(async (path: string, init?: RequestInit) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -32,7 +33,6 @@ export default function EmployerBillingPage() {
 
   const loadBilling = useCallback(async () => {
     setLoading(true);
-    setMessage("");
     try {
       const result = await authenticatedRequest("/api/employer/billing") as BillingData;
       setData(result);
@@ -57,8 +57,8 @@ export default function EmployerBillingPage() {
     setMessage("");
     try {
       await authenticatedRequest("/api/employer/billing", { method: "PATCH", body: JSON.stringify({ email, address }) });
-      setMessage("Billing details saved.");
       await loadBilling();
+      setMessage("Billing details saved.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Billing details could not be saved.");
     } finally {
@@ -79,6 +79,15 @@ export default function EmployerBillingPage() {
     }
   }
 
+  async function copyReference(reference: string) {
+    try {
+      await navigator.clipboard.writeText(reference);
+      setCopiedReference(reference);
+    } catch {
+      setMessage("The reference could not be copied. You can select it from the statement details.");
+    }
+  }
+
   if (loading) return <main style={statePage}><section style={stateCard}><div className="app-loading-mark" /><h1>Loading billing</h1><p>Retrieving the subscription for your active business…</p></section></main>;
   if (!data) return <main style={statePage}><section style={stateCard}><h1>Billing unavailable</h1><p>{message || "No billing account is linked to the active business."}</p><div style={actions}><button style={primaryButton} onClick={loadBilling}>Try again</button><Link href="/employer" style={secondaryLink}>Back to dashboard</Link></div></section></main>;
 
@@ -88,20 +97,20 @@ export default function EmployerBillingPage() {
   return <main style={page}>
     <header style={header}>
       <div><p style={eyebrow}>Account & billing</p><h1 style={title}>Billing</h1><p style={subtitle}>Manage {businessName}&apos;s subscription, settle open statements and keep billing details current.</p></div>
-      <div style={actions}><Link href="/employer" style={secondaryLink}>Back to dashboard</Link><button style={secondaryButton} onClick={loadBilling}>Refresh</button></div>
+      <div style={actions}><Link href="/employer" style={secondaryLink}>Back to dashboard</Link><button type="button" style={secondaryButton} onClick={() => { setMessage(""); void loadBilling(); }}>Refresh</button></div>
     </header>
 
-    {message && <div style={notice}>{message}</div>}
+    {message && <div style={notice} role="status" aria-live="polite">{message}</div>}
 
     <section style={summaryGrid} aria-label="Billing summary">
       <Summary label="Current plan" value={subscription?.plan_name || "Not assigned"} note={subscription ? `${statusLabel(subscription.subscription_status)} subscription` : "Contact WageFlow to select a plan"} />
-      <Summary label="Monthly subscription" value={money(subscription?.monthly_fee || 0)} note="Billed monthly" />
-      <Summary label="Next statement" value={formatDate(data.nextInvoiceDate)} note="Expected billing date" />
+      <Summary label="Monthly subscription" value={money(subscription?.monthly_fee || 0)} note={data.nextInvoiceDate ? "Billed monthly" : "No monthly charge scheduled"} />
+      <Summary label="Next statement" value={data.nextInvoiceDate ? formatDate(data.nextInvoiceDate) : "No charge scheduled"} note={data.nextInvoiceDate ? "Expected billing date" : "Your current plan has no scheduled charge"} />
       <Summary label="Amount outstanding" value={money(data.openBalance)} note={openStatements.length ? `${openStatements.length} open statement${openStatements.length === 1 ? "" : "s"}` : "Your account is up to date"} accent={data.openBalance > 0} />
     </section>
 
     <div style={layout}>
-      <CollapsibleWorkspaceGrid gridStyle={stack} label="subscription and payment workspaces" alwaysOpenCount={1}>
+      <section style={stack} aria-label="Subscription and payment workspaces">
         <section style={card}>
           <div style={cardHeader}><div><p style={sectionEyebrow}>Payments</p><h2 style={cardTitle}>Open statements</h2><p style={muted}>Secure payment is completed through Paystack.</p></div></div>
           {openStatements.length === 0 ? <div style={successBox}><strong>You&apos;re all paid up</strong><span>There are no outstanding subscription statements.</span></div> : <div style={statementList}>{openStatements.map((statement) => <article key={statement.id} style={openStatement}>
@@ -117,9 +126,9 @@ export default function EmployerBillingPage() {
             <div style={planHero}><div><strong style={planName}>{subscription.plan_name}</strong><p style={muted}>{money(subscription.monthly_fee)} per month</p></div><div style={price}>{money(subscription.monthly_fee)}<small>/month</small></div></div>
             <div style={detailGrid}>
               <Detail label="Employees" value={planLimit ? `${data.employeeCount} of ${planLimit}` : String(data.employeeCount)} />
-              <Detail label="Setup fee" value={subscription.setup_paid ? "Paid" : `${money(subscription.setup_fee)} due`} />
+              <Detail label="Setup fee" value={Number(subscription.setup_fee) === 0 ? "No setup charge" : subscription.setup_paid ? "Paid" : `${money(subscription.setup_fee)} due`} />
               <Detail label="Started" value={formatDate(subscription.created_at)} />
-              <Detail label="Billing cycle" value="Monthly" />
+              <Detail label="Billing cycle" value={data.nextInvoiceDate ? "Monthly" : "No monthly charge scheduled"} />
               {signupPayment && <Detail label="First month covered at signup" value={formatMonth(signupPayment.covered_month)} />}
             </div>
             <div style={included}><strong>Included with your plan</strong><p>Payroll processing, employee records, payslips, HR tools, reports and secure account access.</p></div>
@@ -127,7 +136,7 @@ export default function EmployerBillingPage() {
           </> : <div style={empty}>No subscription is assigned to this business yet. Contact WageFlow support to activate a plan.</div>}
         </section>
 
-      </CollapsibleWorkspaceGrid>
+      </section>
 
       <CollapsibleWorkspaceGrid gridStyle={stack} label="billing details workspaces">
         <section style={card}>
@@ -147,20 +156,19 @@ export default function EmployerBillingPage() {
 
     <section style={{ ...card, marginTop: 12 }}>
       <div style={cardHeader}><div><p style={sectionEyebrow}>History</p><h2 style={cardTitle}>Statements & payments</h2><p style={muted}>{paidStatements.length + data.initialPayments.length} paid · {data.statements.length + data.initialPayments.length} total</p></div></div>
-      {data.initialPayments.length > 0 && <div style={statementList}>{data.initialPayments.map((payment) => <article key={payment.id} style={openStatement}>
+      {data.initialPayments.length > 0 && <div style={statementList}>{data.initialPayments.map((payment) => <article key={payment.id} style={paidPayment}>
         <div><strong>Signup payment</strong><p style={muted}>Setup {money(payment.setup_amount)} · First month {money(payment.first_month_amount)} ({formatMonth(payment.covered_month)}) · Paid {formatDate(payment.verified_at || payment.created_at)}</p></div>
-        <strong style={statementAmount}>{money(payment.total_amount)}</strong><StatusPill status="paid" />
+        <strong style={paidStatementAmount}>{money(payment.total_amount)}</strong><StatusPill status="paid" />
       </article>)}</div>}
-      {selected && <StatementDetail statement={selected} businessName={businessName} onClose={() => setSelected(null)} onPay={pay} paying={payingId === selected.id} />}
-      {data.statements.length === 0 ? data.initialPayments.length === 0 && <div style={empty}>No billing payments have been recorded yet.</div> : <div style={tableWrap}><table style={table}><thead><tr><th style={th}>Statement</th><th style={th}>Billing month</th><th style={th}>Amount</th><th style={th}>Status</th><th style={th}>Action</th></tr></thead><tbody>{data.statements.map((statement) => <tr key={statement.id}><td style={td}><strong>{statementTitle(statement)}</strong><span style={subText}>{statement.payment_reference || statement.recipient_email || "No reference yet"}</span></td><td style={td}>{formatMonth(statement.statement_month)}</td><td style={td}>{money(statement.amount)}</td><td style={td}><StatusPill status={statement.paid_at ? "paid" : statement.status} /></td><td style={td}><button style={smallButton} onClick={() => setSelected(statement)}>View</button></td></tr>)}</tbody></table></div>}
+      {data.statements.length === 0 ? data.initialPayments.length === 0 && <div style={empty}>No billing payments have been recorded yet.</div> : <div style={tableWrap} role="region" aria-label="Statement history" tabIndex={0}><table style={table}><thead><tr><th style={th}>Statement</th><th style={th}>Billing month</th><th style={th}>Amount</th><th style={th}>Status</th><th style={th}>Action</th></tr></thead><tbody>{data.statements.map((statement) => <Fragment key={statement.id}><tr><td style={td}><strong>{statementTitle(statement)}</strong></td><td style={td}>{formatMonth(statement.statement_month)}</td><td style={td}>{money(statement.amount)}</td><td style={td}><StatusPill status={statement.paid_at ? "paid" : statement.status} /></td><td style={td}><button type="button" style={smallButton} aria-expanded={selected?.id === statement.id} aria-controls={selected?.id === statement.id ? `statement-detail-${statement.id}` : undefined} onClick={() => { setSelected(selected?.id === statement.id ? null : statement); setCopiedReference(null); }}>{selected?.id === statement.id ? "Hide details" : "View details"}</button></td></tr>{selected?.id === statement.id && <tr><td colSpan={5} style={detailCell}><StatementDetail statement={statement} businessName={businessName} onPay={pay} paying={payingId === statement.id} onCopy={copyReference} copied={copiedReference === statement.payment_reference} /></td></tr>}</Fragment>)}</tbody></table></div>}
     </section>
   </main>;
 }
 
 function Summary({ label, value, note, accent = false }: { label: string; value: string; note: string; accent?: boolean }) { return <article style={{ ...summaryCard, ...(accent ? summaryAlert : {}) }}><span style={summaryLabel}>{label}</span><strong style={summaryValue}>{value}</strong><small style={summaryNote}>{note}</small></article>; }
 function Detail({ label, value }: { label: string; value: string }) { return <div style={detail}><span>{label}</span><strong>{value}</strong></div>; }
-function StatusPill({ status }: { status: string }) { const positive = ["active", "paid", "emailed"].includes(status.toLowerCase()); return <span style={{ ...pill, ...(positive ? positivePill : {}) }}>{statusLabel(status)}</span>; }
-function StatementDetail({ statement, businessName, onClose, onPay, paying }: { statement: Statement; businessName: string; onClose: () => void; onPay: (statement: Statement) => void; paying: boolean }) { return <aside style={statementDetail}><div><p style={sectionEyebrow}>Statement detail</p><h3 style={{ margin: 0 }}>{statementTitle(statement)}</h3></div><button style={smallButton} onClick={onClose}>Close</button><Detail label="Business" value={businessName} /><Detail label="Billing month" value={formatMonth(statement.statement_month)} /><Detail label="Amount" value={money(statement.amount)} /><Detail label="Status" value={statement.paid_at ? `Paid ${formatDate(statement.paid_at)}` : statusLabel(statement.status)} />{statement.payment_reference && <Detail label="Payment reference" value={statement.payment_reference} />}{!statement.paid_at && <button style={primaryButton} disabled={paying} onClick={() => onPay(statement)}>{paying ? "Opening Paystack…" : "Pay this statement"}</button>}</aside>; }
+function StatusPill({ status }: { status: string }) { const positive = ["active", "paid"].includes(status.toLowerCase()); return <span style={{ ...pill, ...(positive ? positivePill : {}) }}>{statusLabel(status)}</span>; }
+function StatementDetail({ statement, businessName, onPay, paying, onCopy, copied }: { statement: Statement; businessName: string; onPay: (statement: Statement) => void; paying: boolean; onCopy: (reference: string) => void; copied: boolean }) { return <div id={`statement-detail-${statement.id}`} style={statementDetail}><div style={detailHeading}><p style={sectionEyebrow}>Statement details</p><h3 style={{ margin: 0 }}>{statementTitle(statement)}</h3></div><Detail label="Business" value={businessName} /><Detail label="Billing month" value={formatMonth(statement.statement_month)} /><Detail label="Amount" value={money(statement.amount)} /><Detail label="Status" value={statement.paid_at ? `Paid ${formatDate(statement.paid_at)}` : statusLabel(statement.status)} />{statement.payment_reference && <div style={referenceDetail}><span>Payment reference</span><code style={referenceText}>{statement.payment_reference}</code><button type="button" style={smallButton} onClick={() => onCopy(statement.payment_reference!)} aria-label="Copy payment reference">{copied ? "Copied" : "Copy reference"}</button></div>}{!statement.paid_at && <button style={primaryButton} disabled={paying} onClick={() => onPay(statement)}>{paying ? "Opening Paystack…" : "Pay this statement"}</button>}</div>; }
 function statementTitle(statement: Statement) { return statement.statement_type === "setup" ? "Business Setup & Activation Fee" : "Monthly subscription payment"; }
 function statusLabel(value: string) { return value.replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase()); }
 function money(value: number) { return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(Number(value || 0)); }
@@ -187,7 +195,7 @@ const card: CSSProperties = { padding: 18, background: "#fff", border: "1px soli
 const cardHeader: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 };
 const cardTitle: CSSProperties = { margin: "0 0 5px", color: "#173d3a", fontSize: 20 };
 const muted: CSSProperties = { margin: "4px 0 0", color: "#64748b", fontSize: 13, lineHeight: 1.5 };
-const planHero: CSSProperties = { display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", padding: 18, borderRadius: 13, background: "linear-gradient(135deg,#ecfdf5,#ecfeff)", border: "1px solid #99f6e4", marginBottom: 14 };
+const planHero: CSSProperties = { display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 14, alignItems: "center", padding: 18, borderRadius: 13, background: "linear-gradient(135deg,#ecfdf5,#ecfeff)", border: "1px solid #99f6e4", marginBottom: 14 };
 const planName: CSSProperties = { color: "#0f4f49", fontSize: 21 };
 const price: CSSProperties = { color: "#0f766e", fontSize: 24, fontWeight: 900, textAlign: "right" };
 const detailGrid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(145px,1fr))", gap: 10 };
@@ -197,25 +205,30 @@ const helpText: CSSProperties = { margin: "14px 0 0", color: "#64748b", fontSize
 const statementList: CSSProperties = { display: "grid", gap: 10 };
 const openStatement: CSSProperties = { display: "grid", gridTemplateColumns: "minmax(0,1fr) auto auto", gap: 14, alignItems: "center", padding: 14, border: "1px solid #fed7aa", background: "#fff7ed", borderRadius: 12 };
 const statementAmount: CSSProperties = { color: "#9a3412", fontSize: 17 };
+const paidStatementAmount: CSSProperties = { ...statementAmount, color: "#0f766e" };
 const successBox: CSSProperties = { display: "grid", gap: 4, padding: 16, background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", borderRadius: 12 };
 const label: CSSProperties = { display: "grid", gap: 6, marginTop: 14, color: "#334155", fontWeight: 800 };
 const input: CSSProperties = { width: "100%", padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 9, fontWeight: 500 };
 const textarea: CSSProperties = { ...input, minHeight: 88, resize: "vertical" };
 const provider: CSSProperties = { display: "flex", alignItems: "center", gap: 12, marginTop: 15, padding: 13, border: "1px solid #e2e8f0", borderRadius: 11 };
 const providerMark: CSSProperties = { display: "grid", placeItems: "center", width: 38, height: 38, borderRadius: 10, background: "#0f766e", color: "#fff", fontWeight: 900 };
-const primaryButton: CSSProperties = { border: 0, borderRadius: 9, padding: "10px 14px", background: "#0f766e", color: "#fff", fontWeight: 800, cursor: "pointer" };
+const primaryButton: CSSProperties = { minHeight: 44, border: 0, borderRadius: 9, padding: "10px 14px", background: "#0f766e", color: "#fff", fontWeight: 800, cursor: "pointer" };
 const secondaryButton: CSSProperties = { ...primaryButton, border: "1px solid #0f766e", background: "#fff", color: "#0f766e" };
-const secondaryLink: CSSProperties = { ...secondaryButton, display: "inline-block", textDecoration: "none", fontSize: 13 };
-const smallButton: CSSProperties = { ...secondaryButton, padding: "7px 10px", fontSize: 11 };
+const secondaryLink: CSSProperties = { ...secondaryButton, display: "inline-flex", alignItems: "center", textDecoration: "none", fontSize: 13 };
+const smallButton: CSSProperties = { ...secondaryButton, padding: "7px 10px", fontSize: 13 };
 const pill: CSSProperties = { display: "inline-flex", width: "fit-content", padding: "5px 9px", borderRadius: 999, background: "#f1f5f9", color: "#475569", fontSize: 11, fontWeight: 900 };
 const positivePill: CSSProperties = { background: "#dcfce7", color: "#166534" };
 const notice: CSSProperties = { marginBottom: 16, padding: 12, borderRadius: 10, background: "#ecfeff", color: "#155e75", fontWeight: 700 };
 const empty: CSSProperties = { padding: 22, textAlign: "center", color: "#64748b", background: "#f8fafc", borderRadius: 11 };
 const tableWrap: CSSProperties = { overflowX: "auto" };
-const table: CSSProperties = { width: "100%", borderCollapse: "collapse" };
+const table: CSSProperties = { width: "100%", minWidth: 560, borderCollapse: "collapse" };
 const th: CSSProperties = { padding: "10px", textAlign: "left", color: "#64748b", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", textTransform: "uppercase", fontSize: 11 };
 const td: CSSProperties = { padding: "12px 10px", borderBottom: "1px solid #e2e8f0", verticalAlign: "top" };
-const subText: CSSProperties = { display: "block", marginTop: 4, color: "#64748b", fontSize: 12, maxWidth: 240 };
-const statementDetail: CSSProperties = { display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 10, padding: 16, marginBottom: 16, background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 12 };
+const detailCell: CSSProperties = { padding: "0 10px 14px", borderBottom: "1px solid #e2e8f0" };
+const statementDetail: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 10, padding: 16, background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 12 };
+const detailHeading: CSSProperties = { gridColumn: "1 / -1" };
+const referenceDetail: CSSProperties = { display: "grid", gap: 6, gridColumn: "1 / -1", minWidth: 0 };
+const referenceText: CSSProperties = { overflowWrap: "anywhere", fontSize: 12 };
+const paidPayment: CSSProperties = { ...openStatement, background: "#f0fdfa", borderColor: "#99f6e4" };
 const statePage: CSSProperties = { minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f4f8fb" };
 const stateCard: CSSProperties = { width: "min(100%,520px)", padding: 30, textAlign: "center", background: "#fff", border: "1px solid #dce6ee", borderRadius: 18 };
