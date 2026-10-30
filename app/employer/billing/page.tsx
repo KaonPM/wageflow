@@ -84,7 +84,7 @@ export default function EmployerBillingPage() {
       await navigator.clipboard.writeText(reference);
       setCopiedReference(reference);
     } catch {
-      setMessage("The reference could not be copied. You can select it from the statement details.");
+      setMessage("The reference could not be copied. You can select it from the payment details.");
     }
   }
 
@@ -96,7 +96,7 @@ export default function EmployerBillingPage() {
 
   return <main style={page}>
     <header style={header}>
-      <div><p style={eyebrow}>Account & billing</p><h1 style={title}>Billing</h1><p style={subtitle}>Manage {businessName}&apos;s subscription, settle open statements and keep billing details current.</p></div>
+      <div><p style={eyebrow}>Account & billing</p><h1 style={title}>Billing</h1><p style={subtitle}>Manage {businessName}&apos;s subscription, pay outstanding charges and keep billing details current.</p></div>
       <div style={actions}><Link href="/employer" style={secondaryLink}>Back to dashboard</Link><button type="button" style={secondaryButton} onClick={() => { setMessage(""); void loadBilling(); }}>Refresh</button></div>
     </header>
 
@@ -105,15 +105,15 @@ export default function EmployerBillingPage() {
     <section style={summaryGrid} aria-label="Billing summary">
       <Summary label="Current plan" value={subscription?.plan_name || "Not assigned"} note={subscription ? `${statusLabel(subscription.subscription_status)} subscription` : "Contact WageFlow to select a plan"} />
       <Summary label="Monthly subscription" value={money(subscription?.monthly_fee || 0)} note={data.nextInvoiceDate ? "Billed monthly" : "No monthly charge scheduled"} />
-      <Summary label="Next statement" value={data.nextInvoiceDate ? formatDate(data.nextInvoiceDate) : "No charge scheduled"} note={data.nextInvoiceDate ? "Expected billing date" : "Your current plan has no scheduled charge"} />
-      <Summary label="Amount outstanding" value={money(data.openBalance)} note={openStatements.length ? `${openStatements.length} open statement${openStatements.length === 1 ? "" : "s"}` : "Your account is up to date"} accent={data.openBalance > 0} />
+      <Summary label="Next billing date" value={data.nextInvoiceDate ? formatDate(data.nextInvoiceDate) : "No charge scheduled"} note={data.nextInvoiceDate ? "Expected billing date" : "Your current plan has no scheduled charge"} />
+      <Summary label="Amount outstanding" value={money(data.openBalance)} note={openStatements.length ? `${openStatements.length} payment${openStatements.length === 1 ? "" : "s"} due` : "Your account is up to date"} accent={data.openBalance > 0} />
     </section>
 
     <div style={layout}>
       <section style={stack} aria-label="Subscription and payment workspaces">
         <section style={card}>
-          <div style={cardHeader}><div><p style={sectionEyebrow}>Payments</p><h2 style={cardTitle}>Open statements</h2><p style={muted}>Secure payment is completed through Paystack.</p></div></div>
-          {openStatements.length === 0 ? <div style={successBox}><strong>You&apos;re all paid up</strong><span>There are no outstanding subscription statements.</span></div> : <div style={statementList}>{openStatements.map((statement) => <article key={statement.id} style={openStatement}>
+          <div style={cardHeader}><div><p style={sectionEyebrow}>Payments</p><h2 style={cardTitle}>Payments due</h2><p style={muted}>Secure payment is completed through Paystack.</p></div></div>
+          {openStatements.length === 0 ? <div style={successBox}><strong>You&apos;re all paid up</strong><span>There are no outstanding subscription payments.</span></div> : <div style={statementList}>{openStatements.map((statement) => <article key={statement.id} style={openStatement}>
             <div><strong>{statementTitle(statement)}</strong><p style={muted}>{formatMonth(statement.statement_month)} · {statement.recipient_email || "Billing email not set"}</p></div>
             <strong style={statementAmount}>{money(statement.amount)}</strong>
             <button style={primaryButton} disabled={payingId === statement.id} onClick={() => pay(statement)}>{payingId === statement.id ? "Opening Paystack…" : "Pay securely"}</button>
@@ -140,7 +140,7 @@ export default function EmployerBillingPage() {
 
       <CollapsibleWorkspaceGrid gridStyle={stack} label="billing details workspaces">
         <section style={card}>
-          <p style={sectionEyebrow}>Billing details</p><h2 style={cardTitle}>Invoice contact</h2><p style={muted}>Statements and payment confirmations are sent to this address.</p>
+          <p style={sectionEyebrow}>Billing details</p><h2 style={cardTitle}>Billing contact</h2><p style={muted}>Billing notices and payment confirmations are sent to this address.</p>
           <label style={label}>Billing email<input style={input} type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="accounts@company.co.za" /></label>
           <label style={label}>Billing address<textarea style={textarea} value={address} onChange={(event) => setAddress(event.target.value)} placeholder="Company billing address" /></label>
           {data.business.registration_number && <Detail label="Registration number" value={data.business.registration_number} />}
@@ -149,18 +149,32 @@ export default function EmployerBillingPage() {
 
         <section style={card}>
           <p style={sectionEyebrow}>Payment method</p><h2 style={cardTitle}>Paystack checkout</h2><p style={muted}>Card and bank details are entered securely on Paystack. WageFlow does not store your full card details.</p>
-          <div style={provider}><span style={providerMark}>P</span><div><strong>Paystack</strong><span>Secure once-off statement payments</span></div></div>
+          <div style={provider}><span style={providerMark}>P</span><div><strong>Paystack</strong><span>Secure once-off payments</span></div></div>
         </section>
       </CollapsibleWorkspaceGrid>
     </div>
 
     <section style={{ ...card, marginTop: 12 }}>
-      <div style={cardHeader}><div><p style={sectionEyebrow}>History</p><h2 style={cardTitle}>Statements & payments</h2><p style={muted}>{paidStatements.length + data.initialPayments.length} paid · {data.statements.length + data.initialPayments.length} total</p></div></div>
+      <div style={cardHeader}><div><p style={sectionEyebrow}>History</p><h2 style={cardTitle}>Payments</h2><p style={muted}>{paidStatements.length + data.initialPayments.length} completed payment{paidStatements.length + data.initialPayments.length === 1 ? "" : "s"}</p></div></div>
       {data.initialPayments.length > 0 && <div style={statementList}>{data.initialPayments.map((payment) => <article key={payment.id} style={paidPayment}>
         <div><strong>Signup payment</strong><p style={muted}>Setup {money(payment.setup_amount)} · First month {money(payment.first_month_amount)} ({formatMonth(payment.covered_month)}) · Paid {formatDate(payment.verified_at || payment.created_at)}</p></div>
         <strong style={paidStatementAmount}>{money(payment.total_amount)}</strong><StatusPill status="paid" />
       </article>)}</div>}
-      {data.statements.length === 0 ? data.initialPayments.length === 0 && <div style={empty}>No billing payments have been recorded yet.</div> : <div style={tableWrap} role="region" aria-label="Statement history" tabIndex={0}><table style={table}><thead><tr><th style={th}>Statement</th><th style={th}>Billing month</th><th style={th}>Amount</th><th style={th}>Status</th><th style={th}>Action</th></tr></thead><tbody>{data.statements.map((statement) => <Fragment key={statement.id}><tr><td style={td}><strong>{statementTitle(statement)}</strong></td><td style={td}>{formatMonth(statement.statement_month)}</td><td style={td}>{money(statement.amount)}</td><td style={td}><StatusPill status={statement.paid_at ? "paid" : statement.status} /></td><td style={td}><button type="button" style={smallButton} aria-expanded={selected?.id === statement.id} aria-controls={selected?.id === statement.id ? `statement-detail-${statement.id}` : undefined} onClick={() => { setSelected(selected?.id === statement.id ? null : statement); setCopiedReference(null); }}>{selected?.id === statement.id ? "Hide details" : "View details"}</button></td></tr>{selected?.id === statement.id && <tr><td colSpan={5} style={detailCell}><StatementDetail statement={statement} businessName={businessName} onPay={pay} paying={payingId === statement.id} onCopy={copyReference} copied={copiedReference === statement.payment_reference} /></td></tr>}</Fragment>)}</tbody></table></div>}
+      {paidStatements.length === 0 ? data.initialPayments.length === 0 && <div style={empty}>No payments have been recorded yet.</div> : <div style={tableWrap} role="region" aria-label="Payment history" tabIndex={0}>
+        <table style={table}>
+          <thead><tr><th style={th}>Payment</th><th style={th}>Billing month</th><th style={th}>Amount</th><th style={th}>Status</th><th style={th}>Action</th></tr></thead>
+          <tbody>{paidStatements.map((statement) => <Fragment key={statement.id}>
+            <tr>
+              <td style={td}><strong>{statementTitle(statement)}</strong></td>
+              <td style={td}>{formatMonth(statement.statement_month)}</td>
+              <td style={td}>{money(statement.amount)}</td>
+              <td style={td}><StatusPill status="paid" /></td>
+              <td style={td}><button type="button" style={smallButton} aria-expanded={selected?.id === statement.id} aria-controls={selected?.id === statement.id ? `payment-detail-${statement.id}` : undefined} onClick={() => { setSelected(selected?.id === statement.id ? null : statement); setCopiedReference(null); }}>{selected?.id === statement.id ? "Hide details" : "View details"}</button></td>
+            </tr>
+            {selected?.id === statement.id && <tr><td colSpan={5} style={detailCell}><StatementDetail statement={statement} businessName={businessName} onCopy={copyReference} copied={copiedReference === statement.payment_reference} /></td></tr>}
+          </Fragment>)}</tbody>
+        </table>
+      </div>}
     </section>
   </main>;
 }
@@ -168,8 +182,8 @@ export default function EmployerBillingPage() {
 function Summary({ label, value, note, accent = false }: { label: string; value: string; note: string; accent?: boolean }) { return <article style={{ ...summaryCard, ...(accent ? summaryAlert : {}) }}><span style={summaryLabel}>{label}</span><strong style={summaryValue}>{value}</strong><small style={summaryNote}>{note}</small></article>; }
 function Detail({ label, value }: { label: string; value: string }) { return <div style={detail}><span>{label}</span><strong>{value}</strong></div>; }
 function StatusPill({ status }: { status: string }) { const positive = ["active", "paid"].includes(status.toLowerCase()); return <span style={{ ...pill, ...(positive ? positivePill : {}) }}>{statusLabel(status)}</span>; }
-function StatementDetail({ statement, businessName, onPay, paying, onCopy, copied }: { statement: Statement; businessName: string; onPay: (statement: Statement) => void; paying: boolean; onCopy: (reference: string) => void; copied: boolean }) { return <div id={`statement-detail-${statement.id}`} style={statementDetail}><div style={detailHeading}><p style={sectionEyebrow}>Statement details</p><h3 style={{ margin: 0 }}>{statementTitle(statement)}</h3></div><Detail label="Business" value={businessName} /><Detail label="Billing month" value={formatMonth(statement.statement_month)} /><Detail label="Amount" value={money(statement.amount)} /><Detail label="Status" value={statement.paid_at ? `Paid ${formatDate(statement.paid_at)}` : statusLabel(statement.status)} />{statement.payment_reference && <div style={referenceDetail}><span>Payment reference</span><code style={referenceText}>{statement.payment_reference}</code><button type="button" style={smallButton} onClick={() => onCopy(statement.payment_reference!)} aria-label="Copy payment reference">{copied ? "Copied" : "Copy reference"}</button></div>}{!statement.paid_at && <button style={primaryButton} disabled={paying} onClick={() => onPay(statement)}>{paying ? "Opening Paystack…" : "Pay this statement"}</button>}</div>; }
-function statementTitle(statement: Statement) { return statement.statement_type === "setup" ? "Business Setup & Activation Fee" : "Monthly subscription payment"; }
+function StatementDetail({ statement, businessName, onCopy, copied }: { statement: Statement; businessName: string; onCopy: (reference: string) => void; copied: boolean }) { return <div id={`payment-detail-${statement.id}`} style={statementDetail}><div style={detailHeading}><p style={sectionEyebrow}>Payment details</p><h3 style={{ margin: 0 }}>{statementTitle(statement)}</h3></div><Detail label="Business" value={businessName} /><Detail label="Billing month" value={formatMonth(statement.statement_month)} /><Detail label="Amount" value={money(statement.amount)} /><Detail label="Status" value={`Paid ${formatDate(statement.paid_at || statement.created_at)}`} />{statement.payment_reference && <div style={referenceDetail}><span>Payment reference</span><code style={referenceText}>{statement.payment_reference}</code><button type="button" style={smallButton} onClick={() => onCopy(statement.payment_reference!)} aria-label="Copy payment reference">{copied ? "Copied" : "Copy reference"}</button></div>}</div>; }
+function statementTitle(statement: Statement) { return statement.statement_type === "setup" ? "Business setup & activation payment" : "Monthly subscription payment"; }
 function statusLabel(value: string) { return value.replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase()); }
 function money(value: number) { return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(Number(value || 0)); }
 function formatDate(value: string) { const date = new Date(value.includes("T") ? value : `${value}T00:00:00Z`); return Number.isNaN(date.getTime()) ? "Not scheduled" : date.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }); }
