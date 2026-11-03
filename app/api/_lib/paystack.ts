@@ -9,6 +9,8 @@ type PaystackTransaction = {
   amount: number;
   currency: string;
   paid_at?: string;
+  authorization?: { authorization_code?: string; reusable?: boolean; channel?: string; brand?: string; last4?: string };
+  customer?: { email?: string };
 };
 
 function secretKey() {
@@ -62,6 +64,32 @@ export async function verifyPaystackTransaction(reference: string) {
   const result = await response.json().catch(() => null) as { status?: boolean; message?: string; data?: PaystackTransaction } | null;
   if (!response.ok || !result?.status || !result.data) throw new Error(result?.message || "Paystack could not verify the payment.");
   return result.data;
+}
+
+export async function chargePaystackAuthorization(input: {
+  authorizationCode: string; email: string; amount: number; reference: string;
+  statementId: string; businessId: string;
+}) {
+  const response = await fetch(`${PAYSTACK_API}/transaction/charge_authorization`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${secretKey()}`, "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(15_000),
+    body: JSON.stringify({
+      authorization_code: input.authorizationCode,
+      email: input.email,
+      amount: String(Math.round(input.amount * 100)),
+      currency: "ZAR",
+      reference: input.reference,
+      metadata: JSON.stringify({ statementId: input.statementId, businessId: input.businessId, paymentProvider: "paystack" }),
+    }),
+  });
+  const result = await response.json().catch(() => null) as {
+    status?: boolean; data?: { reference?: string; status?: string };
+  } | null;
+  if (!response.ok || !result?.status || result.data?.reference !== input.reference) {
+    throw new Error("Paystack did not confirm the charge request.");
+  }
+  return result.data?.status || "pending";
 }
 
 export function hasValidPaystackSignature(rawBody: string, signature: string | null) {

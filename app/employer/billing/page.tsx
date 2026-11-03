@@ -10,6 +10,7 @@ type Subscription = { id: string; plan_name: string; monthly_fee: number; setup_
 type Statement = { id: string; statement_type: "setup" | "monthly"; statement_month: string; amount: number; status: string; recipient_email: string | null; paid_at: string | null; emailed_at: string | null; payment_reference: string | null; created_at: string; payment_provider: string | null };
 type InitialPayment = { id: string; subscription_id: string | null; setup_amount: number; first_month_amount: number; total_amount: number; currency: string; covered_month: string; status: string; verified_at: string | null; created_at: string };
 type BillingData = { business: Business; subscription: Subscription | null; statements: Statement[]; initialPayments: InitialPayment[]; employeeCount: number; openBalance: number; nextInvoiceDate: string | null; membershipRole: string };
+type AutomaticPayment = { available: boolean; enabled: boolean; cardBrand: string | null; last4: string | null; consentedAt: string | null };
 
 export default function EmployerBillingPage() {
   const [data, setData] = useState<BillingData | null>(null);
@@ -21,6 +22,9 @@ export default function EmployerBillingPage() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [copiedReference, setCopiedReference] = useState<string | null>(null);
+  const [automaticPayment, setAutomaticPayment] = useState<AutomaticPayment | null>(null);
+  const [automaticConsent, setAutomaticConsent] = useState(false);
+  const [changingAutomaticPayment, setChangingAutomaticPayment] = useState(false);
 
   const authenticatedRequest = useCallback(async (path: string, init?: RequestInit) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -38,6 +42,10 @@ export default function EmployerBillingPage() {
       setData(result);
       setEmail(result.business.email || "");
       setAddress(result.business.address || "");
+      if (result.subscription && Number(result.subscription.monthly_fee) > 0) {
+        const method = await authenticatedRequest("/api/employer/billing/automatic") as AutomaticPayment;
+        setAutomaticPayment(method);
+      } else setAutomaticPayment(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Billing details could not be loaded.");
     } finally {
@@ -86,6 +94,21 @@ export default function EmployerBillingPage() {
     } catch {
       setMessage("The reference could not be copied. You can select it from the payment details.");
     }
+  }
+
+  async function updateAutomaticPayment(enabled: boolean) {
+    setChangingAutomaticPayment(true);
+    setMessage("");
+    try {
+      await authenticatedRequest("/api/employer/billing/automatic", enabled
+        ? { method: "POST", body: JSON.stringify({ consent: automaticConsent }) }
+        : { method: "DELETE" });
+      setAutomaticConsent(false);
+      await loadBilling();
+      setMessage(enabled ? "Automatic monthly payment is enabled." : "Automatic monthly payment is disabled. Any charge already in progress may still complete.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Automatic payment could not be updated.");
+    } finally { setChangingAutomaticPayment(false); }
   }
 
   if (loading) return <main style={statePage}><section style={stateCard}><div className="app-loading-mark" /><h1>Loading billing</h1><p>Retrieving the subscription for your active business…</p></section></main>;
@@ -148,8 +171,20 @@ export default function EmployerBillingPage() {
         </section>
 
         <section style={card}>
-          <p style={sectionEyebrow}>Payment method</p><h2 style={cardTitle}>Paystack checkout</h2><p style={muted}>Card and bank details are entered securely on Paystack. WageFlow does not store your full card details.</p>
-          <div style={provider}><span style={providerMark}>P</span><div><strong>Paystack</strong><span>Secure once-off payments</span></div></div>
+          <p style={sectionEyebrow}>Payment method</p><h2 style={cardTitle}>Paystack payments</h2><p style={muted}>Card and bank details are entered securely on Paystack. WageFlow does not store your full card details.</p>
+          <div style={provider}><span style={providerMark}>P</span><div><strong>Paystack</strong><span>Secure monthly and once-off payments</span></div></div>
+          {subscription && Number(subscription.monthly_fee) > 0 && (automaticPayment?.available || automaticPayment?.enabled) && <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
+            <strong style={{ color: "#0b6158" }}>Automatic monthly payment</strong>
+            {automaticPayment?.enabled ? <>
+              <p style={muted}>Enabled for {automaticPayment.cardBrand || "card"} ending {automaticPayment.last4}. WageFlow charges the monthly amount on your active plan when a statement is issued. A declined charge is retried up to three times, with notices and a manual payment option.</p>
+              {!automaticPayment.available && <p style={muted}>Automatic collection is temporarily paused. You can still disable your saved payment method.</p>}
+              <button type="button" style={secondaryButton} disabled={changingAutomaticPayment} onClick={() => void updateAutomaticPayment(false)}>{changingAutomaticPayment ? "Updating…" : "Disable automatic payment"}</button>
+            </> : <>
+              <p style={muted}>Pay a statement by card first. You may then authorize WageFlow to use that card for future monthly statements. No existing customer is enrolled automatically.</p>
+              <label style={{ ...muted, display: "flex", gap: 10, alignItems: "flex-start" }}><input type="checkbox" checked={automaticConsent} onChange={(event) => setAutomaticConsent(event.target.checked)} />I authorize WageFlow to charge my verified card for future monthly statements at my current plan price. If a charge fails, WageFlow may retry up to three times over seven days. I can disable future automatic payments here.</label>
+              <button type="button" style={primaryButton} disabled={!automaticConsent || changingAutomaticPayment} onClick={() => void updateAutomaticPayment(true)}>{changingAutomaticPayment ? "Enabling…" : "Enable automatic payment"}</button>
+            </>}
+          </div>}
         </section>
       </CollapsibleWorkspaceGrid>
     </div>

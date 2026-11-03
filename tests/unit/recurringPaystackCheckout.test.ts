@@ -17,7 +17,7 @@ const claimed = {
   recipient_email: "billing@example.test", payment_reference: "wf-statement-1-stable",
 };
 
-function setup(outcomes: Array<Record<string, unknown>>, finishResults: boolean[] = [true], existingUrl: string | null = "https://checkout.example.test") {
+function setup(outcomes: Array<Record<string, unknown>>, finishResults: boolean[] = [true], existingUrl: string | null = "https://checkout.example.test", releaseResult = false) {
   const claimQueue = [...outcomes];
   const rpc = vi.fn((name: string) => {
     if (name === "claim_subscription_statement_checkout") {
@@ -25,6 +25,7 @@ function setup(outcomes: Array<Record<string, unknown>>, finishResults: boolean[
       return Promise.resolve({ data: result ? [result] : [], error: null });
     }
     if (name === "finish_subscription_statement_checkout_claim" || name === "finalize_subscription_statement_checkout_url") return Promise.resolve({ data: finishResults.shift() ?? true, error: null });
+    if (name === "release_failed_auto_charge_for_manual") return Promise.resolve({ data: releaseResult, error: null });
     throw new Error(`Unexpected RPC ${name}`);
   });
   const existing = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn().mockResolvedValue({ data: { payment_authorization_url: existingUrl, payment_reference: claimed.payment_reference, paid_at: null }, error: null }) };
@@ -37,6 +38,7 @@ function setup(outcomes: Array<Record<string, unknown>>, finishResults: boolean[
 describe("recurring Paystack checkout reservation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.AUTOMATIC_BILLING_ENABLED = "true";
     createPaystackReference.mockReturnValue("wf-new-reference");
     initializePaystackTransaction.mockResolvedValue("https://checkout.example.test");
   });
@@ -65,6 +67,22 @@ describe("recurring Paystack checkout reservation", () => {
     const response = await POST(request());
     expect(response.status).toBe(409);
     expect(initializePaystackTransaction).not.toHaveBeenCalled();
+  });
+
+  it("preserves the existing reconciliation response before the new migration is enabled", async () => {
+    process.env.AUTOMATIC_BILLING_ENABLED = "false";
+    const rpc = setup([{ ...claimed, outcome: "already_initialized" }], [true], null);
+    const response = await POST(request());
+    expect(response.status).toBe(409);
+    expect(rpc).not.toHaveBeenCalledWith("release_failed_auto_charge_for_manual", expect.anything());
+  });
+
+  it("opens a manual checkout after a confirmed failed automatic charge is released", async () => {
+    const rpc = setup([{ ...claimed, outcome: "already_initialized" }, claimed], [true], null, true);
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("release_failed_auto_charge_for_manual", { statement_id_input: "statement-1" });
+    expect(initializePaystackTransaction).toHaveBeenCalledTimes(1);
   });
 
   it("releases a failed claim while retaining its reference for a safe retry", async () => {

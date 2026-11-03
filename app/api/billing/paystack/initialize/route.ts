@@ -36,15 +36,8 @@ export async function POST(request: Request) {
     lease_seconds: 120,
   });
   if (claimError) return NextResponse.json({ error: claimError.message }, { status: 500 });
-  const statement = Array.isArray(claims) ? claims[0] : claims;
+  let statement = Array.isArray(claims) ? claims[0] : claims;
   if (!statement) return NextResponse.json({ error: "Statement not found." }, { status: 404 });
-  if (isEmployer && statement.business_id !== String(access.profile.business_id || "")) {
-    if (statement.outcome === "claimed") await access.admin.rpc("finish_subscription_statement_checkout_claim", { statement_id_input: statement.id, claim_input: claim, initialized: false });
-    return NextResponse.json({ error: "You do not have access to this billing statement." }, { status: 403 });
-  }
-  if (statement.outcome === "paid") return NextResponse.json({ error: "This statement has already been paid." }, { status: 409 });
-  if (statement.outcome === "unavailable") return NextResponse.json({ error: "A positive amount and billing email are required before checkout." }, { status: 400 });
-  if (statement.outcome === "initializing") return NextResponse.json({ error: "Checkout initialization is already in progress. Please wait before trying again." }, { status: 409 });
   if (statement.outcome === "already_initialized") {
     const { data: existing, error: existingError } = await access.admin.from("subscription_statements")
       .select("payment_authorization_url,payment_reference,paid_at")
@@ -54,6 +47,30 @@ export async function POST(request: Request) {
     if (existing?.payment_reference === statement.payment_reference && existing?.payment_authorization_url) {
       return NextResponse.json({ authorizationUrl: existing.payment_authorization_url }, { headers: checkoutHeaders });
     }
+    // A confirmed failed automatic charge may move to manual checkout. The RPC
+    // pauses future automatic attempts before clearing the old reference.
+    if (process.env.AUTOMATIC_BILLING_ENABLED === "true") {
+      const { data: released, error: releaseError } = await access.admin.rpc("release_failed_auto_charge_for_manual", { statement_id_input: statementId });
+      if (releaseError) return NextResponse.json({ error: "Checkout could not be recovered." }, { status: 500 });
+      if (released === true) {
+        const { data: retryRows, error: retryError } = await access.admin.rpc("claim_subscription_statement_checkout", {
+          statement_id_input: statementId, reference_input: createPaystackReference(statementId),
+          claim_input: claim, lease_seconds: 120,
+        });
+        if (retryError) return NextResponse.json({ error: "Checkout could not be recovered." }, { status: 500 });
+        statement = Array.isArray(retryRows) ? retryRows[0] : retryRows;
+      }
+    }
+  }
+  if (!statement) return NextResponse.json({ error: "Statement not found." }, { status: 404 });
+  if (isEmployer && statement.business_id !== String(access.profile.business_id || "")) {
+    if (statement.outcome === "claimed") await access.admin.rpc("finish_subscription_statement_checkout_claim", { statement_id_input: statement.id, claim_input: claim, initialized: false });
+    return NextResponse.json({ error: "You do not have access to this billing statement." }, { status: 403 });
+  }
+  if (statement.outcome === "paid") return NextResponse.json({ error: "This statement has already been paid." }, { status: 409 });
+  if (statement.outcome === "unavailable") return NextResponse.json({ error: "A positive amount and billing email are required before checkout." }, { status: 400 });
+  if (statement.outcome === "initializing") return NextResponse.json({ error: "Checkout initialization is already in progress. Please wait before trying again." }, { status: 409 });
+  if (statement.outcome === "already_initialized") {
     return NextResponse.json({ error: "This checkout needs payment reconciliation before it can be reopened. Please contact support." }, { status: 409 });
   }
   if (statement.outcome !== "claimed" || !statement.payment_reference || !statement.recipient_email) return NextResponse.json({ error: "Statement checkout could not be claimed." }, { status: 409 });

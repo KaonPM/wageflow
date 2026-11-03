@@ -121,6 +121,15 @@ async function deliverOutboxItem(admin: ReturnType<typeof getSupabaseAdmin>, ite
       }
       if (eligible !== true) throw new WorkerFailure("payment_email_eligibility_unexpected");
     }
+    if (["monthly_payment_due", "monthly_payment_retry", "monthly_payment_action_required"].includes(String(item.event_type))) {
+      const { data: eligible, error: eligibilityError } = await admin.rpc("can_deliver_monthly_payment_email", { outbox_id_input: item.id, worker_claim: claim });
+      if (eligibilityError) throw new WorkerFailure("monthly_email_eligibility_failed");
+      if (eligible !== true) {
+        const { data: cancelled, error: cancelError } = await admin.rpc("cancel_email_outbox", { outbox_id_input: item.id, worker_claim: claim, cancellation_reason: "Monthly payment notice is no longer eligible." });
+        if (cancelError || cancelled !== true) throw new WorkerFailure("monthly_email_cancel_failed");
+        return "cancelled";
+      }
+    }
     const response = await sendBrevo(String(item.recipient_email), subjectFor(String(item.event_type)), html);
     providerAccepted = Boolean(response?.ok);
     await finishOutbox(admin, item.id, claim, providerAccepted, retryAfter, providerAccepted ? null : "Email provider did not accept the message.");
@@ -165,6 +174,6 @@ async function sendBrevo(to: string, subject: string, htmlContent: string) {
   if (!process.env.BREVO_API_KEY || !process.env.BREVO_FROM_EMAIL) return null;
   return fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "Content-Type": "application/json", "api-key": process.env.BREVO_API_KEY }, body: JSON.stringify({ sender: { name: "WageFlow", email: process.env.BREVO_FROM_EMAIL }, to: [{ email: to }], subject, htmlContent }), signal: AbortSignal.timeout(30_000) });
 }
-function subjectFor(type: string) { return ({ application_acknowledgement: "We received your WageFlow application", application_admin_alert: "New WageFlow application", initial_payment_request: "Your WageFlow payment link", initial_payment_reminder: "WageFlow payment reminder", initial_payment_closure: "WageFlow application archived" } as Record<string, string>)[type] || "WageFlow update"; }
-function messageFor(type: string, payload: Record<string, unknown>) { const name = String(payload.businessName || "your business"); if (type === "application_acknowledgement") return `We received the application for ${name}. Our team will review it shortly.`; if (type === "initial_payment_request") return "Your application was approved for payment. Use the secure link in this email to complete the initial payment."; if (type === "initial_payment_closure") return `The payment window for ${name} has closed. You may submit a new application later.`; return `There is an update regarding ${name}.`; }
+function subjectFor(type: string) { return ({ application_acknowledgement: "We received your WageFlow application", application_admin_alert: "New WageFlow application", initial_payment_request: "Your WageFlow payment link", initial_payment_reminder: "WageFlow payment reminder", initial_payment_closure: "WageFlow application archived", monthly_payment_due: "Your WageFlow monthly payment is due", monthly_payment_retry: "WageFlow monthly payment will be retried", monthly_payment_action_required: "Action needed for your WageFlow payment" } as Record<string, string>)[type] || "WageFlow update"; }
+function messageFor(type: string, payload: Record<string, unknown>) { const name = String(payload.businessName || "your business"); if (type === "application_acknowledgement") return `We received the application for ${name}. Our team will review it shortly.`; if (type === "initial_payment_request") return "Your application was approved for payment. Use the secure link in this email to complete the initial payment."; if (type === "initial_payment_closure") return `The payment window for ${name} has closed. You may submit a new application later.`; if (type === "monthly_payment_due") return "Your WageFlow monthly payment is due. Open billing to pay securely."; if (type === "monthly_payment_retry") return "Your automatic monthly payment was not completed. We will retry it. You can review billing or disable automatic payments at any time."; if (type === "monthly_payment_action_required") return "Your automatic monthly payment needs attention. Open billing to review the payment and contact support if it remains unresolved."; return `There is an update regarding ${name}.`; }
 function escape(value: string) { return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] || character); }
