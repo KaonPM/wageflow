@@ -53,4 +53,64 @@ describe("signup billing alignment", () => {
     expect(signupPayment.gt).toHaveBeenCalledWith("setup_amount", 0);
     expect(issueStatement).not.toHaveBeenCalled();
   });
+
+  it("issues one current-month payment for an active billable subscription", async () => {
+    const subscription = query({ id: "subscription-1", business_id: "business-1", plan_name: "Growth", monthly_fee: 1, subscription_status: "active" });
+    const signupPayment = query(null);
+    const existingStatement = query(null);
+    const business = query({ business_name: "Kaone Cleaning Services", email: "billing@example.com" });
+    const from = vi.fn((table: string) => {
+      if (table === "subscriptions") return subscription;
+      if (table === "application_initial_payments") return signupPayment;
+      if (table === "subscription_statements") return existingStatement;
+      if (table === "businesses") return business;
+      throw new Error(`Unexpected table ${table}`);
+    });
+    requireRole.mockResolvedValue({ admin: { from }, user: { id: "master-1" }, profile: { role: "master" } });
+    issueStatement.mockResolvedValue({ issued: true });
+    const response = await POST(new Request("https://wageflow.test/api/billing/statements/issue", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscriptionId: "subscription-1", statementType: "monthly" }),
+    }));
+    expect(response.status).toBe(200);
+    expect(signupPayment.eq).toHaveBeenCalledWith("covered_month", new Date().toISOString().slice(0, 7) + "-01");
+    expect(existingStatement.eq).toHaveBeenCalledWith("statement_month", new Date().toISOString().slice(0, 7) + "-01");
+    expect(issueStatement).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ subscriptionId: "subscription-1", amount: 1, statementType: "monthly" }));
+  });
+
+  it("does not rebill a month covered by a verified signup payment", async () => {
+    const subscription = query({ id: "subscription-1", business_id: "business-1", plan_name: "Growth", monthly_fee: 1, subscription_status: "active" });
+    const signupPayment = query({ id: "payment-1" });
+    const from = vi.fn((table: string) => table === "subscriptions" ? subscription : signupPayment);
+    requireRole.mockResolvedValue({ admin: { from }, user: { id: "master-1" }, profile: { role: "master" } });
+    const response = await POST(new Request("https://wageflow.test/api/billing/statements/issue", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscriptionId: "subscription-1", statementType: "monthly" }),
+    }));
+    expect(response.status).toBe(409);
+    expect(issueStatement).not.toHaveBeenCalled();
+  });
+
+  it("does not bill a free or inactive subscription", async () => {
+    const subscription = query({ id: "subscription-1", business_id: "business-1", plan_name: "Growth Included", monthly_fee: 0, subscription_status: "active" });
+    const from = vi.fn(() => subscription);
+    requireRole.mockResolvedValue({ admin: { from }, user: { id: "master-1" }, profile: { role: "master" } });
+    const response = await POST(new Request("https://wageflow.test/api/billing/statements/issue", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscriptionId: "subscription-1", statementType: "monthly" }),
+    }));
+    expect(response.status).toBe(400);
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(issueStatement).not.toHaveBeenCalled();
+  });
+
+  it("does not issue another statement for the same month", async () => {
+    const subscription = query({ id: "subscription-1", business_id: "business-1", plan_name: "Growth", monthly_fee: 1, subscription_status: "active" });
+    const signupPayment = query(null);
+    const existingStatement = query({ id: "statement-1" });
+    const from = vi.fn((table: string) => table === "subscriptions" ? subscription : table === "application_initial_payments" ? signupPayment : existingStatement);
+    requireRole.mockResolvedValue({ admin: { from }, user: { id: "master-1" }, profile: { role: "master" } });
+    const response = await POST(new Request("https://wageflow.test/api/billing/statements/issue", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscriptionId: "subscription-1", statementType: "monthly" }),
+    }));
+    expect(response.status).toBe(409);
+    expect(issueStatement).not.toHaveBeenCalled();
+  });
 });
